@@ -1,3 +1,12 @@
-/dist/
-/target/
-/Cargo.lock
+# Rust specific
+target/
+**/*.rs.bk
+Cargo.lock
+
+# Tauri specific
+src-tauri/target/
+src-tauri/.tauri/
+
+# Node.js (if applicable)
+node_modules/
+dist/

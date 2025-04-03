@@ -1,0 +1,15 @@
+[tasks.test_integration]
+dependencies = ["build"]
+command = "wasm-pack"
+args = ["test", "--headless", "--chrome", "--test", "integration"]
+
+[tasks.test_all]
+dependencies = ["test_backend", "test_frontend", "test_integration"]
+
+[tasks.test_backend]
+command = "cargo"
+args = ["test", "--manifest-path", "src-tauri/Cargo.toml"]
+
+[tasks.test_frontend]
+command = "wasm-pack"
+args = ["test", "--headless", "--chrome"]

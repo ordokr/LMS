@@ -1,0 +1,11 @@
+[package]
+name = "index-project"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "index-project"
+path = "index_project.rs"
+
+[dependencies]
+chrono = "0.4"

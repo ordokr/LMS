@@ -1,0 +1,252 @@
+/* Module and Assignment Discussion Components */
+.module-discussion,
+.assignment-discussion {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background-color: #f8f9fa;
+    border-radius: 0.5rem;
+    border: 1px solid #e9ecef;
+}
+
+.module-discussion h3,
+.assignment-discussion h3 {
+    margin-top: 0;
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 0.75rem;
+    margin-bottom: 1rem;
+    color: #343a40;
+}
+
+.discussion-topic {
+    padding: 1rem;
+    background-color: #fff;
+    border-radius: 0.5rem;
+    border: 1px solid #dee2e6;
+}
+
+.discussion-topic h4 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+}
+
+.topic-stats {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-bottom: 1rem;
+}
+
+.topic-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.no-discussion {
+    text-align: center;
+    padding: 2rem 0;
+}
+
+.no-discussion p {
+    margin-bottom: 1rem;
+    color: #6c757d;
+}
+
+.success-message {
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border-radius: 0.25rem;
+    text-align: center;
+}
+
+.success-message p {
+    margin-bottom: 0.5rem;
+}
+
+/* Course Forum Activity Component */
+.course-forum-activity {
+    margin-bottom: 2rem;
+    padding: 1.25rem;
+    background-color: #f8f9fa;
+    border-radius: 0.5rem;
+    border: 1px solid #e9ecef;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.section-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.topic-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.topic-item {
+    border-bottom: 1px solid #e9ecef;
+}
+
+.topic-item:last-child {
+    border-bottom: none;
+}
+
+.topic-link {
+    display: block;
+    padding: 0.75rem 0;
+    text-decoration: none;
+    color: inherit;
+}
+
+.topic-link:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.topic-title {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+    color: #0d6efd;
+}
+
+.topic-meta {
+    display: flex;
+    font-size: 0.85rem;
+    color: #6c757d;
+    justify-content: space-between;
+}
+
+.forum-footer {
+    margin-top: 1rem;
+    text-align: center;
+}
+
+.view-all-btn {
+    display: inline-block;
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem;
+    color: #0d6efd;
+    text-decoration: none;
+}
+
+.view-all-btn:hover {
+    text-decoration: underline;
+}
+
+/* Course Forum Page */
+.course-forum-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+.course-forum-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.course-forum-header h2 {
+    margin: 0;
+}
+
+.back-to-course {
+    text-decoration: none;
+    color: #0d6efd;
+}
+
+.forum-container {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+}
+
+.topic-list-container {
+    background-color: #fff;
+    border-radius: 0.5rem;
+    border: 1px solid #dee2e6;
+    padding: 1.5rem;
+}
+
+.topics-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.topics-table th {
+    text-align: left;
+    padding: 0.75rem;
+    border-bottom: 2px solid #dee2e6;
+    color: #495057;
+}
+
+.topics-table td {
+    padding: 1rem 0.75rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.topic-row:last-child td {
+    border-bottom: none;
+}
+
+.topic-pinned {
+    margin-left: 0.5rem;
+    color: #6c757d;
+}
+
+.new-topic-form {
+    background-color: #fff;
+    border-radius: 0.5rem;
+    border: 1px solid #dee2e6;
+    padding: 1.5rem;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.form-group input,
+.form-group textarea {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    font-family: inherit;
+    font-size: inherit;
+}
+
+.create-topic-btn {
+    margin-top: 1rem;
+}
+
+@media (min-width: 768px) {
+    .topic-title-cell {
+        width: 50%;
+    }
+    
+    .topic-replies,
+    .topic-author {
+        width: 15%;
+    }
+    
+    .topic-last-post {
+        width: 20%;
+    }
+}

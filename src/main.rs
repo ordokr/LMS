@@ -1,13 +1,13 @@
 mod app;
+mod components;
+mod lms;
+mod forum;
+mod utils;
 
-use app::*;
-use leptos::prelude::*;
+use app::App;
+use leptos::*;
 
-fn main() {
+pub fn main() {
     console_error_panic_hook::set_once();
-    mount_to_body(|| {
-        view! {
-            <App/>
-        }
-    })
+    mount_to_body(|cx| view! { cx, <App/> })
 }

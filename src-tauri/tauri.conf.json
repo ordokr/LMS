@@ -32,5 +32,83 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "build": {
+    "beforeBuildCommand": "trunk build",
+    "beforeDevCommand": "trunk serve",
+    "devPath": "http://localhost:8080",
+    "distDir": "../dist"
+  },
+  "package": {
+    "productName": "LMS Platform",
+    "version": "0.1.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "fs": {
+        "all": true,
+        "scope": ["$APPDATA/*", "$APPDATA/courses/*", "$APPDATA/uploads/*"]
+      },
+      "dialog": {
+        "all": true
+      },
+      "http": {
+        "all": true,
+        "request": true,
+        "scope": ["https://**", "http://**"]
+      },
+      "shell": {
+        "all": false,
+        "open": true
+      }
+    },
+    "bundle": {
+      "active": true,
+      "category": "Education",
+      "copyright": "",
+      "deb": {
+        "depends": []
+      },
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ],
+      "identifier": "com.lms.dev",
+      "longDescription": "An offline-first Learning Management System with integrated forum capabilities",
+      "macOS": {
+        "entitlements": null,
+        "exceptionDomain": "",
+        "frameworks": [],
+        "providerShortName": null,
+        "signingIdentity": null
+      },
+      "resources": [],
+      "shortDescription": "LMS Platform",
+      "targets": "all",
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": ""
+      }
+    },
+    "security": {
+      "csp": null
+    },
+    "updater": {
+      "active": false
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "height": 768,
+        "resizable": true,
+        "title": "LMS Platform",
+        "width": 1024
+      }
+    ]
   }
 }

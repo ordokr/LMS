@@ -1,8 +1,8 @@
 [package]
 name = "lms"
-version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+version = "0.0.0"
+description = "Learning Management System with integrated forum"
+authors = ["Your Name"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -15,14 +15,26 @@ name = "lms_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "1.4.0", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
-tauri-plugin-opener = "2"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-rusqlite = { version = "0.31.0", features = ["bundled"] }
-chrono = "0.4"
-axum = "0.7"
+axum = { version = "0.6", features = ["headers", "http2", "macros"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tauri = { version = "1.4.0", features = ["dialog-all", "fs-all", "http-all", "shell-open"] }
 tokio = { version = "1", features = ["full"] }
+sqlx = { version = "0.7", features = ["runtime-tokio", "tls-rustls", "sqlite", "migrate", "json", "time", "macros"] }
+time = "0.3"
+tower = "0.4"
+tower-http = { version = "0.4", features = ["cors", "fs", "trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1.0", features = ["serde", "v4"] }
+jsonwebtoken = "8.0"
+bcrypt = "0.15"
+thiserror = "1.0"
+anyhow = "1.0"
+
+[features]
+# This feature enables closer integration with tauri, but requires tauri presence
+custom-protocol = ["tauri/custom-protocol"]
