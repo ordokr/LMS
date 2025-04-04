@@ -1,0 +1,1434 @@
+const fs = require('fs');
+const path = require('path');
+
+/**
+ * Comprehensive Project Analyzer
+ * 
+ * Analyzes every file in the project to build a complete understanding
+ * of implementation status, relationships, and progress.
+ */
+class ProjectAnalyzer {
+  constructor(baseDir) {
+    this.baseDir = baseDir;
+    this.allFiles = [];
+    this.fileContents = new Map();
+    this.fileStats = {};
+    this.relationships = new Map();
+    this.componentRegistry = new Map();
+    this.modelRegistry = new Map();
+    this.apiRegistry = new Map();
+    
+    // Results
+    this.projectStructure = {
+      directories: new Set(),
+      fileTypes: new Map(),
+      totalSize: 0,
+      totalFiles: 0
+    };
+    
+    this.metrics = {
+      models: { total: 0, implemented: 0, details: [] },
+      apiEndpoints: { total: 0, implemented: 0, details: [] },
+      uiComponents: { total: 0, implemented: 0, details: [] },
+      tests: { total: 0, coverage: 0, details: [] },
+      lmsIntegration: { total: 0, implemented: 0, details: [] },
+      forumFeatures: { total: 0, implemented: 0, details: [] }
+    };
+    
+    // File patterns
+    this.patterns = {
+      models: /struct|enum|trait|impl|type\s+\w+/,
+      api: /Router|get|post|put|delete|patch|route|handler|endpoint/i,
+      ui: /component|view|page|render|html|leptos|yew|view_|css|div|class=/i,
+      test: /#\[test\]|assert|should|test_|mock|fixture/i,
+      canvas: /canvas|lms|course|assignment|module|quiz|submission|grade|enrollment/i,
+      forum: /forum|category|topic|post|thread|reply|discussion|message|comment/i
+    };
+    
+    // Ignored directories
+    this.ignoreDirs = new Set([
+      'node_modules',
+      'target',
+      '.git',
+      'dist',
+      'build'
+    ]);
+  }
+  
+  /**
+   * Full project analysis
+   */
+  async analyze() {
+    console.log("Starting comprehensive analysis of " + (this.baseDir) + "...");
+    
+    console.log("Phase 1: Discovering all files...");
+    await this.discoverAllFiles(this.baseDir);
+    console.log("Found " + (this.allFiles.length) + " files in " + (this.projectStructure.directories.size) + " directories");
+    
+    console.log("Phase 2: Reading file contents...");
+    await this.readAllFileContents();
+    
+    console.log("Phase 3: Analyzing file contents...");
+    await this.analyzeFileContents();
+    
+    // Add specific API analysis
+    console.log("Phase 3a: Analyzing API implementations...");
+    const apiPath = path.join(this.baseDir, 'src', 'api');
+    this.analyzeApiFiles(apiPath);
+    
+    // Also check src-tauri/src/api if it exists
+    const tauriApiPath = path.join(this.baseDir, 'src-tauri', 'src', 'api');
+    if (fs.existsSync(tauriApiPath)) {
+      this.analyzeApiFiles(tauriApiPath);
+    }
+    
+    console.log("Phase 4: Identifying relationships between files...");
+    await this.mapRelationships();
+    
+    console.log("Phase 5: Evaluating implementation status...");
+    await this.evaluateImplementationStatus();
+    
+    console.log("Phase 6: Generating reports...");
+    this.updateProjectStatus();
+    this.generateDetailedReport();
+    this.generateRelationshipMap();
+    
+    console.log("Analysis complete!");
+    
+    return {
+      metrics: this.metrics,
+      structure: this.projectStructure,
+      fileStats: this.fileStats
+    };
+  }
+  
+  /**
+   * Discover all files in the project recursively
+   */
+  async discoverAllFiles(dir, relativePath = '') {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      const relPath = relativePath ? path.join(relativePath, entry.name) : entry.name;
+      
+      if (entry.isDirectory()) {
+        if (this.ignoreDirs.has(entry.name)) continue;
+        
+        this.projectStructure.directories.add(relPath);
+        await this.discoverAllFiles(fullPath, relPath);
+      } else {
+        const ext = path.extname(entry.name).toLowerCase();
+        this.projectStructure.fileTypes.set(
+          ext, 
+          (this.projectStructure.fileTypes.get(ext) || 0) + 1
+        );
+        
+        const stats = fs.statSync(fullPath);
+        this.projectStructure.totalSize += stats.size;
+        this.projectStructure.totalFiles += 1;
+        
+        this.allFiles.push({
+          path: fullPath,
+          relativePath: relPath,
+          extension: ext,
+          size: stats.size,
+          modified: stats.mtime
+        });
+      }
+    }
+  }
+  
+  /**
+   * Read the contents of all discovered files
+   */
+  async readAllFileContents() {
+    const textExtensions = new Set([
+      '.rs', '.toml', '.js', '.ts', '.json', '.md', '.txt', '.html', 
+      '.css', '.scss', '.yaml', '.yml', '.sh', '.bat', '.sql', '.graphql',
+      '.jsx', '.tsx', '.vue', '.svelte', '.xml', '.conf', '.ini', '.env',
+      '.gitignore', '.dockerignore', '.editorconfig', '', '.py', '.rb'
+    ]);
+    
+    for (const file of this.allFiles) {
+      try {
+        if (textExtensions.has(file.extension)) {
+          const content = fs.readFileSync(file.path, 'utf8');
+          this.fileContents.set(file.relativePath, content);
+          
+          // Initial categorization
+          this.categorizeFile(file.relativePath, content);
+        }
+      } catch (err) {
+        console.error("Error reading file " + (file.relativePath) + ":", err.message);
+      }
+    }
+  }
+  
+  /**
+   * Initial categorization of file types
+   */
+  categorizeFile(filePath, content) {
+    const fileType = {
+      isRust: filePath.endsWith('.rs'),
+      isMarkdown: filePath.endsWith('.md'),
+      isJSON: filePath.endsWith('.json'),
+      isJavaScript: filePath.endsWith('.js') || filePath.endsWith('.ts'),
+      isHTML: filePath.endsWith('.html'),
+      isCSS: filePath.endsWith('.css') || filePath.endsWith('.scss'),
+      isConfig: filePath.endsWith('.toml') || filePath.endsWith('.yaml') || filePath.endsWith('.yml'),
+      isModel: this.patterns.models.test(content),
+      isAPI: this.patterns.api.test(content),
+      isUI: this.patterns.ui.test(content),
+      isTest: this.patterns.test.test(content),
+      isCanvas: this.patterns.canvas.test(content),
+      isForum: this.patterns.forum.test(content),
+      lineCount: content.split('\n').length,
+      charCount: content.length
+    };
+    
+    this.fileStats[filePath] = fileType;
+  }
+  
+  /**
+   * Analyze the content of all files in depth
+   */
+  async analyzeFileContents() {
+    // Analyze Rust files
+    const rustFiles = this.allFiles.filter(file => file.extension === '.rs');
+    rustFiles.forEach(file => this.analyzeRustFile(file.relativePath));
+    
+    // Analyze Markdown files
+    const markdownFiles = this.allFiles.filter(file => file.extension === '.md');
+    markdownFiles.forEach(file => this.analyzeMarkdownFile(file.relativePath));
+    
+    // Analyze JSON files
+    const jsonFiles = this.allFiles.filter(file => file.extension === '.json');
+    jsonFiles.forEach(file => this.analyzeJSONFile(file.relativePath));
+    
+    // Analyze configurations
+    const configFiles = this.allFiles.filter(
+      file => ['.toml', '.yaml', '.yml'].includes(file.extension)
+    );
+    configFiles.forEach(file => this.analyzeConfigFile(file.relativePath));
+  }
+  
+  /**
+   * Analyze a Rust file in depth
+   */
+  analyzeRustFile(filePath) {
+    const content = this.fileContents.get(filePath);
+    if (!content) return;
+    
+    // Parse structs
+    const structRegex = /struct\s+(\w+)(?:<[^>]*>)?\s*{([^}]*)}/g;
+    let match;
+    while ((match = structRegex.exec(content)) !== null) {
+      const name = match[1];
+      const fields = match[2].trim();
+      
+      const fieldCount = fields.split(',').filter(f => f.trim()).length;
+      
+      this.modelRegistry.set(name, {
+        name,
+        filePath,
+        type: 'struct',
+        fieldCount,
+        fields: fields,
+        references: this.findReferences(content, name),
+        methodCount: 0,
+        isComplete: fieldCount > 0
+      });
+      
+      this.metrics.models.total++;
+    }
+    
+    // Parse enums
+    const enumRegex = /enum\s+(\w+)(?:<[^>]*>)?\s*{([^}]*)}/g;
+    while ((match = enumRegex.exec(content)) !== null) {
+      const name = match[1];
+      const variants = match[2].trim();
+      
+      const variantCount = variants.split(',').filter(v => v.trim()).length;
+      
+      this.modelRegistry.set(name, {
+        name,
+        filePath,
+        type: 'enum',
+        variantCount,
+        variants: variants,
+        references: this.findReferences(content, name),
+        methodCount: 0,
+        isComplete: variantCount > 0
+      });
+      
+      this.metrics.models.total++;
+    }
+    
+    // Parse impl blocks
+    const implRegex = /impl(?:\s*<[^>]*>)?\s+(\w+)(?:<[^>]*>)?\s*{([^}]*)}/g;
+    while ((match = implRegex.exec(content)) !== null) {
+      const structName = match[1];
+      const implBody = match[2];
+      
+      const methods = implBody.match(/fn\s+\w+/g) || [];
+      
+      const model = this.modelRegistry.get(structName);
+      if (model) {
+        model.methodCount += methods.length;
+      }
+    }
+    
+    // Parse route handlers
+    const routeRegex = /#\[(?:get|post|put|delete|patch|head|options|trace|connect)\([^)]*\)\]\s*(?:pub\s+)?async\s+fn\s+(\w+)/g;
+    while ((match = routeRegex.exec(content)) !== null) {
+      const name = match[1];
+      
+      this.apiRegistry.set(name, {
+        name,
+        filePath,
+        type: 'handler',
+        references: this.findReferences(content, name)
+      });
+      
+      this.metrics.apiEndpoints.total++;
+    }
+    
+    // Parse router methods
+    const routerRegex = /\.(?:get|post|put|delete|patch|head|options|trace|connect)\((?:"[^"]*"|'[^']*'),\s*(\w+)(?:::[\w:]+)?\)/g;
+    while ((match = routerRegex.exec(content)) !== null) {
+      const name = match[1];
+      
+      this.apiRegistry.set(name, {
+        name,
+        filePath,
+        type: 'router',
+        references: this.findReferences(content, name)
+      });
+      
+      this.metrics.apiEndpoints.total++;
+    }
+    
+    // Parse component functions
+    const componentRegex = /#\[(?:component|server|island)(?:\([^)]*\))?\]\s*(?:pub\s+)?fn\s+(\w+)(?:<[^>]*>)?/g;
+    while ((match = componentRegex.exec(content)) !== null) {
+      const name = match[1];
+      
+      this.componentRegistry.set(name, {
+        name,
+        filePath,
+        references: this.findReferences(content, name)
+      });
+      
+      this.metrics.uiComponents.total++;
+    }
+    
+    // Parse test functions
+    const testRegex = /#\[test\]\s*(?:pub\s+)?fn\s+(\w+)/g;
+    while ((match = testRegex.exec(content)) !== null) {
+      const name = match[1];
+      
+      this.metrics.tests.details.push({
+        name,
+        filePath
+      });
+      
+      this.metrics.tests.total++;
+    }
+  }
+  
+  /**
+   * Find references to a name in content
+   */
+  findReferences(content, name) {
+    const references = [];
+    const lines = content.split('\n');
+    
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].includes(name)) {
+        const lineNumber = i + 1;
+        const context = lines[i].trim();
+        if (!context.startsWith('//') && !context.startsWith('/*')) {
+          references.push({ lineNumber, context });
+        }
+      }
+    }
+    
+    return references;
+  }
+  
+  /**
+   * Analyze a markdown file
+   */
+  analyzeMarkdownFile(filePath) {
+    const content = this.fileContents.get(filePath);
+    if (!content) return;
+    
+    // Extract headings
+    const headingRegex = /^(#{1,6})\s+(.+)$/gm;
+    const headings = [];
+    
+    let match;
+    while ((match = headingRegex.exec(content)) !== null) {
+      const level = match[1].length;
+      const text = match[2].trim();
+      headings.push({ level, text });
+    }
+    
+    // Extract code blocks
+    const codeBlockRegex = /```([a-z]*)\n([\s\S]*?)```/g;
+    const codeBlocks = [];
+    
+    while ((match = codeBlockRegex.exec(content)) !== null) {
+      const language = match[1] || 'text';
+      const code = match[2].trim();
+      codeBlocks.push({ language, code });
+    }
+    
+    // Check for lms references
+    const hasLMSContent = this.patterns.canvas.test(content);
+    const hasForumContent = this.patterns.forum.test(content);
+    
+    this.fileStats[filePath] = {
+      ...this.fileStats[filePath],
+      headings,
+      codeBlocks,
+      hasLMSContent,
+      hasForumContent
+    };
+  }
+  
+  /**
+   * Analyze a JSON file
+   */
+  analyzeJSONFile(filePath) {
+    const content = this.fileContents.get(filePath);
+    if (!content) return;
+    
+    try {
+      const json = JSON.parse(content);
+      
+      this.fileStats[filePath] = {
+        ...this.fileStats[filePath],
+        jsonStructure: this.summarizeJSONStructure(json)
+      };
+    } catch (e) {
+      console.error("Error parsing JSON file " + (filePath) + ":", e.message);
+    }
+  }
+  
+  /**
+   * Summarize JSON structure
+   */
+  summarizeJSONStructure(json) {
+    if (Array.isArray(json)) {
+      return {
+        type: 'array',
+        length: json.length,
+        sample: json.length > 0 ? typeof json[0] : null
+      };
+    } else if (typeof json === 'object' && json !== null) {
+      return {
+        type: 'object',
+        keys: Object.keys(json),
+        keyCount: Object.keys(json).length
+      };
+    } else {
+      return {
+        type: typeof json
+      };
+    }
+  }
+  
+  /**
+   * Analyze a configuration file
+   */
+  analyzeConfigFile(filePath) {
+    const content = this.fileContents.get(filePath);
+    if (!content) return;
+    
+    // Check for dependencies
+    const dependencyRegex = /dependencies\s*=\s*{([^}]*)}/;
+    const match = content.match(dependencyRegex);
+    
+    if (match) {
+      const dependenciesBlock = match[1];
+      const dependencyList = [];
+      
+      const depRegex = /['"]?(\w+)['"]?\s*=\s*['"]([^'"]+)['"]/g;
+      let depMatch;
+      
+      while ((depMatch = depRegex.exec(dependenciesBlock)) !== null) {
+        dependencyList.push({
+          name: depMatch[1],
+          version: depMatch[2]
+        });
+      }
+      
+      this.fileStats[filePath] = {
+        ...this.fileStats[filePath],
+        dependencies: dependencyList
+      };
+    }
+  }
+  
+  /**
+   * Map relationships between files
+   */
+  async mapRelationships() {
+    for (const [filePath, content] of this.fileContents.entries()) {
+      const relationships = [];
+      
+      // Find imports and uses
+      if (filePath.endsWith('.rs')) {
+        this.findRustRelationships(filePath, content, relationships);
+      }
+      
+      // Find links in markdown
+      if (filePath.endsWith('.md')) {
+        this.findMarkdownLinks(filePath, content, relationships);
+      }
+      
+      this.relationships.set(filePath, relationships);
+    }
+  }
+  
+  /**
+   * Find relationships in Rust files
+   */
+  findRustRelationships(filePath, content, relationships) {
+    // Find use statements
+    const useRegex = /use\s+([^;]+);/g;
+    let match;
+    
+    while ((match = useRegex.exec(content)) !== null) {
+      const importPath = match[1].trim();
+      relationships.push({
+        type: 'import',
+        target: importPath,
+        context: match[0]
+      });
+    }
+    
+    // Find mod statements
+    const modRegex = /mod\s+(\w+);/g;
+    
+    while ((match = modRegex.exec(content)) !== null) {
+      const modName = match[1];
+      relationships.push({
+        type: 'module',
+        target: modName,
+        context: match[0]
+      });
+    }
+  }
+  
+  /**
+   * Find links in markdown files
+   */
+  findMarkdownLinks(filePath, content, relationships) {
+    // Find markdown links
+    const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+    let match;
+    
+    while ((match = linkRegex.exec(content)) !== null) {
+      const linkText = match[1];
+      const linkTarget = match[2];
+      
+      relationships.push({
+        type: 'link',
+        text: linkText,
+        target: linkTarget,
+        context: match[0]
+      });
+    }
+  }
+  
+  /**
+   * Evaluate implementation status based on all collected information
+   */
+  async evaluateImplementationStatus() {
+    // Process models
+    for (const [name, model] of this.modelRegistry.entries()) {
+      const fieldOrVariantCount = model.type === 'struct' ? model.fieldCount : model.variantCount;
+      
+      // Calculate completeness
+      let completeness = 0;
+      if (fieldOrVariantCount > 0) {
+        // Base completeness on field/variant count and method count
+        completeness = Math.min(100, Math.round((fieldOrVariantCount + model.methodCount * 2) / (fieldOrVariantCount > 5 ? 10 : 5) * 100));
+      }
+      
+      model.completeness = completeness;
+      
+      this.metrics.models.details.push({
+        name,
+        file: model.filePath,
+        type: model.type,
+        fieldCount: fieldOrVariantCount,
+        methodCount: model.methodCount,
+        completeness
+      });
+      
+      if (completeness >= 50) {
+        this.metrics.models.implemented++;
+      }
+      
+      // Categorize as LMS or Forum related
+      if (this.isForum(name, model)) {
+        this.metrics.forumFeatures.total++;
+        if (completeness >= 50) this.metrics.forumFeatures.implemented++;
+        
+        this.metrics.forumFeatures.details.push({
+          name,
+          file: model.filePath,
+          completeness
+        });
+      } else if (this.isLMS(name, model)) {
+        this.metrics.lmsIntegration.total++;
+        if (completeness >= 50) this.metrics.lmsIntegration.implemented++;
+        
+        this.metrics.lmsIntegration.details.push({
+          name,
+          file: model.filePath,
+          completeness
+        });
+      }
+    }
+    
+    // Process API endpoints
+    for (const [name, api] of this.apiRegistry.entries()) {
+      const filePath = api.filePath;
+      const content = this.fileContents.get(filePath);
+      
+      if (!content) continue;
+      
+      // Find function body
+      const funcRegex = new RegExp("(?:async\\s+)?fn\\s+" + (name) + "[^{]*{([^}]*(?:{[^}]*}[^}]*)*)}");
+      const match = content.match(funcRegex);
+      
+      let completeness = 0;
+      if (match) {
+        const body = match[1];
+        completeness = this.estimateImplementationCompleteness(body);
+      }
+      
+      this.metrics.apiEndpoints.details.push({
+        name,
+        file: filePath,
+        completeness
+      });
+      
+      if (completeness >= 50) {
+        this.metrics.apiEndpoints.implemented++;
+      }
+      
+      // Categorize as LMS or Forum related
+      if (this.isForum(name, api)) {
+        this.metrics.forumFeatures.total++;
+        if (completeness >= 50) this.metrics.forumFeatures.implemented++;
+        
+        this.metrics.forumFeatures.details.push({
+          name,
+          file: filePath,
+          completeness
+        });
+      } else if (this.isLMS(name, api)) {
+        this.metrics.lmsIntegration.total++;
+        if (completeness >= 50) this.metrics.lmsIntegration.implemented++;
+        
+        this.metrics.lmsIntegration.details.push({
+          name,
+          file: filePath,
+          completeness
+        });
+      }
+    }
+    
+    // Process UI components
+    for (const [name, component] of this.componentRegistry.entries()) {
+      const filePath = component.filePath;
+      const content = this.fileContents.get(filePath);
+      
+      if (!content) continue;
+      
+      // Find function body
+      const funcRegex = new RegExp("fn\\s+" + (name) + "(?:<[^>]*>)?\\s*\\([^)]*\\)\\s*->\\s*[^{]+\\s*{([^}]*(?:{[^}]*}[^}]*)*)}");
+      const match = content.match(funcRegex);
+      
+      let completeness = 0;
+      if (match) {
+        const body = match[1];
+        completeness = this.estimateUIComponentCompleteness(body);
+      }
+      
+      this.metrics.uiComponents.details.push({
+        name,
+        file: filePath,
+        completeness
+      });
+      
+      if (completeness >= 50) {
+        this.metrics.uiComponents.implemented++;
+      }
+    }
+    
+    // Calculate test coverage
+    const totalFunctions = Array.from(this.fileContents.entries())
+      .filter(([path]) => path.endsWith('.rs'))
+      .reduce((count, [_, content]) => {
+        const functionMatches = content.match(/fn\s+\w+/g) || [];
+        return count + functionMatches.length;
+      }, 0);
+    
+    this.metrics.tests.coverage = totalFunctions > 0 
+      ? Math.min(100, Math.round((this.metrics.tests.total / totalFunctions) * 100)) 
+      : 0;
+  }
+  
+  /**
+   * Check if a model or API is forum related
+   */
+  isForum(name, item) {
+    const forumTerms = ['category', 'topic', 'post', 'tag', 'forum', 'thread', 'comment', 'reaction', 'notification'];
+    const lowerName = name.toLowerCase();
+    
+    return forumTerms.some(term => lowerName.includes(term)) ||
+      (item.filePath && item.filePath.toLowerCase().includes('forum'));
+  }
+  
+  /**
+   * Check if a model or API is LMS related
+   */
+  isLMS(name, item) {
+    const lmsTerms = ['course', 'assignment', 'module', 'quiz', 'submission', 'grade', 'canvas', 'lms', 'enrollment'];
+    const lowerName = name.toLowerCase();
+    
+    return lmsTerms.some(term => lowerName.includes(term)) ||
+      (item.filePath && item.filePath.toLowerCase().includes('lms'));
+  }
+  
+  /**
+   * Estimate implementation completeness of a function body
+   */
+  estimateImplementationCompleteness(body) {
+    if (!body || body.trim() === "") return 0;
+    
+    // If it only has todo! or unimplemented! macros, it's a stub
+    if (body.trim().match(/^\s*(?:todo|unimplemented)!\(\);?\s*$/)) {
+      return 10; // Just a stub
+    }
+    
+    // Count statements as an estimate of complexity
+    const statements = body.split(';').length;
+    
+    // Check for common patterns that indicate completeness
+    const hasErrorHandling = body.includes("Result<") || body.includes("match ") || body.includes("if let ");
+    const hasDatabaseAccess = body.includes(".query") || body.includes(".execute") || body.includes("repository");
+    const hasReturnValue = body.includes("return ");
+    const hasLogic = statements > 3;
+    
+    // Calculate completeness score
+    let score = 20; // Base score for non-empty function
+    
+    if (hasLogic) score += 20;
+    if (hasErrorHandling) score += 20;
+    if (hasDatabaseAccess) score += 20;
+    if (hasReturnValue) score += 20;
+    
+    return Math.min(100, score);
+  }
+  
+  /**
+   * Estimate UI component completeness
+   */
+  estimateUIComponentCompleteness(body) {
+    if (!body || body.trim() === "") return 0;
+    
+    // If it only has todo! or unimplemented! macros, it's a stub
+    if (body.trim().match(/^\s*(?:todo|unimplemented)!\(\);?\s*$/)) {
+      return 10; // Just a stub
+    }
+    
+    // Leptos-specific patterns
+    const hasSignals = body.includes("create_signal") || body.includes("create_rw_signal");
+    const hasEffects = body.includes("create_effect");
+    const hasResources = body.includes("create_resource");
+    const hasComponents = (body.match(/<\w+/g) || []).length;
+    const hasEvents = body.includes("on:click") || body.includes("on:input") || body.includes("on_click");
+    const hasConditionals = body.includes("Show") || body.includes("if ");
+    const hasLoops = body.includes("For") || body.includes("for ");
+    const hasClasses = body.includes("class=");
+    
+    // Calculate completeness score
+    let score = 20; // Base score for non-empty component
+    
+    if (hasSignals) score += 10;
+    if (hasEffects) score += 10;
+    if (hasResources) score += 10;
+    if (hasEvents) score += 10;
+    if (hasConditionals) score += 10;
+    if (hasLoops) score += 10;
+    if (hasClasses) score += 10;
+    score += Math.min(20, hasComponents * 5); // Up to 20 points for components
+    
+    return Math.min(100, score);
+  }
+  
+  /**
+   * Update the project status document
+   */
+  updateProjectStatus() {
+    console.log("Updating project status document...");
+    const statusFile = path.join(this.baseDir, 'project_status.md');
+    
+    if (!fs.existsSync(statusFile)) {
+      console.error("Project status file not found!");
+      return;
+    }
+    
+    // Calculate percentages safely
+    const modelPercentage = this.metrics.models.total > 0 
+      ? Math.round((this.metrics.models.implemented / this.metrics.models.total) * 100) 
+      : 0;
+      
+    const apiPercentage = this.metrics.apiEndpoints.total > 0 
+      ? Math.round((this.metrics.apiEndpoints.implemented / this.metrics.apiEndpoints.total) * 100) 
+      : 0;
+      
+    const uiPercentage = this.metrics.uiComponents.total > 0 
+      ? Math.round((this.metrics.uiComponents.implemented / this.metrics.uiComponents.total) * 100) 
+      : 0;
+    
+    let statusContent = fs.readFileSync(statusFile, 'utf8');
+    
+    // Update the implementation percentages
+    statusContent = statusContent.replace(
+    /modelImplementation: "[^"]+"/,]+"/,
+      "modelImplementation: "" + (modelPercentage) + "%""
+    );
+    
+    statusContent = statusContent.replace(
+      /apiImplementation: "[^"]+"/,
+      "apiImplementation: "" + (apiPercentage) + "%""
+    );
+    
+    statusContent = statusContent.replace(
+      /uiImplementation: "[^"]+"/,
+      "uiImplementation: "" + (uiPercentage) + "%""
+    );
+    
+    statusContent = statusContent.replace(
+      /testCoverage: "[^"]+"/,
+      "testCoverage: "" + (this.metrics.tests.coverage) + "%""
+    );
+    
+    // Update the last updated date
+    const today = new Date().toISOString().split('T')[0];
+    statusContent = statusContent.replace(
+      /_Last updated: \*\*[^*]+\*\*/,
+      "_Last updated: **" + (today) + "**"
+    );
+    
+    // Add relationship maps directly into project_status.md
+    // First check if the Relationship Map section exists
+    if (!statusContent.includes('## 🔄 Relationship Map')) {
+      // Add a new section for the relationship map
+      statusContent += '\n\n---\n\n## 🔄 Relationship Map\n\n';
+      statusContent += '_This section is auto-generated and shows key relationships between components_\n\n';
+      
+      // Add model relationships
+      statusContent += '### Model Relationships\n\n';
+      statusContent += '```mermaid\nclassDiagram\n';
+      
+      // Add simplified model relationships (top 5-10 models only)
+      const topModels = this.metrics.models.details
+        .sort((a, b) => b.completeness - a.completeness)
+        .slice(0, 10);
+      
+      // Add classes
+      for (const model of topModels) {
+        statusContent += "    class " + (model.name) + "\n";
+      }
+      
+      // Add some relationships based on file analysis
+      this.addModelRelationshipsToStatus(statusContent, topModels);
+      
+      statusContent += '```\n\n';
+      
+      // Add module structure section
+      statusContent += '### Module Structure\n\n';
+      statusContent += '```mermaid\nflowchart TD\n';
+      statusContent += '    src[src] --> models\n';
+      statusContent += '    src --> api\n';
+      statusContent += '    src --> services\n';
+      statusContent += '    src --> ui\n';
+      statusContent += '    models --> forum_models[forum models]\n';
+      statusContent += '    models --> lms_models[lms models]\n';
+      statusContent += '    api --> forum_api[forum api]\n';
+      statusContent += '    api --> auth_api[auth api]\n';
+      statusContent += '    api --> canvas_api[canvas api]\n';
+      statusContent += '```\n\n';
+      
+      // Add note about detailed relationship maps
+      statusContent += '> **Note:** For more detailed relationship maps, see the [Detailed Relationship Map](./docs/relationships.md) generated during analysis.\n';
+    }
+    
+    // Write back the updated content
+    fs.writeFileSync(statusFile, statusContent);
+    
+    console.log("Project status document updated successfully!");
+    
+    // Move the generated relationship map to the docs directory
+    this.moveRelationshipMapToDocFolder();
+    
+    // Generate summary information for implementation_details and include a reference in project_status.md
+    this.generateImplementationSummary();
+  }
+  
+  /**
+   * Generate detailed implementation report
+   */
+  generateDetailedReport() {
+    console.log("Generating detailed implementation report...");
+    
+    const reportFile = path.join(this.baseDir, 'implementation_details.md');
+    let report = "# Comprehensive Implementation Report\n_Generated on " + (new Date().toISOString().split('T')[0]) + "_\n\n";
+    
+    // Project overview
+    report += `## Project Overview\n\n`;
+    report += "- **Total Files**: " + (this.projectStructure.totalFiles) + "\n";
+    report += "- **Total Directories**: " + (this.projectStructure.directories.size) + "\n";
+    report += "- **Total Size**: " + ((this.projectStructure.totalSize / 1024 / 1024).toFixed(2)) + " MB\n\n";
+    
+    // File type breakdown
+    report += `### File Types\n\n`;
+    report += "| Extension | Count |\n";
+    report += "|-----------|-------|\n";
+    
+    for (const [ext, count] of this.projectStructure.fileTypes.entries()) {
+      report += `| ${ext || '(no extension)'} | ${count} |\n";
+    }
+    
+    report += "\n";
+    
+    // Add models section
+    const modelPercentage = this.metrics.models.total > 0 
+      ? Math.round((this.metrics.models.implemented / this.metrics.models.total) * 100) 
+      : 0;
+      
+    report += "## Models (" + modelPercentage + "% Complete)\n\n";
+    report += "| Model | File | Type | Completeness | Fields/Methods |\n";
+    report += "|-------|------|------|-------------|----------------|\n";
+    
+    this.metrics.models.details.forEach(model => {
+      const type = model.type || "Struct";
+      const fieldsOrVariants = "" + (model.fieldCount) + " fields";
+        
+      report += "| " + (model.name) + " | " + (model.file) + " | " + (type) + " | " + (model.completeness) + "% | " + (fieldsOrVariants) + ", " + (model.methodCount) + " methods |\n";
+    });
+    
+    report += "\n";
+    
+    // Add API endpoints section
+    const apiPercentage = this.metrics.apiEndpoints.total > 0 
+      ? Math.round((this.metrics.apiEndpoints.implemented / this.metrics.apiEndpoints.total) * 100) 
+      : 0;
+      
+    report += "## API Endpoints (" + (apiPercentage) + "% Complete)\n\n";
+    
+    if (this.metrics.apiEndpoints.total > 0) {
+      report += "| Handler | File | Completeness |\n";
+      report += "|---------|------|-------------|\n";
+      
+      this.metrics.apiEndpoints.details.forEach(endpoint => {
+        report += `| ${endpoint.name} | ${endpoint.file} | ${endpoint.completeness}% |\n";
+      });
+    } else {
+      report += "*No API endpoints found in the codebase.*\n";
+    }
+    
+    report += "\n";
+    
+    // Add UI components section
+    const uiPercentage = this.metrics.uiComponents.total > 0 
+      ? Math.round((this.metrics.uiComponents.implemented / this.metrics.uiComponents.total) * 100) 
+      : 0;
+      
+    report += "## UI Components (" + (uiPercentage) + "% Complete)\n\n";
+    
+    if (this.metrics.uiComponents.total > 0) {
+      report += "| Component | File | Completeness |\n";
+      report += "|-----------|------|-------------|\n";
+      
+      this.metrics.uiComponents.details.forEach(component => {
+        report += "| " + (component.name) + " | " + (component.file) + " | " + (component.completeness) + "% |\n";
+      });
+    } else {
+      report += "*No UI components found in the codebase.*\n";
+    }
+    
+    report += "\n";
+    
+    // Add forum features section
+    const forumPercentage = this.metrics.forumFeatures.total > 0
+      ? Math.round((this.metrics.forumFeatures.implemented / this.metrics.forumFeatures.total) * 100)
+      : 0;
+      
+    report += "## Forum Features (" + (forumPercentage) + "% Complete)\n\n";
+    
+    if (this.metrics.forumFeatures.total > 0) {
+      report += "| Feature | File | Completeness |\n";
+      report += "|---------|------|-------------|\n";
+      
+      this.metrics.forumFeatures.details.forEach(feature => {
+        report += `| ${feature.name} | ${feature.file} | ${feature.completeness}% |\n";
+      });
+    } else {
+      report += "*No forum features found in the codebase.*\n";
+    }
+    
+    report += "\n";
+    
+    // Add LMS integration section
+    const lmsPercentage = this.metrics.lmsIntegration.total > 0
+      ? Math.round((this.metrics.lmsIntegration.implemented / this.metrics.lmsIntegration.total) * 100)
+      : 0;
+      
+    report += "## LMS Integration (" + (lmsPercentage) + "% Complete)\n\n";
+    
+    if (this.metrics.lmsIntegration.total > 0) {
+      report += "| Feature | File | Completeness |\n";
+      report += "|---------|------|-------------|\n";
+      
+      this.metrics.lmsIntegration.details.forEach(feature => {
+        report += "| " + (feature.name) + " | " + (feature.file) + " | " + (feature.completeness) + "% |\n";
+      });
+    } else {
+      report += "*No LMS integration features found in the codebase.*\n";
+    }
+    
+    report += "\n";
+    
+    // Add tests section
+    report += "## Tests (" + (this.metrics.tests.coverage) + "% Coverage)\n\n";
+    
+    if (this.metrics.tests.total > 0) {
+      report += "| Test | File |\n";
+      report += "|------|------|\n";
+      
+      this.metrics.tests.details.forEach(test => {
+        report += "| " + (test.name) + " | " + (test.filePath) + " |\n";
+      });
+    } else {
+      report += "*No tests found in the codebase.*\n";
+    }
+    
+    report += "\n";
+    
+    // Source files list
+    report += `## All Source Files\n\n`;
+    report += "| File Path | Size | Type |\n";
+    report += "|-----------|------|------|\n";
+    
+    const mainSourceFiles = this.allFiles
+      .filter(file => file.extension === '.rs')
+      .sort((a, b) => a.relativePath.localeCompare(b.relativePath));
+      
+    for (const file of mainSourceFiles) {
+      const size = (file.size / 1024).toFixed(2) + " KB";
+      let fileType = "Other";
+      
+      const stats = this.fileStats[file.relativePath];
+      if (stats) {
+        if (stats.isModel) fileType = "Model";
+        else if (stats.isAPI) fileType = "API";
+        else if (stats.isUI) fileType = "UI";
+        else if (stats.isTest) fileType = "Test";
+      }
+      
+      report += "| " + (file.relativePath) + " | " + (size) + " | " + (fileType) + " |\n";
+    }
+    
+    // Write the report
+    fs.writeFileSync(reportFile, report);
+    console.log("Comprehensive report generated at " + (reportFile) + "");
+  }
+  
+  /**
+   * Generate a relationship map
+   */
+  generateRelationshipMap() {
+    console.log("Generating relationship map...");
+    
+    const mapFile = path.join(this.baseDir, 'relationship_map.md');
+    let map = "# Code Relationship Map\n_Generated on " + (new Date().toISOString().split('T')[0]) + "_\n\n";
+    
+    // Model dependencies
+    map += `## Model Relationships\n\n`;
+    map += "```mermaid\nclassDiagram\n";
+    
+    // Add classes
+    for (const [name, model] of this.modelRegistry.entries()) {
+      map += "    class " + (name) + " {\n";
+      if (model.type === 'struct') {
+        const fields = model.fields.split(',').filter(f => f.trim());
+        fields.forEach(field => {
+          const trimmedField = field.trim().replace(/\/\/.*$/, '').trim();
+          map += "        " + (trimmedField) + "\n";
+        });
+      } else if (model.type === 'enum') {
+        const variants = model.variants.split(',').filter(v => v.trim());
+        variants.forEach(variant => {
+          const trimmedVariant = variant.trim().replace(/\/\/.*$/, '').trim();
+          map += "        " + (trimmedVariant) + "\n";
+        });
+      }
+      map += `    }\n`;
+    }
+    
+    // Find relationships between models
+    for (const [name, model] of this.modelRegistry.entries()) {
+      // Look for other model names in this model's fields
+      for (const [otherName, _] of this.modelRegistry.entries()) {
+        if (name !== otherName && 
+            (model.fields?.includes(otherName) || 
+             model.variants?.includes(otherName))) {
+          map += "    " + (name) + " --> " + (otherName) + "\n";
+        }
+      }
+    }
+    
+    map += "```\n\n";
+    
+    // Module structure
+    map += `## Module Structure\n\n`;
+    map += "```mermaid\nflowchart TD\n";
+    
+    // Find mod statements to build module hierarchy
+    const modules = new Map();
+    
+    for (const [filePath, content] of this.fileContents.entries()) {
+      if (filePath.endsWith('.rs')) {
+        const modRegex = /mod\s+(\w+);/g;
+        let match;
+        
+        const moduleName = filePath.replace(/\.rs$/, '').split('/').pop();
+        if (!moduleName) continue;
+        
+        modules.set(moduleName, []);
+        
+        while ((match = modRegex.exec(content)) !== null) {
+          const submodule = match[1];
+          modules.get(moduleName).push(submodule);
+        }
+      }
+    }
+    
+    // Add module nodes and relationships
+    let moduleId = 1;
+    const moduleIds = new Map();
+    
+    for (const [module, submodules] of modules.entries()) {
+      const id = "M" + (moduleId++) + "";
+      moduleIds.set(module, id);
+      map += "    " + (id) + "[" + (module) + "]\n";
+    }
+    
+    for (const [module, submodules] of modules.entries()) {
+      const parentId = moduleIds.get(module);
+      
+      for (const submodule of submodules) {
+        const childId = moduleIds.get(submodule);
+        if (childId) {
+          map += "    " + (parentId) + " --> " + (childId) + "\n";
+        }
+      }
+    }
+    
+    map += "```\n\n";
+    
+    // Write the map
+    fs.writeFileSync(mapFile, map);
+    console.log("Relationship map generated at " + (mapFile) + "");
+  }
+
+  // Add this function to the ProjectAnalyzer class to better detect API implementations
+  analyzeApiFiles(apiPath) {
+    if (!fs.existsSync(apiPath)) return;
+    
+    const files = fs.readdirSync(apiPath).filter(file => file.endsWith('.rs'));
+    console.log("Analyzing " + (files.length) + " API files in " + (apiPath) + "");
+    
+    for (const file of files) {
+      const filePath = path.join(apiPath, file);
+      const relativePath = path.relative(this.baseDir, filePath);
+      
+      if (fs.statSync(filePath).isDirectory()) {
+        this.analyzeApiFiles(filePath);
+        continue;
+      }
+      
+      try {
+        const content = fs.readFileSync(filePath, 'utf8');
+        
+        // Look for routes and handlers more aggressively
+        const routePatterns = [
+          // Axum-style route definition
+          /\.(?:route|get|post|put|delete|patch)\s*\([^,]+,\s*(\w+)/g,
+          // Route handler functions
+          /(?:async\s+)?fn\s+(\w+)\s*\([^)]*(?:Request|Response|Json|Path|Query|State)/g,
+          // Route macros
+          /#\[(?:get|post|put|delete|patch)\(.*?\)\]\s*(?:pub\s+)?(?:async\s+)?fn\s+(\w+)/g
+        ];
+        
+        for (const pattern of routePatterns) {
+          let match;
+          while ((match = pattern.exec(content)) !== null) {
+            const handlerName = match[1];
+            
+            // Look for the function body to assess implementation
+            const funcBodyMatch = content.match(
+              new RegExp("(?:async\\s+)?fn\\s+" + (handlerName) + "[^{]*{([^}]*(?:{[^}]*}[^}]*)*)}",'s')
+            );
+            
+            if (funcBodyMatch) {
+              const body = funcBodyMatch[1];
+              const completeness = this.estimateApiImplementationCompleteness(body);
+              
+              this.metrics.apiEndpoints.total++;
+              
+              this.metrics.apiEndpoints.details.push({
+                name: handlerName,
+                file: relativePath,
+                completeness
+              });
+              
+              if (completeness >= 50) {
+                this.metrics.apiEndpoints.implemented++;
+              }
+            }
+          }
+        }
+        
+        // Check for router definitions which might indicate API endpoints
+        if (content.includes('Router::new()') || content.includes('Router::with_state')) {
+          console.log("Found Router definition in " + (relativePath) + "");
+          this.analyzeRouterDefinitions(content, relativePath);
+        }
+        
+      } catch (err) {
+        console.error("Error analyzing API file " + (filePath) + ":", err.message);
+      }
+    }
+  }
+
+  // Add this function to analyze router definitions
+  analyzeRouterDefinitions(content, filePath) {
+    const routerLines = content.split('\n').filter(line => 
+      line.includes('.route(') || 
+      line.includes('.nest(') || 
+      line.match(/\.(get|post|put|delete|patch)\(/)
+    );
+    
+    for (const line of routerLines) {
+      try {
+        const match = line.match(/\.(route|get|post|put|delete|patch|nest)\s*\([^,]*,\s*([^)]+)/);
+        if (match) {
+          const handler = match[2].trim();
+          if (handler !== 'Router::new()' && !handler.includes('Router::')) {
+            // Clean up the handler name (remove quotes, trailing commas, etc.)
+            const cleanHandler = handler.replace(/["']/g, '').replace(/,$/, '').trim();
+            
+            // If it references another function, try to find it
+            if (!cleanHandler.includes('|') && !cleanHandler.includes('{') && !cleanHandler.includes('::')) {
+              this.metrics.apiEndpoints.total++;
+              
+              // Look for the function definition to assess completeness
+              const funcDef = this.findFunctionDefinition(content, cleanHandler);
+              const completeness = funcDef ? this.estimateApiImplementationCompleteness(funcDef) : 20;
+              
+              this.metrics.apiEndpoints.details.push({
+                name: cleanHandler,
+                file: filePath,
+                completeness
+              });
+              
+              if (completeness >= 50) {
+                this.metrics.apiEndpoints.implemented++;
+              }
+            } else {
+              // Inline handler or closure
+              this.metrics.apiEndpoints.total++;
+              
+              // Estimate completeness based on the complexity of the inline handler
+              const completeness = handler.includes('{') ? 
+                this.estimateApiImplementationCompleteness(handler) : 30;
+              
+              this.metrics.apiEndpoints.details.push({
+                name: "inline_" + (this.metrics.apiEndpoints.total) + "",
+                file: filePath,
+                completeness
+              });
+              
+              if (completeness >= 50) {
+                this.metrics.apiEndpoints.implemented++;
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error analyzing router line in " + (filePath) + ":", err.message);
+      }
+    }
+  }
+
+  // Add this function to find function definitions
+  findFunctionDefinition(content, funcName) {
+    try {
+      // Escape special regex characters in the function name
+      const escapedFuncName = funcName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      
+      // Fixed regex with proper grouping
+      const funcRegex = new RegExp("(?:async\\s+)?fn\\s+" + (escapedFuncName) + "[^{]*{([^}]*(?:{[^}]*}[^}]*)*)}", 's');
+      const match = content.match(funcRegex);
+      return match ? match[1] : null;
+    } catch (err) {
+      console.error("Error in regex for function "" + (funcName) + "":", err.message);
+      return null;
+    }
+  }
+
+  // Enhanced API implementation completeness estimator
+  estimateApiImplementationCompleteness(body) {
+    if (!body || body.trim() === "") return 0;
+    
+    // If it only has todo! or unimplemented! macros, it's a stub
+    if (body.trim().match(/^\s*(?:todo|unimplemented)!\(\);?\s*$/)) {
+      return 10; // Just a stub
+    }
+    
+    // Count statements as an estimate of complexity
+    const statements = body.split(';').length;
+    
+    // Check for common patterns that indicate completeness
+    const hasErrorHandling = body.includes("Result<") || body.includes("match ") || body.includes("if let ") || body.includes("try_");
+    const hasDatabaseAccess = body.includes(".query") || body.includes(".execute") || body.includes("repository") || body.includes("db.");
+    const hasReturnValue = body.includes("return ") || body.includes("Ok(") || body.includes("Err(");
+    const hasServiceCall = body.includes("::new") || body.includes("service") || body.includes(".get") || body.includes(".find");
+    const hasResponseBuilding = body.includes("Json(") || body.includes("StatusCode") || body.includes("response");
+    const hasJSONParsing = body.includes("serde_json") || body.includes("from_json") || body.includes("to_json");
+    const hasQueryParams = body.includes("Query<") || body.includes("Path<") || body.includes("param");
+    const hasLogic = statements > 3;
+    
+    // Calculate completeness score
+    let score = 20; // Base score for non-empty function
+    
+    if (hasLogic) score += 10;
+    if (hasErrorHandling) score += 15;
+    if (hasDatabaseAccess) score += 15;
+    if (hasReturnValue) score += 10;
+    if (hasServiceCall) score += 10;
+    if (hasResponseBuilding) score += 10;
+    if (hasJSONParsing) score += 5;
+    if (hasQueryParams) score += 5;
+    
+    return Math.min(100, score);
+  }
+
+  // Add this function to move the relationship map
+  moveRelationshipMapToDocFolder() {
+    const mapFile = path.join(this.baseDir, 'relationship_map.md');
+    if (fs.existsSync(mapFile)) {
+      // Ensure docs directory exists
+      const docsDir = path.join(this.baseDir, 'docs');
+      if (!fs.existsSync(docsDir)) {
+        fs.mkdirSync(docsDir);
+      }
+      
+      // Copy the file to docs directory
+      const docMapFile = path.join(docsDir, 'relationships.md');
+      fs.copyFileSync(mapFile, docMapFile);
+      
+      // Remove the original file from root
+      fs.unlinkSync(mapFile);
+      
+      console.log(`Relationship map moved to docs/relationships.md`);
+    }
+  }
+
+  // Add this function to generate implementation summary
+  generateImplementationSummary() {
+    // Create a summary from implementation_details.md and link it from project_status.md
+    const detailsFile = path.join(this.baseDir, 'implementation_details.md');
+    const statusFile = path.join(this.baseDir, 'project_status.md');
+    
+    if (fs.existsSync(detailsFile)) {
+      // Ensure docs directory exists
+      const docsDir = path.join(this.baseDir, 'docs');
+      if (!fs.existsSync(docsDir)) {
+        fs.mkdirSync(docsDir);
+      }
+      
+      // Copy the file to docs directory
+      const docDetailsFile = path.join(docsDir, 'implementation_details.md');
+      fs.copyFileSync(detailsFile, docDetailsFile);
+      
+      // Add a reference to project_status.md if it doesn't exist
+      let statusContent = fs.readFileSync(statusFile, 'utf8');
+      if (!statusContent.includes('## 📊 Detailed Implementation')) {
+        statusContent += '\n\n---\n\n## 📊 Detailed Implementation\n\n';
+        statusContent += '_For complete implementation details, see [Implementation Details](./docs/implementation_details.md)_\n\n';
+        
+        // Add summary stats
+        statusContent += '### Summary\n\n';
+        statusContent += "- **Models**: " + (this.metrics.models.implemented) + "/" + (this.metrics.models.total) + " implemented\n";
+        statusContent += "- **API Endpoints**: " + (this.metrics.apiEndpoints.implemented) + "/" + (this.metrics.apiEndpoints.total) + " implemented\n";
+        statusContent += "- **UI Components**: " + (this.metrics.uiComponents.implemented) + "/" + (this.metrics.uiComponents.total) + " implemented\n";
+        statusContent += "- **Tests**: " + (this.metrics.tests.total) + " tests (" + (this.metrics.tests.coverage) + "% coverage)\n";
+        
+        // Write back the updated content
+        fs.writeFileSync(statusFile, statusContent);
+      }
+      
+      // Remove the original file from root
+      fs.unlinkSync(detailsFile);
+      
+      console.log(`Implementation details moved to docs/implementation_details.md and referenced in project_status.md`);
+    }
+  }
+
+  // Function to add model relationships to the status document
+  addModelRelationshipsToStatus(statusContent, topModels) {
+    const modelNames = topModels.map(model => model.name);
+    
+    // For each model, check if it references other models in the top list
+    for (const model of topModels) {
+      const modelFile = path.join(this.baseDir, model.file);
+      if (fs.existsSync(modelFile)) {
+        const content = fs.readFileSync(modelFile, 'utf8');
+        
+        // Check if this model references other models
+        for (const otherModel of topModels) {
+          if (model.name !== otherModel.name && content.includes(otherModel.name)) {
+            statusContent += "    " + (model.name) + " --> " + (otherModel.name) + "\n";
+          }
+        }
+      }
+    }
+    
+    return statusContent;
+  }
+}
+
+// Execute the analysis
+async function main() {
+  const baseDir = path.resolve(__dirname);
+  const analyzer = new ProjectAnalyzer(baseDir);
+  await analyzer.analyze();
+}
+
+main().catch(err => {
+  console.error("Error during analysis:", err);
+  process.exit(1);
+});

@@ -1,0 +1,27 @@
+/* Or your main CSS file if you don't have a separate forum CSS */
+
+/* Tag Following Styles */
+.tag-preview {
+    padding: 0.35rem 0.65rem;
+    border-radius: 30px;
+    display: inline-block;
+    font-size: 0.85rem;
+}
+
+.tag-color-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+/* Selected Tags Styles */
+.selected-tags .badge {
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 0.5rem 0.65rem;
+}
+
+.selected-tags .btn-close {
+    font-size: 0.6rem;
+}

@@ -1,0 +1,136 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Compare Models",
+      "type": "shell",
+      "command": "python tools/compare_models.py \"${file}\" \"${input:originalFilePath}\"",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "Find Canvas Equivalent",
+      "type": "shell",
+      "command": "python tools/find_canvas_equivalent.py \"${selectedText}\"",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "group": "test"
+    },
+    {
+      "label": "Find Discourse Equivalent",
+      "type": "shell",
+      "command": "python tools/find_discourse_equivalent.py \"${selectedText}\"",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "group": "test"
+    },
+    {
+      "label": "Update Mapping Status",
+      "type": "shell",
+      "command": "python tools/update_mapping.py \"${input:component}\" \"${input:percentage}\" \"${input:notes}\"",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "Generate Rust Model from Canvas",
+      "type": "shell",
+      "command": "python tools/generate_rust_model.py \"${input:canvasModelPath}\" \"${input:outputPath}\"",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "Create New Canvas-Style Model",
+      "type": "shell",
+      "command": "python tools/generate_rust_model.py \"${input:canvasModelName}\"",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Full Codebase Audit",
+      "type": "shell",
+      "command": "python tools/audit_codebase.py",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Generate Model Documentation",
+      "type": "shell",
+      "command": "python tools/extract_model_docs.py",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Generate Port Dashboard",
+      "type": "shell",
+      "command": "python tools/generate_dashboard.py",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": [],
+      "group": "build"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "originalFilePath",
+      "description": "Path to original Canvas/Discourse file",
+      "default": "",
+      "type": "promptString"
+    },
+    {
+      "id": "component",
+      "description": "Component name (e.g. Course, Assignment)",
+      "default": "",
+      "type": "promptString"
+    },
+    {
+      "id": "percentage",
+      "description": "Completion percentage (0-100)",
+      "default": "50",
+      "type": "promptString"
+    },
+    {
+      "id": "notes",
+      "description": "Implementation notes",
+      "default": "",
+      "type": "promptString"
+    },
+    {
+      "id": "canvasModelPath",
+      "description": "Path to Canvas model file",
+      "default": "C:/Users/Tim/Desktop/port/canvas/app/models/",
+      "type": "promptString"
+    },
+    {
+      "id": "outputPath",
+      "description": "Path for output Rust file",
+      "default": "C:/Users/Tim/Desktop/LMS/src/models/",
+      "type": "promptString"
+    }
+  ]
+}

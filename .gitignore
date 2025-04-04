@@ -10,3 +10,6 @@ src-tauri/.tauri/
 # Node.js (if applicable)
 node_modules/
 dist/
+
+# Model audit data (excluding dashboard)
+audit_report.json

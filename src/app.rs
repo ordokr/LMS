@@ -288,6 +288,20 @@ pub fn App(cx: Scope) -> impl IntoView {
                 <Route path="/user/:id/edit" view=|cx| view! { cx, <ProfileEdit/> }/>
                 <Route path="/user/:id/preferences" view=|cx| view! { cx, <UserPreferences/> }/> // Add this line
                 <Route path="/user/:id/topics" view=|cx| view! { cx, <UserSubscriptions/> }/> // Add this line
+
+                // Add routes for notifications
+                <Route path="/notifications" view=|cx| view! { cx, <NotificationsList/> }/>
+                <Route path="/notification-preferences" view=|cx| view! { cx, <NotificationPreferencesPage/> }/>
+                // Add this route to your router configuration
+                <Route path="/forum/tags/followed" view=|cx| view! { cx, <TagFollowing/> }/>
+                // Add to your routes section in the App component
+                <Route path="forum/groups" view=|cx| view! { cx, <GroupManagement/> }/>
+                <Route path="/forum/groups" view=|cx| view! { cx, <GroupManagement/> }/>
+                // Find where you define your routes and add:
+                <Route path="/integration/course-forum" view=|cx| view! { cx, <CourseCategoryLinker/> }/>
+                <Route path="/activity" view=|cx| view! { cx, <ActivityStream/> }/>
+                // Add this route
+                <Route path="/dashboard/integration" view=|cx| view! { cx, <IntegrationDashboard/> }/>
             </Routes>
         </Router>
     }

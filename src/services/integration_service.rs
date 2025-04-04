@@ -3,20 +3,71 @@ use crate::models::forum::{Category, Topic, CreateCategoryRequest, CreateTopicRe
 use crate::services::course_service::CourseService;
 use crate::services::forum_service::ForumService;
 use crate::utils::api_client::ApiClient;
+use crate::sync::{SyncManager, SyncOperation};
+use std::sync::Arc;
+use serde::{Deserialize, Serialize};
+use chrono::{DateTime, Utc};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CrossReference {
+    pub id: String, // Use String to support both server IDs and local IDs
+    pub source_type: EntityType,
+    pub source_id: String,
+    pub target_type: EntityType,
+    pub target_id: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub metadata: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActivityEntry {
+    pub id: String,
+    pub user_id: String,
+    pub entity_type: EntityType,
+    pub entity_id: String,
+    pub action_type: ActionType,
+    pub created_at: DateTime<Utc>,
+    pub metadata: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum EntityType {
+    Course,
+    Module,
+    Assignment,
+    Category,
+    Topic,
+    Post,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum ActionType {
+    Created,
+    Updated,
+    Deleted,
+    Viewed,
+    Commented,
+    Submitted,
+    Graded,
+}
 
 #[derive(Clone)]
 pub struct IntegrationService {
     client: ApiClient,
     course_service: CourseService,
     forum_service: ForumService,
+    sync_manager: Option<Arc<SyncManager>>, // Optional to maintain backward compatibility
 }
 
 impl IntegrationService {
-    pub fn new(course_service: CourseService, forum_service: ForumService) -> Self {
+    pub fn new(course_service: CourseService, forum_service: ForumService, 
+               sync_manager: Option<Arc<SyncManager>>) -> Self {
         Self {
             client: ApiClient::new(),
             course_service,
             forum_service,
+            sync_manager,
         }
     }
     
@@ -30,10 +81,40 @@ impl IntegrationService {
     
     // Get or create a category for a course
     pub async fn ensure_course_category(&self, course_id: i64) -> Result<Category, String> {
-        self.client
-            .post::<(), Category>(&format!("/courses/{}/category", course_id), ())
-            .await
-            .map_err(|e| e.to_string())
+        if self.is_offline() {
+            // Try to get from local storage first
+            match self.get_course_category_local(course_id).await {
+                Ok(category) => Ok(category),
+                Err(_) => {
+                    // Create locally and queue for sync when online
+                    let category = Category {
+                        id: format!("local-{}-{}", course_id, chrono::Utc::now().timestamp_millis()),
+                        name: format!("Course {}", course_id),
+                        // Add other required fields with default values
+                        // ...
+                    };
+                    
+                    // If we have a sync manager, queue this operation
+                    if let Some(sync_manager) = &self.sync_manager {
+                        let _ = sync_manager.queue_operation(
+                            SyncOperation::Create {
+                                entity_type: "course_category".to_string(),
+                                data: serde_json::to_value(&category).unwrap_or_default(),
+                            }
+                        ).await;
+                    }
+                    
+                    // Return the local category
+                    Ok(category)
+                }
+            }
+        } else {
+            // Original online implementation
+            self.client
+                .post::<(), Category>(&format!("/courses/{}/category", course_id), ())
+                .await
+                .map_err(|e| e.to_string())
+        }
     }
     
     // Get topic for a module
@@ -101,6 +182,104 @@ impl IntegrationService {
         };
         
         self.forum_service.create_topic(request).await
+    }
+    
+    // Add an is_offline helper method
+    fn is_offline(&self) -> bool {
+        #[cfg(debug_assertions)]
+        let offline = std::env::var("FORCE_OFFLINE").is_ok();
+        #[cfg(not(debug_assertions))]
+        let offline = self.client.is_offline();
+        
+        offline
+    }
+    
+    // Add local storage methods
+    async fn get_course_category_local(&self, course_id: i64) -> Result<Category, String> {
+        // Implement local storage retrieval
+        // For now, return an error to force creation path
+        Err("Not implemented".to_string())
+    }
+
+    // Add a method to create references
+    pub async fn create_reference(
+        &self, 
+        source_type: EntityType,
+        source_id: &str,
+        target_type: EntityType,
+        target_id: &str,
+        metadata: Option<serde_json::Value>
+    ) -> Result<CrossReference, String> {
+        let reference = CrossReference {
+            id: format!("local-{}", chrono::Utc::now().timestamp_millis()), // Temporary ID
+            source_type,
+            source_id: source_id.to_string(),
+            target_type,
+            target_id: target_id.to_string(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            metadata,
+        };
+        
+        if self.is_offline() {
+            // Store locally and queue for sync
+            if let Some(sync_manager) = &self.sync_manager {
+                let _ = sync_manager.queue_operation(
+                    SyncOperation::Reference {
+                        source_type: format!("{:?}", source_type).to_lowercase(),
+                        source_id: source_id.to_string(),
+                        target_type: format!("{:?}", target_type).to_lowercase(),
+                        target_id: target_id.to_string(),
+                    }
+                ).await;
+            }
+            Ok(reference)
+        } else {
+            // Send to server
+            self.client
+                .post::<CrossReference, CrossReference>("/api/v1/references", reference)
+                .await
+                .map_err(|e| e.to_string())
+        }
+    }
+
+    // Add method to record activities
+    pub async fn record_activity(
+        &self,
+        user_id: &str,
+        entity_type: EntityType,
+        entity_id: &str,
+        action_type: ActionType,
+        metadata: Option<serde_json::Value>,
+    ) -> Result<ActivityEntry, String> {
+        let activity = ActivityEntry {
+            id: format!("local-{}", chrono::Utc::now().timestamp_millis()),
+            user_id: user_id.to_string(),
+            entity_type,
+            entity_id: entity_id.to_string(),
+            action_type,
+            created_at: Utc::now(),
+            metadata,
+        };
+        
+        if self.is_offline() {
+            // Store locally and queue for sync
+            if let Some(sync_manager) = &self.sync_manager {
+                let _ = sync_manager.queue_operation(
+                    SyncOperation::Create {
+                        entity_type: "activity".to_string(),
+                        data: serde_json::to_value(&activity).unwrap_or_default(),
+                    }
+                ).await;
+            }
+            Ok(activity)
+        } else {
+            // Send to server
+            self.client
+                .post::<ActivityEntry, ActivityEntry>("/api/v1/activities", activity)
+                .await
+                .map_err(|e| e.to_string())
+        }
     }
 }
 

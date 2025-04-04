@@ -251,6 +251,86 @@ pub struct GroupMember {
     pub joined_at: chrono::DateTime<chrono::Utc>,
 }
 
+/// Represents a group membership in Canvas
+/// Based on Canvas's GroupMembership model
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GroupMember {
+    pub id: i64,
+    pub group_id: Option<i64>,
+    pub user_id: Option<i64>,
+    pub workflow_state: Option<String>,
+    pub moderator: Option<bool>,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
+    pub just_created: Option<bool>,
+    pub sis_batch_id: Option<i64>,
+    pub sis_import_id: Option<i64>,
+}
+
+impl GroupMember {
+    pub fn new() -> Self {
+        Self {
+            id: 0,
+            group_id: None,
+            user_id: None,
+            workflow_state: None,
+            moderator: None,
+            created_at: None,
+            updated_at: None,
+            just_created: None,
+            sis_batch_id: None,
+            sis_import_id: None,
+        }
+    }
+    
+    /// Create a new membership
+    pub fn create(group_id: i64, user_id: i64) -> Result<Self, String> {
+        // Implementation would connect to backend service
+        let new_member = Self {
+            id: 0, // Would be set by backend
+            group_id: Some(group_id),
+            user_id: Some(user_id),
+            workflow_state: Some("accepted".to_string()),
+            moderator: Some(false),
+            created_at: Some(Utc::now()),
+            updated_at: Some(Utc::now()),
+            just_created: Some(true),
+            sis_batch_id: None,
+            sis_import_id: None,
+        };
+        
+        Ok(new_member)
+    }
+    
+    /// Get the group for this membership
+    pub fn group(&self) -> Option<crate::models::forum::Group> {
+        // Implementation would connect to backend service
+        None
+    }
+    
+    /// Get the user for this membership
+    pub fn user(&self) -> Option<User> {
+        // Implementation would connect to backend service
+        None
+    }
+    
+    /// Accept an invitation to a group
+    pub fn accept(&mut self) -> Result<bool, String> {
+        self.workflow_state = Some("accepted".to_string());
+        self.updated_at = Some(Utc::now());
+        // Implementation would connect to backend service to persist
+        Ok(true)
+    }
+    
+    /// Reject an invitation to a group
+    pub fn reject(&mut self) -> Result<bool, String> {
+        self.workflow_state = Some("rejected".to_string());
+        self.updated_at = Some(Utc::now());
+        // Implementation would connect to backend service to persist
+        Ok(true)
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SiteCustomization {
     pub site_name: String,
@@ -317,4 +397,40 @@ pub struct BackupInfo {
     pub size: usize,
     pub format: String,
     pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+/// Represents a system setting in the admin panel
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Setting {
+    pub id: i64,
+    pub name: Option<String>,
+    pub value: Option<String>,
+    pub description: Option<String>,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
+}
+
+impl Setting {
+    pub fn new() -> Self {
+        Self {
+            id: 0,
+            name: None,
+            value: None,
+            description: None,
+            created_at: None,
+            updated_at: None,
+        }
+    }
+    
+    /// Get a setting by name
+    pub fn get(name: &str) -> Option<Self> {
+        // Implementation would connect to backend service
+        None
+    }
+    
+    /// Set a setting value
+    pub fn set(name: &str, value: &str) -> Result<Self, String> {
+        // Implementation would connect to backend service
+        Err("Not implemented".to_string())
+    }
 }

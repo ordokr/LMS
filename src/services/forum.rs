@@ -583,6 +583,124 @@ impl ForumService {
         let url = format!("/api/forum/tags/{}", id);
         Self::fetch_empty("DELETE", &url).await
     }
+
+    // Add this method to your ForumService implementation
+    pub async fn get_popular_tags(limit: usize) -> Result<Vec<Tag>, AppError> {
+        let resp = Request::get(&format!("/api/forum/tags/popular?limit={}", limit))
+            .send()
+            .await
+            .map_err(|e| AppError::NetworkError(e.to_string()))?;
+
+        if resp.status() != 200 {
+            let error_text = resp.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            return Err(AppError::ApiError(error_text));
+        }
+
+        let tags = resp.json::<Vec<Tag>>().await
+            .map_err(|e| AppError::DeserializationError(e.to_string()))?;
+        
+        Ok(tags)
+    }
+
+    pub async fn get_followed_tags() -> Result<Vec<FollowedTag>, AppError> {
+        let resp = Request::get("/api/forum/tags/followed")
+            .send()
+            .await
+            .map_err(|e| AppError::NetworkError(e.to_string()))?;
+
+        if resp.status() != 200 {
+            let error_text = resp.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            return Err(AppError::ApiError(error_text));
+        }
+
+        let followed_tags = resp.json::<Vec<FollowedTag>>().await
+            .map_err(|e| AppError::DeserializationError(e.to_string()))?;
+        
+        Ok(followed_tags)
+    }
+
+    pub async fn follow_tag(tag_id: i64) -> Result<(), AppError> {
+        let resp = Request::post(&format!("/api/forum/tags/{}/follow", tag_id))
+            .send()
+            .await
+            .map_err(|e| AppError::NetworkError(e.to_string()))?;
+
+        if resp.status() != 200 {
+            let error_text = resp.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            return Err(AppError::ApiError(error_text));
+        }
+        
+        Ok(())
+    }
+
+    pub async fn unfollow_tag(tag_id: i64) -> Result<(), AppError> {
+        let resp = Request::delete(&format!("/api/forum/tags/{}/follow", tag_id))
+            .send()
+            .await
+            .map_err(|e| AppError::NetworkError(e.to_string()))?;
+
+        if resp.status() != 200 {
+            let error_text = resp.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            return Err(AppError::ApiError(error_text));
+        }
+        
+        Ok(())
+    }
+
+    pub async fn update_tag_notification_level(tag_id: i64, level: &str) -> Result<(), AppError> {
+        // Validate level
+        if !["normal", "high", "muted"].contains(&level) {
+            return Err(AppError::ValidationError("Invalid notification level".to_string()));
+        }
+        
+        let resp = Request::put(&format!("/api/forum/tags/{}/notification", tag_id))
+            .json(&serde_json::json!({ "level": level }))
+            .map_err(|e| AppError::SerializationError(e.to_string()))?
+            .send()
+            .await
+            .map_err(|e| AppError::NetworkError(e.to_string()))?;
+
+        if resp.status() != 200 {
+            let error_text = resp.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            return Err(AppError::ApiError(error_text));
+        }
+        
+        Ok(())
+    }
+
+    pub async fn get_followed_tag_topics() -> Result<Vec<TopicSummary>, AppError> {
+        let resp = Request::get("/api/forum/topics/followed-tags")
+            .send()
+            .await
+            .map_err(|e| AppError::NetworkError(e.to_string()))?;
+
+        if resp.status() != 200 {
+            let error_text = resp.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            return Err(AppError::ApiError(error_text));
+        }
+
+        let topics = resp.json::<Vec<TopicSummary>>().await
+            .map_err(|e| AppError::DeserializationError(e.to_string()))?;
+        
+        Ok(topics)
+    }
+
+    pub async fn get_trending_topics() -> Result<Vec<TopicSummary>, AppError> {
+        let resp = Request::get("/api/forum/topics/trending")
+            .send()
+            .await
+            .map_err(|e| AppError::NetworkError(e.to_string()))?;
+
+        if resp.status() != 200 {
+            let error_text = resp.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            return Err(AppError::ApiError(error_text));
+        }
+
+        let topics = resp.json::<Vec<TopicSummary>>().await
+            .map_err(|e| AppError::DeserializationError(e.to_string()))?;
+        
+        Ok(topics)
+    }
 }
 
 // DTOs for search results (could be in a separate module)

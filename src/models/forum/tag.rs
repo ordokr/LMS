@@ -1,18 +1,59 @@
 use serde::{Serialize, Deserialize};
 use chrono::{DateTime, Utc};
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+/// Represents a content tag in Canvas
+/// Based on Canvas's ContentTag model
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Tag {
     pub id: i64,
-    pub name: String,
-    pub slug: String,
-    pub description: Option<String>,
-    pub color: Option<String>,
-    pub icon: Option<String>,
-    pub topic_count: Option<i64>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-    pub is_restricted: bool,
+    pub title: Option<String>,
+    pub context_type: Option<String>,
+    pub context_id: Option<i64>,
+    pub tag_type: Option<String>,
+    pub url: Option<String>,
+    pub workflow_state: Option<String>,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
+    pub content_type: Option<String>,
+    pub content_id: Option<i64>,
+}
+
+impl Tag {
+    pub fn new() -> Self {
+        Self {
+            id: 0,
+            title: None,
+            context_type: None,
+            context_id: None,
+            tag_type: None,
+            url: None,
+            workflow_state: None,
+            created_at: None,
+            updated_at: None,
+            content_type: None,
+            content_id: None,
+        }
+    }
+    
+    /// Find tags for a specific context
+    pub fn find_for_context(context_type: &str, context_id: i64) -> Vec<Self> {
+        // Implementation would connect to backend service
+        Vec::new()
+    }
+    
+    /// Get the content object this tag refers to
+    pub fn content(&self) -> Result<serde_json::Value, String> {
+        // Implementation would fetch the content based on content_type and content_id
+        Err("Not implemented".to_string())
+    }
+    
+    /// Check if the tag is published
+    pub fn published(&self) -> bool {
+        match &self.workflow_state {
+            Some(state) => state == "active",
+            None => false,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -37,4 +78,11 @@ pub struct UpdateTagRequest {
     pub color: Option<Option<String>>,
     pub icon: Option<Option<String>>,
     pub is_restricted: Option<bool>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct FollowedTag {
+    pub tag: Tag,
+    pub notification_level: String, // "muted", "normal", or "high"
+    pub followed_at: chrono::DateTime<chrono::Utc>,
 }

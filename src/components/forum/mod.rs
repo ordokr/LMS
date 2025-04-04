@@ -14,6 +14,8 @@ mod tag_selector;
 mod tag_browser;
 mod tag_detail;
 mod tag_management;
+mod tag_following;
+mod tag_feed;
 
 // Add admin module
 mod admin {
@@ -50,6 +52,19 @@ pub use tag_selector::TagSelector;
 pub use tag_browser::TagBrowser;
 pub use tag_detail::TagDetail;
 pub use tag_management::TagManagement;
+pub use tag_following::TagFollowing;
+pub use tag_feed::TagFeed;
 
 // Export admin components
 pub use admin::*;
+
+mod group_management;
+pub use group_management::GroupManagement;
+
+mod categories;
+mod threads;
+mod posts;
+
+pub use categories::*;
+pub use threads::*;
+pub use posts::*;

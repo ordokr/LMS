@@ -8,7 +8,15 @@ pub use course_service::CourseService;
 pub use auth_service::AuthService;
 pub use integration_service::IntegrationService;
 
-pub mod auth;
 pub mod user;
+pub mod auth;
 pub mod forum;
-pub mod admin; // Add this line to export admin service
+pub mod admin;
+pub mod notification; // Add this line
+pub mod api;
+
+pub use user::UserService;
+pub use auth::AuthService;
+pub use forum::ForumService;
+pub use admin::AdminService;
+pub use notification::NotificationService; // Add this line

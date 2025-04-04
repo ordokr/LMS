@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../port"
+		}
+	],
+	"settings": {
+		"rust-analyzer.checkOnSave": false,
+		"powershell.cwd": "LMS"
+	}
+}
