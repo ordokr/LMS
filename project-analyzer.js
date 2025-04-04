@@ -1,6 +1,14 @@
 const fs = require('fs');
 const path = require('path');
 
+try {
+  const requiredModule = require('module-name');
+  // Use module
+} catch (error) {
+  console.warn("Warning: Could not load optional module: " + error.message);
+  // Provide fallback functionality
+}
+
 /**
  * Comprehensive Project Analyzer
  * 
@@ -63,7 +71,7 @@ class ProjectAnalyzer {
     
     console.log("Phase 1: Discovering all files...");
     await this.discoverAllFiles(this.baseDir);
-    console.log("Found " + (this.allFiles.length) + " files in " + (this.projectStructure.directories.size) + " directories");
+    console.log("Found " + this.allFiles.length + " files in " + this.projectStructure.directories.size + " directories");
     
     console.log("Phase 2: Reading file contents...");
     await this.readAllFileContents();
@@ -653,7 +661,7 @@ class ProjectAnalyzer {
       if (!content) continue;
       
       // Find function body
-      const funcRegex = new RegExp("fn\\s+" + (name) + "(?:<[^>]*>)?\\s*\\([^)]*\\)\\s*->\\s*[^{]+\\s*{([^}]*(?:{[^}]*}[^}]*)*)}");
+      const funcRegex = new RegExp("fn\\s+" + (name) + "(?:<[^>]*>)?\\s*\\([^)]*\\)\\s*\\->\\s*[^{]+\\s*{([^}]*(?:{[^}]*}[^}]*)*)}");
       const match = content.match(funcRegex);
       
       let completeness = 0;
@@ -804,30 +812,30 @@ class ProjectAnalyzer {
     
     // Update the implementation percentages
     statusContent = statusContent.replace(
-    /modelImplementation: "[^"]+"/,
-      "modelImplementation: "" + (modelPercentage) + "%""
+      /modelImplementation: "[^"]+"/,
+      "modelImplementation: \"" + modelPercentage + "%\""
     );
     
     statusContent = statusContent.replace(
       /apiImplementation: "[^"]+"/,
-      "apiImplementation: "" + (apiPercentage) + "%""
+      "apiImplementation: \"" + apiPercentage + "%\""
     );
     
     statusContent = statusContent.replace(
       /uiImplementation: "[^"]+"/,
-      "uiImplementation: "" + (uiPercentage) + "%""
+      "uiImplementation: \"" + uiPercentage + "%\""
     );
     
     statusContent = statusContent.replace(
       /testCoverage: "[^"]+"/,
-      "testCoverage: "" + (this.metrics.tests.coverage) + "%""
+      "testCoverage: \"" + this.metrics.tests.coverage + "%\""
     );
     
     // Update the last updated date
     const today = new Date().toISOString().split('T')[0];
     statusContent = statusContent.replace(
       /_Last updated: \*\*[^*]+\*\*/,
-      "_Last updated: **" + (today) + "**"
+      "_Last updated: **" + today + "**"
     );
     
     // Add relationship maps directly into project_status.md
@@ -902,12 +910,12 @@ class ProjectAnalyzer {
     report += "- **Total Size**: " + ((this.projectStructure.totalSize / 1024 / 1024).toFixed(2)) + " MB\n\n";
     
     // File type breakdown
-    report += `### File Types\n\n`;
+    report += "### File Types\n\n";
     report += "| Extension | Count |\n";
     report += "|-----------|-------|\n";
     
     for (const [ext, count] of this.projectStructure.fileTypes.entries()) {
-      report += `| ${ext || '(no extension)'} | ${count} |\n";
+      report += "| " + (ext || '(no extension)') + " | " + count + " |\n";
     }
     
     report += "\n";
@@ -942,7 +950,7 @@ class ProjectAnalyzer {
       report += "|---------|------|-------------|\n";
       
       this.metrics.apiEndpoints.details.forEach(endpoint => {
-        report += `| ${endpoint.name} | ${endpoint.file} | ${endpoint.completeness}% |\n";
+        report += "| " + endpoint.name + " | " + endpoint.file + " | " + endpoint.completeness + "% |\n";
       });
     } else {
       report += "*No API endpoints found in the codebase.*\n";
@@ -982,7 +990,7 @@ class ProjectAnalyzer {
       report += "|---------|------|-------------|\n";
       
       this.metrics.forumFeatures.details.forEach(feature => {
-        report += `| ${feature.name} | ${feature.file} | ${feature.completeness}% |\n";
+        report += "| " + feature.name + " | " + feature.file + " | " + feature.completeness + "% |\n";
       });
     } else {
       report += "*No forum features found in the codebase.*\n";
@@ -1081,7 +1089,7 @@ class ProjectAnalyzer {
         const variants = model.variants.split(',').filter(v => v.trim());
         variants.forEach(variant => {
           const trimmedVariant = variant.trim().replace(/\/\/.*$/, '').trim();
-          map += "        " + (trimmedVariant) + "\n";
+          map += `        ${trimmedVariant}\n`;
         });
       }
       map += `    }\n`;
@@ -1287,14 +1295,14 @@ class ProjectAnalyzer {
   findFunctionDefinition(content, funcName) {
     try {
       // Escape special regex characters in the function name
-      const escapedFuncName = funcName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const escapedFuncName = funcName.replace(/[.*+?^" + ()|[\]\\]/g, '\\$&');
       
       // Fixed regex with proper grouping
       const funcRegex = new RegExp("(?:async\\s+)?fn\\s+" + (escapedFuncName) + "[^{]*{([^}]*(?:{[^}]*}[^}]*)*)}", 's');
       const match = content.match(funcRegex);
       return match ? match[1] : null;
     } catch (err) {
-      console.error("Error in regex for function "" + (funcName) + "":", err.message);
+      console.error(`Error in regex for function "${funcName}":`, err.message);
       return null;
     }
   }
