@@ -80,6 +80,36 @@ pub struct TopicWithPosts {
     pub posts: Vec<Post>,
 }
 
+// Define SearchQuery struct near other request structs
+#[derive(Debug, Deserialize)]
+pub struct SearchQuery {
+    pub q: String, // The search query string
+    pub category_id: Option<i64>,
+    pub tags: Option<Vec<String>>,
+    pub user_id: Option<i64>,
+    #[serde(default = "default_page")]
+    pub page: usize,
+    #[serde(default = "default_per_page")]
+    pub per_page: usize,
+}
+
+// Define SyncQuery struct for update endpoints
+#[derive(Debug, Deserialize)]
+pub struct SyncQuery {
+    #[serde(default = "default_since")]
+    pub since: i64, // Timestamp (e.g., Unix epoch seconds)
+}
+
+fn default_since() -> i64 { 0 }
+
+// TODO: Define SearchResult enum/struct if not already defined elsewhere
+// #[derive(Debug, Serialize)]
+// pub enum SearchResult {
+//     Topic(Topic),
+//     Post(Post),
+//     // Add other searchable entities if needed
+// }
+
 pub fn forum_routes() -> Router<Arc<AppState>> {
     Router::new()
         // Category routes
@@ -578,63 +608,52 @@ async fn search_forum(
     State(state): State<Arc<AppState>>,
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<Json<Vec<Topic>>, AppError> {
-    let query = params.get("q").cloned().unwrap_or_default();
-    if query.trim().is_empty() {
-        return Ok(Json(vec![]));
-    }
-    
-    let page = params.get("page")
-        .and_then(|p| p.parse::<usize>().ok())
-        .unwrap_or(1);
-    let per_page = params.get("per_page")
-        .and_then(|p| p.parse::<usize>().ok())
-        .unwrap_or(20);
-    
-    let repo = ForumTopicRepository::new(state.pool.clone());
-    let results = repo.search(&query, page, per_page).await?;
-    
-    Ok(Json(results))
+    // TODO: Implement proper search logic using the query parameters
+    // This likely involves calling a more specific search function in the repository layer
+    // For now, let's keep the existing call but acknowledge it needs refinement
+    let topic_repo = ForumTopicRepository::new(state.pool.clone());
+    // Placeholder: Replace with actual search implementation using query parameters
+    // The repository function `search_all` likely needs to be updated or replaced
+    // to handle the specific filters in `query` (category_id, tags, user_id).
+    let results = topic_repo.search_all(&query.q, query.page, query.per_page).await?;
+
+    // TODO: Map results to SearchResult enum/struct if necessary
+    // let search_results = results.into_iter().map(|res| { /* map to SearchResult */ }).collect();
+
+    // Ok(Json(search_results))
+    Ok(Json(results)) // Returning raw Topic results for now
 }
 
 // Sync handlers
 async fn get_updated_categories(
     State(state): State<Arc<AppState>>,
-    Query(params): Query<HashMap<String, String>>,
+    Query(query): Query<SyncQuery>, // Use SyncQuery
 ) -> Result<Json<Vec<Category>>, AppError> {
-    let since = params.get("since")
-        .and_then(|s| s.parse::<i64>().ok())
-        .unwrap_or(0);
-    
     let repo = ForumCategoryRepository::new(state.pool.clone());
-    let categories = repo.get_updated_since(since).await?;
+    // Use query.since directly
+    let categories = repo.get_updated_since(query.since).await?;
     
     Ok(Json(categories))
 }
 
 async fn get_updated_topics(
     State(state): State<Arc<AppState>>,
-    Query(params): Query<HashMap<String, String>>,
+    Query(query): Query<SyncQuery>, // Use SyncQuery
 ) -> Result<Json<Vec<Topic>>, AppError> {
-    let since = params.get("since")
-        .and_then(|s| s.parse::<i64>().ok())
-        .unwrap_or(0);
-    
     let repo = ForumTopicRepository::new(state.pool.clone());
-    let topics = repo.get_updated_since(since).await?;
+    // Use query.since directly
+    let topics = repo.get_updated_since(query.since).await?;
     
     Ok(Json(topics))
 }
 
 async fn get_updated_posts(
     State(state): State<Arc<AppState>>,
-    Query(params): Query<HashMap<String, String>>,
+    Query(query): Query<SyncQuery>, // Use SyncQuery
 ) -> Result<Json<Vec<Post>>, AppError> {
-    let since = params.get("since")
-        .and_then(|s| s.parse::<i64>().ok())
-        .unwrap_or(0);
-    
     let repo = ForumPostRepository::new(state.pool.clone());
-    let posts = repo.get_updated_since(since).await?;
+    // Use query.since directly
+    let posts = repo.get_updated_since(query.since).await?;
     
     Ok(Json(posts))
 }
