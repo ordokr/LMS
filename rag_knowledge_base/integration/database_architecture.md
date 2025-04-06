@@ -157,6 +157,26 @@ Schema details not available
 
 Schema details not available
 
+#### DiscourseTopic
+
+Schema details not available
+
+#### DiscoursePost
+
+Schema details not available
+
+#### CourseCategory
+
+Schema details not available
+
+#### CourseCategoryCreate
+
+Schema details not available
+
+#### CourseCategoryUpdate
+
+Schema details not available
+
 #### Course
 
 Schema details not available
@@ -188,6 +208,14 @@ Schema details not available
 Schema details not available
 
 #### ForumPost
+
+Schema details not available
+
+#### DiscussionMapping
+
+Schema details not available
+
+#### CanvasDiscussionEntry
 
 Schema details not available
 
@@ -234,6 +262,10 @@ Schema details not available
 Schema details not available
 
 #### Submission
+
+Schema details not available
+
+#### SyncResult
 
 Schema details not available
 

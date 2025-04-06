@@ -55,6 +55,18 @@ use routes::{
 // Add these imports to your existing imports
 use crate::api::auth::{login, verify_token};
 
+// Add these imports
+use crate::db::course_category_repository::CourseCategoryRepository;
+use crate::api::integration::{
+    create_course_category_mapping,
+    get_course_category_mapping,
+    get_course_category_mapping_by_canvas_course,
+    get_all_course_category_mappings,
+    update_course_category_mapping,
+    delete_course_category_mapping,
+    sync_course_category
+};
+
 // Shared state containing the database connection
 struct AppState {
     conn: Arc<Mutex<Connection>>,
@@ -422,8 +434,271 @@ fn create_api_router(app_state: Arc<AppState>) -> Router {
         .with_state(app_state)
 }
 
+#[tokio::main]
+async fn main() {
+    // Initialize tracing
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::new(
+            std::env::var("RUST_LOG").unwrap_or_else(|_| "info".into()),
+        ))
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
+    // Load configuration
+    let config = AppConfig::load();
+    
+    // Initialize database
+    let db_pool = init_db(&config.database.sqlite_path)
+        .await
+        .expect("Failed to initialize database");
+    
+    // Set up repositories
+    let user_repo = Arc::new(UserRepository::new(db_pool.clone()));
+    let forum_category_repo = Arc::new(ForumCategoryRepository::new(db_pool.clone()));
+    let forum_topic_repo = Arc::new(ForumTopicRepository::new(db_pool.clone()));
+    let course_repo = Arc::new(CourseRepository::new(db_pool.clone()));
+    let module_repo = Arc::new(ModuleRepository::new(db_pool.clone()));
+    let assignment_repo = Arc::new(AssignmentRepository::new(db_pool.clone()));
+    let course_category_repo = CourseCategoryRepository::new(db_pool.clone());
+    
+    // Set up sync engine
+    let sync_engine = Arc::new(SyncEngine::new(db_pool.clone()));
+    
+    // Initialize sync engine
+    sync_engine.initialize().await.expect("Failed to initialize sync engine");
+    
+    // Set up sync service
+    let sync_service = SyncService::new(
+        sync_engine.clone(),
+        config.sync.sync_endpoint.clone(),
+        config.sync.sync_interval,
+    );
+    
+    // Set up authentication service
+    let auth_service = Arc::new(AuthService::new(
+        config.server.jwt_secret.clone(),
+        config.server.jwt_expiration,
+    ));
+    
+    // Set up CORS
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
+    // Build our application with routes
+    let app = create_router(
+            user_repo.clone(),
+            auth_service.clone(),
+            forum_category_repo.clone(),
+            forum_topic_repo.clone(),
+            course_repo.clone(),
+            module_repo.clone(),
+            assignment_repo.clone(),
+            sync_engine.clone(),
+        )
+        .layer(cors)
+        .layer(Extension(auth_service))
+        .layer(Extension(sync_engine))
+        .layer(Extension(db_pool));
+    
+    // Run the server
+    let addr = SocketAddr::from(([127, 0, 0, 1], config.server.port));
+    tracing::info!("Listening on {}", addr);
+    
+    axum::Server::bind(&addr)
+        .serve(app.into_make_service())
+        .with_graceful_shutdown(shutdown_signal())
+        .await
+        .unwrap();
+}
+
 fn main() {
     tauri::Builder::default()
+        .manage(pool)
+        .manage(course_category_repo)
+        .invoke_handler(tauri::generate_handler![
+            // ...existing handlers...
+            create_course_category_mapping,
+            get_course_category_mapping,
+            get_course_category_mapping_by_canvas_course,
+            get_all_course_category_mappings,
+            update_course_category_mapping,
+            delete_course_category_mapping,
+            sync_course_category,
+            api::courses::get_courses,
+            api::courses::get_course,
+            api::courses::create_course,
+            api::courses::update_course,
+            api::courses::delete_course,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
+
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("Failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("Failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
+
+    tracing::info!("Shutdown signal received, starting graceful shutdown");
+}
+
+fn create_api_router(app_state: Arc<AppState>) -> Router {
+    // Routes that require authentication
+    let protected_routes = Router::new()
+        // Protected routes that any authenticated user can access
+        .route("/auth/me", get(get_current_user))
+        .route("/auth/profile", put(update_user_profile))
+        .route("/posts", post(create_post))
+        .route("/topics", post(create_topic))
+        .layer(middleware::from_fn(middleware::require_auth));
+    
+    // Routes that require admin privileges
+    let admin_routes = Router::new()
+        .route("/categories", post(create_category))
+        .route("/categories/:id", put(update_category).delete(delete_category))
+        .layer(middleware::from_fn(middleware::require_admin));
+    
+    // Public routes
+    Router::new()
+        .route("/", get(root))
+        
+        // Auth endpoints
+        .route("/auth/register", post(register_user))
+        .route("/auth/login", post(login_user))
+        
+        // Public endpoints
+        .route("/categories", get(list_categories))
+        .route("/categories/:id", get(get_category))
+        .route("/topics/:id", get(get_topic))
+        .route("/categories/:id/topics", get(list_topics))
+        .route("/topics/:id/posts", get(list_topic_posts))
+        .route("/posts/:id", get(get_post))
+        
+        // Merge in our protected routes
+        .merge(protected_routes)
+        .merge(admin_routes)
+        
+        .with_state(app_state)
+}
+
+#[tokio::main]
+async fn main() {
+    // Initialize tracing
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::new(
+            std::env::var("RUST_LOG").unwrap_or_else(|_| "info".into()),
+        ))
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
+    // Load configuration
+    let config = AppConfig::load();
+    
+    // Initialize database
+    let db_pool = init_db(&config.database.sqlite_path)
+        .await
+        .expect("Failed to initialize database");
+    
+    // Set up repositories
+    let user_repo = Arc::new(UserRepository::new(db_pool.clone()));
+    let forum_category_repo = Arc::new(ForumCategoryRepository::new(db_pool.clone()));
+    let forum_topic_repo = Arc::new(ForumTopicRepository::new(db_pool.clone()));
+    let course_repo = Arc::new(CourseRepository::new(db_pool.clone()));
+    let module_repo = Arc::new(ModuleRepository::new(db_pool.clone()));
+    let assignment_repo = Arc::new(AssignmentRepository::new(db_pool.clone()));
+    let course_category_repo = CourseCategoryRepository::new(db_pool.clone());
+    
+    // Set up sync engine
+    let sync_engine = Arc::new(SyncEngine::new(db_pool.clone()));
+    
+    // Initialize sync engine
+    sync_engine.initialize().await.expect("Failed to initialize sync engine");
+    
+    // Set up sync service
+    let sync_service = SyncService::new(
+        sync_engine.clone(),
+        config.sync.sync_endpoint.clone(),
+        config.sync.sync_interval,
+    );
+    
+    // Set up authentication service
+    let auth_service = Arc::new(AuthService::new(
+        config.server.jwt_secret.clone(),
+        config.server.jwt_expiration,
+    ));
+    
+    // Set up CORS
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
+    // Build our application with routes
+    let app = create_router(
+            user_repo.clone(),
+            auth_service.clone(),
+            forum_category_repo.clone(),
+            forum_topic_repo.clone(),
+            course_repo.clone(),
+            module_repo.clone(),
+            assignment_repo.clone(),
+            sync_engine.clone(),
+        )
+        .layer(cors)
+        .layer(Extension(auth_service))
+        .layer(Extension(sync_engine))
+        .layer(Extension(db_pool));
+    
+    // Run the server
+    let addr = SocketAddr::from(([127, 0, 0, 1], config.server.port));
+    tracing::info!("Listening on {}", addr);
+    
+    axum::Server::bind(&addr)
+        .serve(app.into_make_service())
+        .with_graceful_shutdown(shutdown_signal())
+        .await
+        .unwrap();
+}
+
+fn main() {
+    tauri::Builder::default()
+        .manage(pool)
+        .manage(course_category_repo)
+        .invoke_handler(tauri::generate_handler![
+            // ...existing handlers...
+            create_course_category_mapping,
+            get_course_category_mapping,
+            get_course_category_mapping_by_canvas_course,
+            get_all_course_category_mappings,
+            update_course_category_mapping,
+            delete_course_category_mapping,
+            sync_course_category,
+            api::courses::get_courses,
+            api::courses::get_course,
+            api::courses::create_course,
+            api::courses::update_course,
+            api::courses::delete_course,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

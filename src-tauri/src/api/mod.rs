@@ -3,6 +3,7 @@ mod courses;
 mod users;
 mod forum;
 mod integration;
+mod discussion_routes;
 
 use axum::{Router, routing::get};
 use std::sync::Arc;
@@ -34,6 +35,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
             "/api/courses/:id/forum/activity",
             get(integration::get_course_forum_activity)
         )
+        .merge(discussion_routes::discussion_routes())
         .with_state(state)
 }
 

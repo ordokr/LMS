@@ -109,6 +109,45 @@ graph LR
   AuthResponse-->UserProfile
   AuthResponse-->LoginRequest
   AuthResponse-->RegisterRequest
+  DiscussionMapping-->CanvasDiscussionEntry
+  DiscussionMapping-->DiscourseTopic
+  DiscussionMapping-->DiscoursePost
+  DiscussionMapping-->SyncResult
+  DiscussionMapping-->|1..*|Post
+  DiscussionMapping-->Topic
+  CanvasDiscussionEntry-->DiscussionMapping
+  CanvasDiscussionEntry-->DiscourseTopic
+  CanvasDiscussionEntry-->DiscoursePost
+  CanvasDiscussionEntry-->SyncResult
+  CanvasDiscussionEntry-->|1..*|Post
+  CanvasDiscussionEntry-->Topic
+  DiscourseTopic-->DiscussionMapping
+  DiscourseTopic-->CanvasDiscussionEntry
+  DiscourseTopic-->DiscoursePost
+  DiscourseTopic-->SyncResult
+  DiscourseTopic-->|1..*|Post
+  DiscourseTopic-->Topic
+  DiscoursePost-->DiscussionMapping
+  DiscoursePost-->CanvasDiscussionEntry
+  DiscoursePost-->DiscourseTopic
+  DiscoursePost-->SyncResult
+  DiscoursePost-->|1..*|Post
+  DiscoursePost-->Topic
+  SyncResult-->DiscussionMapping
+  SyncResult-->CanvasDiscussionEntry
+  SyncResult-->DiscourseTopic
+  SyncResult-->DiscoursePost
+  SyncResult-->|1..*|Post
+  SyncResult-->Topic
+  CourseCategory-->Category
+  CourseCategory-->CourseCategoryCreate
+  CourseCategory-->CourseCategoryUpdate
+  CourseCategoryCreate-->Category
+  CourseCategoryCreate-->CourseCategory
+  CourseCategoryCreate-->CourseCategoryUpdate
+  CourseCategoryUpdate-->Category
+  CourseCategoryUpdate-->CourseCategory
+  CourseCategoryUpdate-->CourseCategoryCreate
   style Course fill:#fff9c4,stroke:#fbc02d,stroke-width:1px
   style Module fill:#fff9c4,stroke:#fbc02d,stroke-width:1px
   style Assignment fill:#fff9c4,stroke:#fbc02d,stroke-width:1px
@@ -130,6 +169,14 @@ graph LR
   style LoginRequest fill:#ffcdd2,stroke:#c62828,stroke-width:1px
   style RegisterRequest fill:#fff9c4,stroke:#fbc02d,stroke-width:1px
   style AuthResponse fill:#ffcdd2,stroke:#c62828,stroke-width:1px
+  style DiscussionMapping fill:#fff9c4,stroke:#fbc02d,stroke-width:1px
+  style CanvasDiscussionEntry fill:#fff9c4,stroke:#fbc02d,stroke-width:1px
+  style DiscourseTopic fill:#fff9c4,stroke:#fbc02d,stroke-width:1px
+  style DiscoursePost fill:#fff9c4,stroke:#fbc02d,stroke-width:1px
+  style SyncResult fill:#fff9c4,stroke:#fbc02d,stroke-width:1px
+  style CourseCategory fill:#fff9c4,stroke:#fbc02d,stroke-width:1px
+  style CourseCategoryCreate fill:#fff9c4,stroke:#fbc02d,stroke-width:1px
+  style CourseCategoryUpdate fill:#ffcdd2,stroke:#c62828,stroke-width:1px
   style Tag fill:#fff9c4,stroke:#fbc02d,stroke-width:1px
 
 ```

@@ -1300,6 +1300,166 @@ src-tauri/migrations/
       return null;
     }
   }
+
+  /**
+   * Generate AI context documents for GitHub Copilot
+   */
+  async generateAIContext() {
+    console.log("Generating AI context documents...");
+    
+    const aiDocsDir = path.join(this.baseDir, 'docs', 'ai');
+    if (!fs.existsSync(aiDocsDir)) {
+      fs.mkdirSync(aiDocsDir, { recursive: true });
+    }
+    
+    // Create the AI guidance document at project root
+    const aiGuidancePath = path.join(this.baseDir, 'AI_GUIDANCE.md');
+    
+    // Generate content
+    let content = `# AI Guidance for LMS Integration Project\n\n`;
+    content += `<!-- AI_METADATA
+version: 1.0
+priority: highest
+updated: ${new Date().toISOString().split('T')[0]}
+role: guidance
+-->\n\n`;
+    
+    // Reference the documentation hierarchy
+    content += `## Documentation Hierarchy\n\n`;
+    content += `1. **This Document**: High-level guidance for AI tooling\n`;
+    content += `2. **[Central Reference Hub](docs/central_reference_hub.md)**: Project source of truth\n`;
+    content += `3. **[Knowledge Base](rag_knowledge_base/)**: Technical documentation and specifications\n\n`;
+    
+    // Project metadata
+    content += `## Project Metadata\n\n`;
+    content += `- **Database**: SQLite with sqlx (embedded file database)\n`;
+    content += `- **Frontend Framework**: Tauri with web frontend\n`;
+    content += `- **Backend Language**: Rust\n`;
+    content += `- **Architecture**: Offline-first with local-first data storage\n\n`;
+    
+    // Component implementation guidance
+    content += `## Component Implementation Guidance\n\n`;
+    content += `When implementing components:\n\n`;
+    content += `1. Check the central reference hub for existing specifications\n`;
+    content += `2. Maintain the documented completion percentage\n`;
+    content += `3. Follow existing naming conventions and file structure\n`;
+    content += `4. Ensure database models match documented schemas\n`;
+    content += `5. Use SQLite with sqlx for all database operations\n\n`;
+    
+    // Save the file
+    try {
+      fs.writeFileSync(aiGuidancePath, content);
+      console.log(`AI guidance document generated at ${aiGuidancePath}`);
+    } catch (error) {
+      console.error(`Failed to write AI guidance: ${error.message}`);
+    }
+    
+    // Generate component cross-reference file
+    this.generateComponentCrossReference(aiDocsDir);
+    
+    // Add AI metadata to central reference hub
+    this.addAIMetadataToCentralHub();
+    
+    return aiGuidancePath;
+  }
+
+  /**
+   * Generate component cross-reference for AI
+   */
+  generateComponentCrossReference(aiDocsDir) {
+    const componentIndexPath = path.join(aiDocsDir, 'component_index.md');
+    
+    let content = `# Component Implementation Cross-Reference\n\n`;
+    content += `<!-- AI_METADATA
+version: 1.0
+priority: medium
+updated: ${new Date().toISOString().split('T')[0]}
+role: component_reference
+-->\n\n`;
+    
+    // Group components by implementation percentage
+    const completionGroups = {
+      high: [],
+      medium: [],
+      low: []
+    };
+    
+    this.metrics.uiComponents.details.forEach(component => {
+      if (component.completeness >= 60) {
+        completionGroups.high.push(component);
+      } else if (component.completeness >= 30) {
+        completionGroups.medium.push(component);
+      } else {
+        completionGroups.low.push(component);
+      }
+    });
+    
+    // Add component tables by completion level
+    content += `## High Completion Components (60%+)\n\n`;
+    content += this.generateComponentTable(completionGroups.high);
+    
+    content += `## Medium Completion Components (30-59%)\n\n`;
+    content += this.generateComponentTable(completionGroups.medium);
+    
+    content += `## Low Completion Components (<30%)\n\n`;
+    content += this.generateComponentTable(completionGroups.low);
+    
+    // Save the file
+    try {
+      fs.writeFileSync(componentIndexPath, content);
+      console.log(`Component index generated at ${componentIndexPath}`);
+    } catch (error) {
+      console.error(`Failed to write component index: ${error.message}`);
+    }
+  }
+
+  /**
+   * Generate a component table for the given components
+   */
+  generateComponentTable(components) {
+    if (components.length === 0) {
+      return "No components in this category.\n\n";
+    }
+    
+    let table = `| Component | Type | Completeness | Implementation |\n`;
+    table += `|-----------|------|-------------|----------------|\n`;
+    
+    components.forEach(component => {
+      const type = component.type || 'Component';
+      const filePath = component.file ? this.getRelativePath(component.file) : 'N/A';
+      table += `| ${component.name} | ${type} | ${component.completeness}% | [View Code](${filePath}) |\n`;
+    });
+    
+    return table + "\n";
+  }
+
+  /**
+   * Add AI metadata to central reference hub
+   */
+  addAIMetadataToCentralHub() {
+    const hubPath = path.join(this.baseDir, 'docs', 'central_reference_hub.md');
+    
+    try {
+      let content = fs.readFileSync(hubPath, 'utf8');
+      
+      // Check if AI metadata already exists
+      if (!content.includes('AI_METADATA')) {
+        // Add AI metadata to the top
+        content = `<!-- AI_METADATA
+version: 1.0
+priority: highest
+updated: ${new Date().toISOString().split('T')[0]}
+role: reference
+status: authoritative
+-->\n\n${content}`;
+        
+        fs.writeFileSync(hubPath, content);
+        console.log(`Added AI metadata to central reference hub`);
+      }
+    } catch (error) {
+      console.error(`Failed to update central reference hub: ${error.message}`);
+    }
+  }
 }
 
 module.exports = ReportGenerator;

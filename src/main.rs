@@ -22,15 +22,7 @@ mod db {
 mod auth {
     pub mod jwt;
     pub mod middleware;
-}
-mod controllers {
-    pub mod auth_controller;
-    pub mod course_controller;
-    pub mod category_controller;
-    pub mod topic_controller;
-    pub mod post_controller;
-    pub mod canvas_integration_controller;
-    pub mod assignment_controller;
+    pub mod routes;
 }
 
 use app::App;
@@ -46,7 +38,10 @@ use log::{info, error};
 use clap::Parser;
 use std::process;
 use std::sync::Arc;
-use axum::{Router, routing::post, middleware};
+use axum::{Router, routing::post, middleware, Server};
+use std::net::SocketAddr;
+
+use crate::auth::routes::auth_routes;
 
 /// LMS Application
 #[derive(Parser, Debug)]
@@ -75,7 +70,8 @@ struct Args {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Ensure JWT_SECRET is set in the environment
     // Initialize the logger
     env_logger::init();
     
@@ -152,8 +148,39 @@ async fn main() {
     } else {
         println!("No command specified. Run with --help for usage information.");
     }
+
+    // Load environment variables
+    dotenv::dotenv().ok();
+    
+    // Initialize database
+    let database = Arc::new(Database::new().await?);
+    
+    // Create application state
+    let state = Arc::new(AppState {
+        db: database,
+        // Initialize other state
+    });
+    
+    // Create router with authentication routes
+    let app = Router::new()
+        .merge(auth_routes(state.clone()))
+        .merge(mapping_routes(state.clone()))
+        .merge(discussion_routes(state.clone()))
+        // Add other routes
+        .with_state(state);
+    
+    // Start server
+    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    println!("Server running on {}", addr);
+    
+    Server::bind(&addr)
+        .serve(app.into_make_service())
+        .await?;
+    
+    Ok(())
 }
 
+#[derive(Clone)]
 pub struct AppState {
     pub pool: PgPool,
     pub db: user_repository::UserRepository,

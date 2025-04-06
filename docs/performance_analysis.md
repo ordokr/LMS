@@ -8,19 +8,19 @@ These metrics show how long each step of the analysis process took to run:
 
 | Analysis Step | Time (ms) | Time (sec) |
 |--------------|------------|------------|
-| File Discovery | 5,498 | 5.50s |
-| Code Quality Analysis | 253 | 0.25s |
-| Model Analysis | 25 | 0.03s |
-| Api Analysis | 21 | 0.02s |
-| Ui Analysis | 20 | 0.02s |
-| Test Analysis | 17 | 0.02s |
-| Relationships | 3 | 0.00s |
-| Gemini Analysis | 3 | 0.00s |
-| Code Smells | 1 | 0.00s |
+| Gemini Analysis | 6,426 | 6.43s |
+| File Discovery | 5,758 | 5.76s |
+| Code Quality Analysis | 308 | 0.31s |
+| Model Analysis | 26 | 0.03s |
+| Api Analysis | 23 | 0.02s |
+| Ui Analysis | 22 | 0.02s |
+| Test Analysis | 18 | 0.02s |
+| Relationships | 5 | 0.01s |
 | Predictor | 1 | 0.00s |
+| Code Smells | 0 | 0.00s |
 | Ml Analysis | 0 | 0.00s |
 | Status Update | 0 | 0.00s |
-| **Total Analysis Time** | **5,842** | **5.84s** |
+| **Total Analysis Time** | **12,587** | **12.59s** |
 
 ## Code Performance Hotspots
 
@@ -40,7 +40,7 @@ The following files have the highest complexity scores, which may indicate perfo
 
 Based on the analysis, here are some recommendations for improving performance:
 
-- **Refactor High Complexity Code**: 582 files have high complexity scores. Consider breaking these down into smaller, more manageable functions.
+- **Refactor High Complexity Code**: 600 files have high complexity scores. Consider breaking these down into smaller, more manageable functions.
 
 - **Implement Caching**: Consider adding caching for frequently accessed data to reduce database load.
 

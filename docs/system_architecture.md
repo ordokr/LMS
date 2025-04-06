@@ -41,19 +41,19 @@ SQLite with sqlx is hardcoded as the database solution for this project. This co
 
 ### Model Layer
 
-The system contains 38 models with 34 implemented (89%).
+The system contains 46 models with 42 implemented (91%).
 
 #### Key Models
 
 - **User** (60% complete)
 - **Category** (60% complete)
+- **DiscussionMapping** (60% complete)
 - **Post** (60% complete)
 - **Topic** (60% complete)
-- **User** (60% complete)
 
 ### API Layer
 
-The system exposes 38 API endpoints with 0 implemented (0%).
+The system exposes 59 API endpoints with 7 implemented (12%).
 
 ### UI Layer
 
@@ -73,7 +73,7 @@ flowchart TB
     FE --> |includes| UI[UI Components]
     UI --> |contains| FE_COMP[Component]
     API --> |uses| MODELS[Models]
-    MODELS --> |includes| MODEL_LIST[User, Category, Post, Topic, User]
+    MODELS --> |includes| MODEL_LIST[User, Category, DiscussionMapping, Post, Topic]
     DB --> |type-safe| SQL[SQL Queries]
     DB --> |managed by| MIGRATIONS[Migrations]
 ```
@@ -189,5 +189,44 @@ erDiagram
     AuthResponse ||--|| UserProfile : relates
     AuthResponse ||--|| LoginRequest : relates
     AuthResponse ||--|| RegisterRequest : relates
+    DiscussionMapping ||--|| CanvasDiscussionEntry : relates
+    DiscussionMapping ||--|| DiscourseTopic : relates
+    DiscussionMapping ||--|| DiscoursePost : relates
+    DiscussionMapping ||--|| SyncResult : relates
+    DiscussionMapping ||--o{ Post : relates
+    DiscussionMapping ||--|| Topic : relates
+    CanvasDiscussionEntry ||--|| DiscussionMapping : relates
+    CanvasDiscussionEntry ||--|| DiscourseTopic : relates
+    CanvasDiscussionEntry ||--|| DiscoursePost : relates
+    CanvasDiscussionEntry ||--|| SyncResult : relates
+    CanvasDiscussionEntry ||--o{ Post : relates
+    CanvasDiscussionEntry ||--|| Topic : relates
+    DiscourseTopic ||--|| DiscussionMapping : relates
+    DiscourseTopic ||--|| CanvasDiscussionEntry : relates
+    DiscourseTopic ||--|| DiscoursePost : relates
+    DiscourseTopic ||--|| SyncResult : relates
+    DiscourseTopic ||--o{ Post : relates
+    DiscourseTopic ||--|| Topic : relates
+    DiscoursePost ||--|| DiscussionMapping : relates
+    DiscoursePost ||--|| CanvasDiscussionEntry : relates
+    DiscoursePost ||--|| DiscourseTopic : relates
+    DiscoursePost ||--|| SyncResult : relates
+    DiscoursePost ||--o{ Post : relates
+    DiscoursePost ||--|| Topic : relates
+    SyncResult ||--|| DiscussionMapping : relates
+    SyncResult ||--|| CanvasDiscussionEntry : relates
+    SyncResult ||--|| DiscourseTopic : relates
+    SyncResult ||--|| DiscoursePost : relates
+    SyncResult ||--o{ Post : relates
+    SyncResult ||--|| Topic : relates
+    CourseCategory ||--|| Category : relates
+    CourseCategory ||--|| CourseCategoryCreate : relates
+    CourseCategory ||--|| CourseCategoryUpdate : relates
+    CourseCategoryCreate ||--|| Category : relates
+    CourseCategoryCreate ||--|| CourseCategory : relates
+    CourseCategoryCreate ||--|| CourseCategoryUpdate : relates
+    CourseCategoryUpdate ||--|| Category : relates
+    CourseCategoryUpdate ||--|| CourseCategory : relates
+    CourseCategoryUpdate ||--|| CourseCategoryCreate : relates
 ```
 

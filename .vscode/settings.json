@@ -1,5 +1,16 @@
 {
   "emmet.includeLanguages": {
     "rust": "html"
-  }
+  },
+  "github.copilot.enable": {
+    "*": true
+  },
+  "github.copilot.advanced": {
+    "documentPrioritization": [
+      "AI_GUIDANCE.md",
+      "docs/central_reference_hub.md",
+      "LAST_ANALYSIS_RESULTS.md"
+    ]
+  },
+  "editor.inlineSuggest.enabled": true
 }

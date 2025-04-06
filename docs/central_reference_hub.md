@@ -6,8 +6,8 @@ _Generated on: 2025-04-06_
 
 | Component | Completion | Status |
 |-----------|------------|--------|
-| Models | 89% | ✅ |
-| API Endpoints | 0% | ❌ |
+| Models | 91% | ✅ |
+| API Endpoints | 12% | ❌ |
 | UI Components | 90% | ✅ |
 | Test Coverage | 15% | ❌ |
 
@@ -21,13 +21,20 @@ _Generated on: 2025-04-06_
 | Assignment | 0 | 50% | [View Code](src-tauri\src\models\course.rs) |
 | AuthResponse | 0 | 39% | [View Code](shared\models\user.rs) |
 | AuthResponse | 0 | 39% | [View Code](shared\src\models\user.rs) |
+| CanvasDiscussionEntry | 0 | 47% | [View Code](src-tauri\src\models\discussion_mapping.rs) |
 | Category | 0 | 60% | [View Code](src-tauri\src\models\category.rs) |
 | Course | 0 | 55% | [View Code](shared\models\course.rs) |
 | Course | 0 | 47% | [View Code](shared\src\models\course.rs) |
 | Course | 0 | 50% | [View Code](src-tauri\src\models\course.rs) |
 | Course | 0 | 46% | [View Code](src-tauri\src\shared\models\course.rs) |
+| CourseCategory | 0 | 49% | [View Code](src-tauri\src\models\integration.rs) |
+| CourseCategoryCreate | 0 | 41% | [View Code](src-tauri\src\models\integration.rs) |
+| CourseCategoryUpdate | 0 | 39% | [View Code](src-tauri\src\models\integration.rs) |
 | CourseStatus | 0 | 32% | [View Code](shared\models\course.rs) |
 | CourseStatus | 0 | 32% | [View Code](src-tauri\src\models\course.rs) |
+| DiscoursePost | 0 | 49% | [View Code](src-tauri\src\models\discussion_mapping.rs) |
+| DiscourseTopic | 0 | 45% | [View Code](src-tauri\src\models\discussion_mapping.rs) |
+| DiscussionMapping | 0 | 60% | [View Code](src-tauri\src\models\discussion_mapping.rs) |
 | Enrollment | 0 | 47% | [View Code](shared\models\course.rs) |
 | EnrollmentRole | 0 | 32% | [View Code](shared\models\course.rs) |
 | ForumCategory | 0 | 50% | [View Code](shared\models\forum.rs) |
@@ -47,6 +54,7 @@ _Generated on: 2025-04-06_
 | RegisterRequest | 0 | 43% | [View Code](shared\src\models\user.rs) |
 | Submission | 0 | 49% | [View Code](shared\models\course.rs) |
 | Submission | 0 | 49% | [View Code](src-tauri\src\models\course.rs) |
+| SyncResult | 0 | 52% | [View Code](src-tauri\src\models\discussion_mapping.rs) |
 | Tag | 0 | 57% | [View Code](src-tauri\src\models\tag.rs) |
 | Topic | 0 | 60% | [View Code](src-tauri\src\models\topic.rs) |
 | User | 0 | 60% | [View Code](shared\models\user.rs) |
@@ -65,6 +73,14 @@ _Generated on: 2025-04-06_
 | post(create_course | N/A | GET | 20% | [View Code](src-tauri\src\api\courses.rs) |
 | put(update_course | N/A | GET | 20% | [View Code](src-tauri\src\api\courses.rs) |
 | delete(delete_course | N/A | GET | 20% | [View Code](src-tauri\src\api\courses.rs) |
+| get(get_all_mappings | N/A | GET | 20% | [View Code](src-tauri\src\api\discussion_routes.rs) |
+| post(create_mapping | N/A | GET | 20% | [View Code](src-tauri\src\api\discussion_routes.rs) |
+| get(get_mapping | N/A | GET | 20% | [View Code](src-tauri\src\api\discussion_routes.rs) |
+| put(update_mapping | N/A | GET | 20% | [View Code](src-tauri\src\api\discussion_routes.rs) |
+| delete(delete_mapping | N/A | GET | 20% | [View Code](src-tauri\src\api\discussion_routes.rs) |
+| post(sync_mapping | N/A | GET | 20% | [View Code](src-tauri\src\api\discussion_routes.rs) |
+| get(get_mappings_by_course | N/A | GET | 20% | [View Code](src-tauri\src\api\discussion_routes.rs) |
+| post(sync_course_discussions | N/A | GET | 20% | [View Code](src-tauri\src\api\discussion_routes.rs) |
 | update_topic | N/A | GET | 20% | [View Code](src-tauri\src\api\forum.rs) |
 | create_post | N/A | GET | 20% | [View Code](src-tauri\src\api\forum.rs) |
 | get_recent_posts | N/A | GET | 20% | [View Code](src-tauri\src\api\forum.rs) |
@@ -78,11 +94,24 @@ _Generated on: 2025-04-06_
 | delete(delete_topic | N/A | GET | 20% | [View Code](src-tauri\src\api\forum.rs) |
 | get(get_posts_by_topic | N/A | GET | 20% | [View Code](src-tauri\src\api\forum.rs) |
 | post(create_post | N/A | GET | 20% | [View Code](src-tauri\src\api\forum.rs) |
+| create_course_category_mapping | N/A | GET | 48% | [View Code](src-tauri\src\api\integration.rs) |
+| get_course_category_mapping | N/A | GET | 47% | [View Code](src-tauri\src\api\integration.rs) |
+| get_course_category_mapping_by_canvas_course | N/A | GET | 48% | [View Code](src-tauri\src\api\integration.rs) |
+| get_all_course_category_mappings | N/A | GET | 48% | [View Code](src-tauri\src\api\integration.rs) |
+| update_course_category_mapping | N/A | GET | 47% | [View Code](src-tauri\src\api\integration.rs) |
+| delete_course_category_mapping | N/A | GET | 47% | [View Code](src-tauri\src\api\integration.rs) |
+| sync_course_category | N/A | GET | 47% | [View Code](src-tauri\src\api\integration.rs) |
 | get(health_check | N/A | GET | 20% | [View Code](src-tauri\src\api\mod.rs) |
 | get_course_category | N/A | GET | 20% | [View Code](src-tauri\src\api\mod.rs) |
 | get_module_topic | N/A | GET | 20% | [View Code](src-tauri\src\api\mod.rs) |
 | get_assignment_topic | N/A | GET | 20% | [View Code](src-tauri\src\api\mod.rs) |
 | get_course_forum_activity | N/A | GET | 20% | [View Code](src-tauri\src\api\mod.rs) |
+| get(get_sync_status | N/A | GET | 20% | [View Code](src-tauri\src\api\sync_routes.rs) |
+| post(run_sync | N/A | GET | 20% | [View Code](src-tauri\src\api\sync_routes.rs) |
+| get(get_sync_config | N/A | GET | 20% | [View Code](src-tauri\src\api\sync_routes.rs) |
+| put(update_sync_config | N/A | GET | 20% | [View Code](src-tauri\src\api\sync_routes.rs) |
+| get(get_discussion_sync_status | N/A | GET | 20% | [View Code](src-tauri\src\api\sync_routes.rs) |
+| post(run_discussion_sync | N/A | GET | 20% | [View Code](src-tauri\src\api\sync_routes.rs) |
 | get(get_current_user | N/A | GET | 20% | [View Code](src-tauri\src\main.rs) |
 | put(update_user_profile | N/A | GET | 20% | [View Code](src-tauri\src\main.rs) |
 | post(create_post | N/A | GET | 20% | [View Code](src-tauri\src\main.rs) |
@@ -205,8 +234,8 @@ _Generated on: 2025-04-06_
 
 ## Code Quality Summary
 
-- **Average Complexity:** 3.4
-- **High Complexity Files:** 582
+- **Average Complexity:** 3.5
+- **High Complexity Files:** 600
 - **Technical Debt Score:** 0%
 - **SOLID Violations:** 0
 
