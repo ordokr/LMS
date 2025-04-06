@@ -2,7 +2,6 @@ use serde::{Serialize, Deserialize};
 use std::fs;
 use std::error::Error;
 use std::path::Path;
-use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct AuditEntry {

@@ -2,13 +2,26 @@ import os
 import sys
 import re
 
-def find_model_file(model_name, source_system="canvas"):
-    """Find the most likely source file for a model name."""
-    # Determine source directory
+def find_model_file(model_name, source_system="canvas", canvas_dir=None, discourse_dir=None):
+    """Find the most likely source file for a model name.
+    
+    Args:
+        model_name (str): The CamelCase name of the model.
+        source_system (str): The source system ('canvas' or 'discourse').
+        canvas_dir (str, optional): Path to the Canvas models directory.
+        discourse_dir (str, optional): Path to the Discourse models directory.
+        
+    Returns:
+        str or None: The path to the found model file, or None if not found.
+    """
+    # Determine source directory based on parameters or defaults
     if source_system.lower() == "canvas":
-        source_dir = r"C:\Users\Tim\Desktop\port\canvas\app\models"
-    else:  # discourse
-        source_dir = r"C:\Users\Tim\Desktop\port\port\app\models"
+        source_dir = canvas_dir if canvas_dir else r"C:\Users\Tim\Desktop\port\canvas\app\models" # Default if not provided
+    elif source_system.lower() == "discourse":
+        source_dir = discourse_dir if discourse_dir else r"C:\Users\Tim\Desktop\port\port\app\models" # Default if not provided
+    else:
+        print(f"Unknown source system: {source_system}")
+        return None
     
     # Check if source dir exists
     if not os.path.exists(source_dir):
@@ -55,13 +68,16 @@ def camel_to_snake(name):
     return re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print("Usage: python find_model_file.py <model_name> <source_system>")
+    if len(sys.argv) < 3 or len(sys.argv) > 5:
+        print("Usage: python find_model_file.py <model_name> <source_system> [canvas_dir] [discourse_dir]")
         sys.exit(1)
     
     model_name = sys.argv[1]
     source_system = sys.argv[2]
-    result = find_model_file(model_name, source_system)
+    canvas_dir_arg = sys.argv[3] if len(sys.argv) > 3 else None
+    discourse_dir_arg = sys.argv[4] if len(sys.argv) > 4 else None
+    
+    result = find_model_file(model_name, source_system, canvas_dir=canvas_dir_arg, discourse_dir=discourse_dir_arg)
     
     if result:
         print(result)

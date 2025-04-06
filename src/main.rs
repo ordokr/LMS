@@ -5,7 +5,33 @@ mod forum;
 mod utils;
 mod config;
 mod models;
-mod services;
+mod services {
+    pub mod course_category_mapper;
+    pub mod discussion_topic_integration;
+    pub mod assignment_topic_mapper;
+    pub mod topic_service;
+}
+mod db {
+    pub mod user_repository;
+    pub mod course_repository;
+    pub mod category_repository;
+    pub mod topic_repository;
+    pub mod post_repository;
+    pub mod assignment_repository;
+}
+mod auth {
+    pub mod jwt;
+    pub mod middleware;
+}
+mod controllers {
+    pub mod auth_controller;
+    pub mod course_controller;
+    pub mod category_controller;
+    pub mod topic_controller;
+    pub mod post_controller;
+    pub mod canvas_integration_controller;
+    pub mod assignment_controller;
+}
 
 use app::App;
 use leptos::*;
@@ -19,6 +45,8 @@ use crate::services::api::ApiClient;
 use log::{info, error};
 use clap::Parser;
 use std::process;
+use std::sync::Arc;
+use axum::{Router, routing::post, middleware};
 
 /// LMS Application
 #[derive(Parser, Debug)]
@@ -124,4 +152,178 @@ async fn main() {
     } else {
         println!("No command specified. Run with --help for usage information.");
     }
+}
+
+pub struct AppState {
+    pub pool: PgPool,
+    pub db: user_repository::UserRepository,
+    pub course_repo: course_repository::CourseRepository,
+    pub category_repo: category_repository::CategoryRepository,
+    pub topic_repo: topic_repository::TopicRepository,
+    pub post_repo: post_repository::PostRepository,
+    pub assignment_repo: assignment_repository::AssignmentRepository,
+}
+
+async fn setup_routes(app_state: Arc<AppState>) -> Router {
+    // Auth routes
+    let auth_routes = Router::new()
+        .route("/login", post(controllers::auth_controller::login))
+        .route("/register", post(controllers::auth_controller::register));
+        
+    // Protected routes with auth middleware
+    let protected_routes = Router::new()
+        // Add your protected routes here
+        .route_layer(middleware::from_fn_with_state(
+            app_state.clone(),
+            auth::middleware::auth_middleware,
+        ));
+        
+    // Course routes
+    let course_routes = Router::new()
+        .route("/", post(controllers::course_controller::create_course)
+            .route_layer(middleware::from_fn_with_state(
+                app_state.clone(),
+                auth::middleware::require_role("instructor".to_string()),
+            ))
+        )
+        .route("/", get(controllers::course_controller::list_courses))
+        .route("/:id", get(controllers::course_controller::get_course))
+        .route("/:id/assignments", get(controllers::assignment_controller::get_assignments_by_course));
+        
+    // Topic routes
+    let topic_routes = Router::new()
+        .route("/", post(controllers::topic_controller::create_topic)
+            .route_layer(middleware::from_fn_with_state(
+                app_state.clone(),
+                auth::middleware::auth_middleware,
+            ))
+        )
+        .route("/", get(controllers::topic_controller::get_topics))
+        .route("/:topic_id", get(controllers::topic_controller::get_topic))
+        .route("/:topic_id", patch(controllers::topic_controller::update_topic)
+            .route_layer(middleware::from_fn_with_state(
+                app_state.clone(),
+                auth::middleware::auth_middleware,
+            ))
+        )
+        .route("/:topic_id", delete(controllers::topic_controller::delete_topic)
+            .route_layer(middleware::from_fn_with_state(
+                app_state.clone(),
+                auth::middleware::auth_middleware,
+            ))
+        )
+        .route("/:id/posts", get(controllers::topic_controller::get_topic_with_posts));
+        
+    // Post routes
+    let post_routes = Router::new()
+        .route("/:topic_id/posts", post(controllers::post_controller::create_post)
+            .route_layer(middleware::from_fn_with_state(
+                app_state.clone(),
+                auth::middleware::auth_middleware,
+            ))
+        )
+        .route("/:topic_id/posts", get(controllers::post_controller::get_posts_by_topic))
+        .route("/:topic_id/posts/:post_id", patch(controllers::post_controller::update_post)
+            .route_layer(middleware::from_fn_with_state(
+                app_state.clone(),
+                auth::middleware::auth_middleware,
+            ))
+        )
+        .route("/:topic_id/posts/:post_id", delete(controllers::post_controller::delete_post)
+            .route_layer(middleware::from_fn_with_state(
+                app_state.clone(),
+                auth::middleware::auth_middleware,
+            ))
+        )
+        .route("/posts/:post_id/replies", get(controllers::post_controller::get_replies));
+    
+    // Canvas integration routes
+    let canvas_routes = Router::new()
+        .route("/webhook", post(controllers::canvas_integration_controller::canvas_webhook))
+        .route("/discussions/import", post(controllers::canvas_integration_controller::import_canvas_discussion)
+            .route_layer(middleware::from_fn_with_state(
+                app_state.clone(),
+                auth::middleware::require_role("instructor".to_string()),
+            ))
+        )
+        .route("/replies/import", post(controllers::canvas_integration_controller::import_canvas_reply)
+            .route_layer(middleware::from_fn_with_state(
+                app_state.clone(),
+                auth::middleware::auth_middleware,
+            ))
+        );
+        
+    // Assignment routes
+    let assignment_routes = Router::new()
+        .route("/", post(controllers::assignment_controller::create_assignment)
+            .route_layer(middleware::from_fn_with_state(
+                app_state.clone(),
+                auth::middleware::require_role("instructor".to_string()),
+            ))
+        )
+        .route("/:id", get(controllers::assignment_controller::get_assignment))
+        .route("/:id/topic", get(controllers::assignment_controller::get_assignment_with_topic))
+        .route("/:id/topic", post(controllers::assignment_controller::create_topic_from_assignment)
+            .route_layer(middleware::from_fn_with_state(
+                app_state.clone(),
+                auth::middleware::auth_middleware,
+            ))
+        )
+        .route("/:id/topic/map", post(controllers::assignment_controller::map_topic_to_assignment)
+            .route_layer(middleware::from_fn_with_state(
+                app_state.clone(),
+                auth::middleware::require_role("instructor".to_string()),
+            ))
+        )
+        .route("/:id/topic", delete(controllers::assignment_controller::unmap_topic_from_assignment)
+            .route_layer(middleware::from_fn_with_state(
+                app_state.clone(),
+                auth::middleware::require_role("instructor".to_string()),
+            ))
+        )
+        .route("/:id/topic", delete(controllers::assignment_controller::unlink_assignment_topic)
+            .route_layer(middleware::from_fn_with_state(
+                app_state.clone(),
+                auth::middleware::require_role("instructor".to_string()),
+            ))
+        );
+        
+    // Additional category routes for topics
+    let category_routes = Router::new()
+        .route("/", post(controllers::category_controller::create_category)
+            .route_layer(middleware::from_fn_with_state(
+                app_state.clone(),
+                auth::middleware::require_role("instructor".to_string()),
+            ))
+        )
+        .route("/", get(controllers::category_controller::list_categories))
+        .route("/:id", get(controllers::category_controller::get_category))
+        .route("/:id", patch(controllers::category_controller::update_category)
+            .route_layer(middleware::from_fn_with_state(
+                app_state.clone(),
+                auth::middleware::require_role("instructor".to_string()),
+            ))
+        )
+        .route("/:id", delete(controllers::category_controller::delete_category)
+            .route_layer(middleware::from_fn_with_state(
+                app_state.clone(),
+                auth::middleware::require_role("instructor".to_string()),
+            ))
+        )
+        .route("/:id/topics", get(controllers::topic_controller::get_topics_by_category));
+        
+    // Combine routes
+    Router::new()
+        .merge(auth_routes)
+        .nest("/courses", course_routes)
+        .nest("/categories", category_routes)
+        .nest("/topics", topic_routes)
+        .nest("/topics", post_routes) // Sharing the same base path as topic_routes
+        .nest("/canvas", canvas_routes)
+        .nest("/assignments", assignment_routes)
+        .merge(protected_routes)
+        .nest("/courses/:id/assignments", Router::new()
+            .route("/", get(controllers::assignment_controller::list_course_assignments))
+            .route("/discussions", get(controllers::assignment_controller::list_course_discussion_assignments))
+        )
 }

@@ -1,3 +1,30 @@
+# Canvas-Discourse LMS Integration
+
+## 👋 Welcome to the Project!
+
+This project implements integration between Canvas LMS and Discourse forum systems, combining the best of both platforms for educational institutions.
+
+## 🤖 For AI Assistants
+
+If you're an AI assistant (like GitHub Copilot) helping with this project, please refer to the [`AI_PROJECT_GUIDE.md`](AI_PROJECT_GUIDE.md) file for a comprehensive guide to the project structure, documentation, and development workflow.
+
+This guide will help you understand:
+- Where to find documentation
+- How the code is structured
+- The current development priorities
+- How to contribute to the feedback loop between code and documentation
+
+## 👥 For Developers
+
+This project uses a documentation-driven development approach with automated analysis tools that generate comprehensive documentation from source code.
+
+To get started:
+
+1. Review the central reference hub at [`docs/central_reference_hub.md`](docs/central_reference_hub.md)
+2. Set up your development environment following our [setup guide](docs/setup_guide.md)
+3. Run `node cli.js analyze` to see the current project status
+4. Check the [implementation plan](rag_knowledge_base/integration/status_and_plan.md) for current priorities
+
 EduConnect LMS & Forum
 An offline-first learning management system with integrated discussion forums, built with Rust and modern web technologies.
 

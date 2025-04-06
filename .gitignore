@@ -13,3 +13,5 @@ dist/
 
 # Model audit data (excluding dashboard)
 audit_report.json
+
+jest.

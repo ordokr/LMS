@@ -40,3 +40,16 @@ pub fn create_router(state: Arc<AppState>) -> Router {
 async fn health_check() -> &'static str {
     "OK"
 }
+
+pub mod forum;
+pub mod courses;
+
+use axum::Router;
+use std::sync::Arc;
+use crate::AppState;
+
+pub fn api_router() -> Router<Arc<AppState>> {
+    Router::new()
+        .nest("/forum", forum::forum_routes())
+        .nest("/lms", courses::course_routes())
+}

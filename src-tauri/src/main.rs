@@ -52,6 +52,9 @@ use routes::{
     // Import other routes as you implement them
 };
 
+// Add these imports to your existing imports
+use crate::api::auth::{login, verify_token};
+
 // Shared state containing the database connection
 struct AppState {
     conn: Arc<Mutex<Connection>>,
@@ -266,7 +269,11 @@ pub fn run() {
             
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![])
+        .invoke_handler(tauri::generate_handler![
+            // ... your existing commands
+            login,
+            verify_token,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

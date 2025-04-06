@@ -1,6 +1,43 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const yargs = require('yargs');
+const UnifiedProjectAnalyzer = require('./unified-project-analyzer');
+
+// Parse command line arguments
+const argv = yargs
+  .option('baseDir', {
+    alias: 'b',
+    description: 'Base directory to analyze',
+    default: process.cwd()
+  })
+  .option('canvas', {
+    description: 'Path to Canvas source code',
+    default: path.join(__dirname, '..', 'port', 'canvas')
+  })
+  .option('discourse', {
+    description: 'Path to Discourse source code',
+    default: path.join(__dirname, '..', 'port', 'discourse')
+  })
+  .option('skipCache', {
+    description: 'Skip using cached results',
+    type: 'boolean',
+    default: false
+  })
+  .option('skipSourceAnalysis', {
+    description: 'Skip source system analysis',
+    type: 'boolean',
+    default: false
+  })
+  .option('report', {
+    alias: 'r',
+    description: 'Type of report to generate',
+    choices: ['full', 'summary', 'source', 'code-quality'],
+    default: 'full'
+  })
+  .help()
+  .alias('help', 'h')
+  .argv;
 
 /**
  * Comprehensive Analysis Runner
@@ -60,10 +97,13 @@ async function runFullAnalysis() {
   // Step 3: Run unified project analyzer on LMS
   console.log('\n3️⃣ Running Unified Project Analyzer on target LMS app...');
   try {
-    execSync('node unified-project-analyzer.js', { 
-      stdio: 'inherit',
-      cwd: lmsDir
-    });
+    const sourceSystems = {
+      canvas: path.join(__dirname, '..', 'port', 'canvas'),
+      discourse: path.join(__dirname, '..', 'port', 'discourse')
+    };
+
+    const analyzer = new UnifiedProjectAnalyzer(__dirname, sourceSystems);
+    await analyzer.analyze();
   } catch (error) {
     console.error(`❌ Error running unified project analyzer: ${error.message}`);
   }
@@ -470,3 +510,59 @@ runFullAnalysis().catch(err => {
   console.error('Error running full analysis:', err);
   process.exit(1);
 });
+
+const UnifiedProjectAnalyzer = require('./unified-project-analyzer');
+const path = require('path');
+const fs = require('fs');
+
+async function runAnalysis(options = {}) {
+  console.time('Total Analysis Time');
+  
+  const baseDir = options.baseDir || process.cwd();
+  
+  // Set up source systems
+  const sourceSystems = {};
+  const canvasPath = path.join(__dirname, '..', 'port', 'canvas');
+  const discoursePath = path.join(__dirname, '..', 'port', 'discourse');
+  
+  if (fs.existsSync(canvasPath)) {
+    sourceSystems.canvas = canvasPath;
+    console.log(`Canvas path: ${canvasPath}`);
+  }
+  
+  if (fs.existsSync(discoursePath)) {
+    sourceSystems.discourse = discoursePath;
+    console.log(`Discourse path: ${discoursePath}`);
+  }
+  
+  // Create analyzer with options
+  const analyzer = new UnifiedProjectAnalyzer(baseDir, sourceSystems, {
+    useCache: options.useCache !== false,
+    implementationThreshold: options.implementationThreshold || 35
+  });
+  
+  // Run analysis
+  await analyzer.analyze();
+  
+  // Generate reports
+  await analyzer.generateAllReports();
+  
+  console.timeEnd('Total Analysis Time');
+  return analyzer.metrics;
+}
+
+// Only run if called directly
+if (require.main === module) {
+  const args = process.argv.slice(2);
+  const options = {
+    baseDir: args[0] || process.cwd(),
+    useCache: args.includes('--no-cache') ? false : true
+  };
+  
+  runAnalysis(options).catch(err => {
+    console.error("Analysis failed:", err);
+    process.exit(1);
+  });
+} else {
+  module.exports = runAnalysis;
+}

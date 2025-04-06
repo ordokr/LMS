@@ -110,7 +110,7 @@ pub fn ThreadDetail(
     view! {
         <div class="topic-detail">
             {move || if loading() {
-                view! { <div class="d-flex justify-content-center p-5"><div class="spinner-border" role="status"></div></div> }
+                view! { <div class="d-flex justify-content-center p-5"><div class="spinner-border#" role="status"></div></div> }
             } else if let Some(t) = topic() {
                 view! {
                     <div>
@@ -194,7 +194,7 @@ pub fn ThreadDetail(
                                     let is_first = index == 0;
                                     view! {
                                         <div class="card mb-3" id={format!("post-{}", post.id)}>
-                                            <div class="card-header d-flex justify-content-between align-items-center">
+                                            <div class="card-header d-flex justify-content-between align-items-center#">
                                                 <div>
                                                     <strong>{post.author_name.clone().unwrap_or_else(|| "Anonymous".to_string())}</strong>
                                                     {if let Some(role) = post.author_role.clone() {
@@ -248,7 +248,7 @@ pub fn ThreadDetail(
                             if !t.locked && is_authenticated() {
                                 view! {
                                     <div class="reply-form card mb-4">
-                                        <div class="card-header">
+                                        <div class="card-header#">
                                             <h4>"Post Reply"</h4>
                                         </div>
                                         <div class="card-body">
@@ -294,7 +294,7 @@ pub fn ThreadDetail(
                 }
             } else {
                 view! {
-                    <div class="alert alert-danger">
+                    <div class="alert alert-danger#">
                         {move || error().unwrap_or_else(|| "Topic not found".to_string())}
                     </div>
                 }
@@ -312,7 +312,7 @@ fn format_date(date: chrono::DateTime<chrono::Utc>) -> String {
 // Helper functions to extract mentions and quotes from post content
 fn extract_mentions(content: &str) -> Vec<String> {
     let mut mentions = Vec::new();
-    let re = regex::Regex::new(r"@(\w+)").unwrap();
+    let re = regex::Regex::new(r#"@(\w+)"#).unwrap();
     
     for cap in re.captures_iter(content) {
         if let Some(username) = cap.get(1) {
@@ -327,7 +327,7 @@ fn extract_quotes(content: &str) -> Vec<i64> {
     let mut quote_ids = Vec::new();
     // This is a simplified example - in a real implementation, 
     // you'd need to parse your specific quote format
-    let re = regex::Regex::new(r"data-post-id=['"](\d+)['"]").unwrap();
+    let re = regex::Regex::new(r#"data-post-id=['"](\d+)['"]"#).unwrap();
     
     for cap in re.captures_iter(content) {
         if let Some(id_str) = cap.get(1) {
@@ -339,3 +339,5 @@ fn extract_quotes(content: &str) -> Vec<i64> {
     
     quote_ids
 }
+
+

@@ -313,6 +313,26 @@ class FileSystemUtils {
         return Object.keys(this.files)
             .filter(file => pattern.test(file));
     }
+
+    /**
+     * Get file statistics
+     * @returns {Object} File statistics with counts by file type
+     */
+    getFileStats() {
+        const allFiles = this.getAllFiles();
+        
+        // Count files by type
+        const js = allFiles.filter(file => /\.(js|jsx|ts|tsx)$/.test(file)).length;
+        const rust = allFiles.filter(file => /\.rs$/.test(file)).length;
+        const other = allFiles.length - js - rust;
+        
+        return {
+          total: allFiles.length,
+          js,
+          rust,
+          other
+        };
+    }
 }
 
 // Re-add the binary signatures and skip/text extensions here

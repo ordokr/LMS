@@ -1,5 +1,5 @@
 [package]
-name = "lms"
+name = "lms-tauri"
 version = "0.0.0"
 description = "Learning Management System with integrated forum"
 authors = ["Your Name"]

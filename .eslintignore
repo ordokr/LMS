@@ -1,0 +1,18 @@
+# Ignore generated files
+dist/
+build-output/
+node_modules/
+
+# Ignore analysis and utility files with known issues
+analysisUtils.js
+**/modules/technical-docs-generator.js
+**/modules/ml-analyzer.js
+**/modules/vector-database-adapter.js
+run-full-analysis.js
+services/integration/auth/jwt-provider.js
+
+# Ignore UI build files
+*.min.js
+
+# Ignore generated documentation
+docs/

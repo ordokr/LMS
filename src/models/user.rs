@@ -2,58 +2,41 @@ use serde::{Serialize, Deserialize};
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use crate::services::api::{ApiClient, ApiError};
+use uuid::Uuid;
 
 /// Represents a user in Canvas/Discourse
 /// Based on Canvas's User model
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
-    pub id: i64,
-    pub name: Option<String>,
-    pub sortable_name: Option<String>,
-    pub short_name: Option<String>,
-    pub sis_user_id: Option<String>,
-    pub login_id: Option<String>,
-    pub avatar_url: Option<String>,
-    pub email: Option<String>,
-    pub locale: Option<String>,
-    pub effective_locale: Option<String>,
-    pub time_zone: Option<String>,
-    pub bio: Option<String>,
-    pub title: Option<String>,
-    pub created_at: Option<DateTime<Utc>>,
-    pub roles: Option<Vec<String>>,
-    pub preferences: Option<HashMap<String, String>>,
-    
-    // Discourse-specific fields
-    pub username: Option<String>,
-    pub trust_level: Option<i32>,
-    pub suspended_at: Option<DateTime<Utc>>,
-    pub suspended_till: Option<DateTime<Utc>>,
+    pub id: Uuid,
+    pub username: String,
+    pub email: String, 
+    #[serde(skip_serializing)]
+    pub password_hash: String,
+    pub role: String,
+    pub canvas_id: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 impl User {
-    pub fn new() -> Self {
+    pub fn new(
+        username: String,
+        email: String,
+        password_hash: String,
+        role: String,
+        canvas_id: String,
+    ) -> Self {
+        let now = Utc::now();
         Self {
-            id: 0,
-            name: None,
-            sortable_name: None,
-            short_name: None,
-            sis_user_id: None,
-            login_id: None,
-            avatar_url: None,
-            email: None,
-            locale: None,
-            effective_locale: None,
-            time_zone: None,
-            bio: None,
-            title: None,
-            created_at: None,
-            roles: None,
-            preferences: None,
-            username: None,
-            trust_level: None,
-            suspended_at: None,
-            suspended_till: None,
+            id: Uuid::new_v4(),
+            username,
+            email,
+            password_hash,
+            role,
+            canvas_id,
+            created_at: now,
+            updated_at: now,
         }
     }
     
@@ -215,7 +198,7 @@ pub struct UserPreferences {
     // Privacy preferences
     pub hide_profile: bool,
     pub hide_online_status: bool,
-    pub allow_private_messages: bool,
+    pub allow_private messages: bool,
     pub hide_activity: bool,
     
     // Content preferences

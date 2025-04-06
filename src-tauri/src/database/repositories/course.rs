@@ -1,14 +1,14 @@
-use sqlx::{Pool, Sqlite};
+use sqlx::{Pool, Sqlite, SqlitePool};
 
 use crate::core::errors::AppError;
 use crate::lms::models::{Course, Enrollment, EnrollmentRole, EnrollmentStatus, CourseStatus};
 
-pub struct CourseRepository {
-    db: Pool<Sqlite>,
+pub struct CourseRepository<'a> {
+    db: &'a SqlitePool
 }
 
-impl CourseRepository {
-    pub fn new(db: Pool<Sqlite>) -> Self {
+impl<'a> CourseRepository<'a> {
+    pub fn new(db: &'a SqlitePool) -> Self {
         Self { db }
     }
     
@@ -29,7 +29,7 @@ impl CourseRepository {
             course.end_date,
             course.status as i32, // This requires a custom FROM/TO implementation
         )
-        .fetch_one(&self.db)
+        .fetch_one(self.db)
         .await?;
         
         // Automatically enroll the instructor
@@ -60,7 +60,7 @@ impl CourseRepository {
                     uid,
                     stat as i32
                 )
-                .fetch_all(&self.db)
+                .fetch_all(self.db)
                 .await?
             },
             (Some(uid), None) => {
@@ -76,7 +76,7 @@ impl CourseRepository {
                     "#,
                     uid
                 )
-                .fetch_all(&self.db)
+                .fetch_all(self.db)
                 .await?
             },
             (None, Some(stat)) => {
@@ -91,7 +91,7 @@ impl CourseRepository {
                     "#,
                     stat as i32
                 )
-                .fetch_all(&self.db)
+                .fetch_all(self.db)
                 .await?
             },
             (None, None) => {
@@ -104,7 +104,7 @@ impl CourseRepository {
                     ORDER BY code
                     "#,
                 )
-                .fetch_all(&self.db)
+                .fetch_all(self.db)
                 .await?
             }
         };
@@ -124,7 +124,7 @@ impl CourseRepository {
             "#,
             course_id
         )
-        .fetch_optional(&self.db)
+        .fetch_optional(self.db)
         .await?
         .ok_or_else(|| AppError::NotFound(format!("Course with id {} not found", course_id)))?;
         
@@ -149,7 +149,7 @@ impl CourseRepository {
             course.status as i32,
             course.id
         )
-        .execute(&self.db)
+        .execute(self.db)
         .await?;
         
         Ok(())
@@ -208,7 +208,7 @@ impl CourseRepository {
             user_id,
             course_id
         )
-        .fetch_optional(&self.db)
+        .fetch_optional(self.db)
         .await?;
         
         if let Some(enrollment) = existing {
@@ -223,7 +223,7 @@ impl CourseRepository {
                 status as i32,
                 enrollment.id
             )
-            .execute(&self.db)
+            .execute(self.db)
             .await?;
             
             return Ok(enrollment.id);
@@ -242,7 +242,7 @@ impl CourseRepository {
             role as i32,
             status as i32
         )
-        .fetch_one(&self.db)
+        .fetch_one(self.db)
         .await?;
         
         Ok(result.id)
@@ -260,7 +260,7 @@ impl CourseRepository {
             "#,
             course_id
         )
-        .fetch_all(&self.db)
+        .fetch_all(self.db)
         .await?;
         
         Ok(enrollments)
@@ -285,7 +285,7 @@ impl CourseRepository {
             course_id,
             user_id
         )
-        .execute(&self.db)
+        .execute(self.db)
         .await?;
         
         if result.rows_affected() == 0 {
@@ -305,7 +305,7 @@ impl CourseRepository {
             course_id,
             user_id
         )
-        .execute(&self.db)
+        .execute(self.db)
         .await?;
         
         if result.rows_affected() == 0 {
@@ -348,8 +348,102 @@ impl CourseRepository {
             }
         };
         
-        let result = query.fetch_optional(&self.db).await?;
+        let result = query.fetch_optional(self.db).await?;
         
         Ok(result.is_some())
+    }
+
+    pub async fn get_all(&self) -> Result<Vec<Course>, AppError> {
+        let courses = sqlx::query_as!(
+            Course,
+            "SELECT * FROM courses WHERE deleted_at IS NULL ORDER BY name"
+        )
+        .fetch_all(self.db)
+        .await
+        .map_err(|e| AppError::InternalError(e.to_string()))?;
+        
+        Ok(courses)
+    }
+    
+    pub async fn get_by_id(&self, id: i64) -> Result<Course, AppError> {
+        let course = sqlx::query_as!(
+            Course,
+            "SELECT * FROM courses WHERE id = ? AND deleted_at IS NULL",
+            id
+        )
+        .fetch_optional(self.db)
+        .await
+        .map_err(|e| AppError::InternalError(e.to_string()))?
+        .ok_or_else(|| AppError::NotFound(format!("Course with id {} not found", id)))?;
+        
+        Ok(course)
+    }
+    
+    pub async fn create(
+        &self, 
+        name: String, 
+        code: String, 
+        description: Option<String>
+    ) -> Result<Course, AppError> {
+        let course_id = sqlx::query!(
+            "INSERT INTO courses (name, code, description, created_at, updated_at)
+             VALUES (?, ?, ?, datetime('now'), datetime('now'))
+             RETURNING id",
+            name,
+            code,
+            description
+        )
+        .fetch_one(self.db)
+        .await
+        .map_err(|e| AppError::InternalError(e.to_string()))?
+        .id;
+        
+        self.get_by_id(course_id).await
+    }
+    
+    pub async fn update(
+        &self, 
+        id: i64, 
+        name: String, 
+        code: String, 
+        description: Option<String>
+    ) -> Result<Course, AppError> {
+        let rows_affected = sqlx::query!(
+            "UPDATE courses 
+             SET name = ?, code = ?, description = ?, updated_at = datetime('now')
+             WHERE id = ? AND deleted_at IS NULL",
+            name,
+            code,
+            description,
+            id
+        )
+        .execute(self.db)
+        .await
+        .map_err(|e| AppError::InternalError(e.to_string()))?
+        .rows_affected();
+        
+        if rows_affected == 0 {
+            return Err(AppError::NotFound(format!("Course with id {} not found", id)));
+        }
+        
+        self.get_by_id(id).await
+    }
+    
+    pub async fn delete(&self, id: i64) -> Result<(), AppError> {
+        let rows_affected = sqlx::query!(
+            "UPDATE courses SET deleted_at = datetime('now')
+             WHERE id = ? AND deleted_at IS NULL",
+            id
+        )
+        .execute(self.db)
+        .await
+        .map_err(|e| AppError::InternalError(e.to_string()))?
+        .rows_affected();
+        
+        if rows_affected == 0 {
+            return Err(AppError::NotFound(format!("Course with id {} not found", id)));
+        }
+        
+        Ok(())
     }
 }

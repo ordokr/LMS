@@ -8,8 +8,16 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "update-status": "node status-updater.js"
+    "test": "jest",
+    "test:unit": "jest --testPathPattern=tests/unit",
+    "test:integration": "mocha tests/integration/**/*.test.js",
+    "lint": "eslint . --ext .js,.ts --ignore-path .eslintignore",
+    "lint:fix": "eslint . --ext .js,.ts --fix --ignore-path .eslintignore",
+    "build": "node scripts/build.js",
+    "docs": "node scripts/update-central-reference.js",
+    "dashboard": "node scripts/generate-stakeholder-dashboard.js",
+    "ci": "npm run lint && npm run test:unit && npm run test:integration && npm run build",
+    "monitor:start": "node src/monitoring/start.js"
   },
   "repository": {
     "type": "git",
@@ -23,10 +31,24 @@
   },
   "homepage": "https://github.com/ordokr/LMS#readme",
   "dependencies": {
+    "@google/generative-ai": "^0.24.0",
+    "@octokit/rest": "^21.1.1",
+    "@qdrant/js-client-rest": "^1.13.0",
+    "@tensorflow-models/universal-sentence-encoder": "^1.3.3",
+    "@tensorflow/tfjs-node": "^4.22.0",
+    "commander": "^13.1.0",
+    "fs-extra": "^11.3.0",
     "glob": "^11.0.1"
   },
   "devDependencies": {
+    "@babel/core": "^7.26.10",
     "@babel/parser": "^7.27.0",
-    "@babel/traverse": "^7.27.0"
+    "@babel/preset-env": "^7.26.9",
+    "@babel/traverse": "^7.27.0",
+    "babel-jest": "^29.7.0",
+    "chai": "^4.3.8",
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "mocha": "^10.2.0"
   }
 }

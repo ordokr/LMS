@@ -1,175 +1,339 @@
-const parser = require('@babel/parser');
-const traverse = require('@babel/traverse').default;
+const _parser = require('@babel/parser');
+const _traverse = require('@babel/traverse').default;
 const FileSystemUtils = require('./fileSystemUtils');
-const AnalysisUtils = require('./analysisUtils'); // Import the new AnalysisUtils module
+const AnalysisUtils = require('./analysisUtils');
 const path = require('path');
-const fs = require('fs'); // Keep fs for generateCentralReferenceHub
-const AstAnalyzer = require('./astAnalyzer'); // Import the new AstAnalyzer module
-const ProjectPredictor = require('./projectPredictor'); // Import the new ProjectPredictor module
+const fs = require('fs');
+const fsExtra = require('fs-extra');
+const AstAnalyzer = require('./astAnalyzer');
+const ProjectPredictor = require('./projectPredictor');
+
+// Import the new modules
+const SolidAnalyzer = require('./modules/solid-analyzer');
+const PatternAnalyzer = require('./modules/pattern-analyzer');
+const SourceAnalyzer = require('./modules/source-analyzer');
+const ReportGenerator = require('./modules/report-generator');
+const MLAnalyzer = require('./modules/ml-analyzer');
+const VisualReportGenerator = require('./modules/visual-report-generator');
+const GitHubAnalyzer = require('./modules/github-analyzer');
+const GeminiAnalyzer = require('./modules/gemini-analyzer');
+const VectorDatabaseAdapter = require('./modules/vector-database-adapter');
+const RagRetriever = require('./modules/rag-retriever');
+const IntegrationReportGenerator = require('./modules/integration-report-generator');
+const TechnicalDocsGenerator = require('./modules/technical-docs-generator');
 
 /**
  * Unified Project Analyzer
  * Consolidates all analyzer functionality into a single tool
  */
 class UnifiedProjectAnalyzer {
-  constructor(baseDir) {
+  constructor(baseDir, sourceSystems = {}, options = {}) {
     this.baseDir = baseDir;
-
-    // Configuration
-    this.config = {
+    this.sourceSystems = sourceSystems;
+    this.options = Object.assign({
+      useCache: true,
       implementationThreshold: 35,
-    };
+      geminiApiKey: "AIzaSyC2bS3qMexvmemLfg-V4ZQ-GbTcg-RgCQ8" // Default Gemini API key
+    }, options);
     
-    // Metrics tracking - INITIALIZE METRICS FIRST
-    this.metrics = {
+    // Initialize metrics structure
+    this.metrics = this.initializeMetrics();
+
+    // Initialize utility classes
+    this.fsUtils = new FileSystemUtils(this.baseDir, this.getExcludePatterns());
+    this.analysisUtils = new AnalysisUtils(this.baseDir, this.fsUtils, this.options, this.metrics);
+    this.astAnalyzer = new AstAnalyzer();
+    this.predictor = new ProjectPredictor(this.metrics);
+    
+    // Initialize the new modular components
+    this.solidAnalyzer = new SolidAnalyzer(this.metrics);
+    this.patternAnalyzer = new PatternAnalyzer(this.metrics);
+    this.sourceAnalyzer = new SourceAnalyzer(this.metrics, this.getExcludePatterns());
+    this.reportGenerator = new ReportGenerator(this.metrics, this.baseDir);
+    this.mlAnalyzer = new MLAnalyzer(this.metrics);
+    this.visualReportGenerator = new VisualReportGenerator(this.metrics, this.baseDir);
+    
+    // Gemini AI integration
+    this.geminiAnalyzer = new GeminiAnalyzer(this.metrics, {
+      geminiApiKey: this.options.geminiApiKey,
+      baseDir: this.baseDir
+    });
+    
+    // GitHub integration (optional)
+    if (options.github) {
+      try {
+        this.githubAnalyzer = new GitHubAnalyzer(this.metrics, {
+          token: options.github.token,
+          owner: options.github.owner,
+          repo: options.github.repo,
+          cacheDir: path.join(this.baseDir, '.analysis_cache')
+        });
+      } catch (err) {
+        console.warn(`GitHub integration not available: ${err.message}`);
+        this.githubAnalyzer = null;
+      }
+    }
+  }
+  
+  /**
+   * Initialize metrics structure
+   */
+  initializeMetrics() {
+    return {
       models: { total: 0, implemented: 0, details: [] },
       apiEndpoints: { total: 0, implemented: 0, details: [] },
       uiComponents: { total: 0, implemented: 0, details: [] },
       tests: { total: 0, passing: 0, coverage: 0, details: [] },
-      
       codeQuality: {
-          complexity: {
-              average: 0,
-              high: 0,
-              files: []
-          },
-          techDebt: {
-              score: 0,
-              items: []
-          },
-          solidViolations: {
-              srp: [],
-              ocp: [],
-              lsp: [],
-              isp: [],
-              dip: []
-          },
-          designPatterns: {
-              polymorphism: {
-                  implementations: [],
-                  violations: []  
-              },
-              dependencyInjection: {
-                  implementations: [],
-                  violations: []
-              },
-              ioc: {
-                  implementations: [],
-                  violations: []
-              }
-          }
+        complexity: { average: 0, high: 0, files: [] },
+        techDebt: { score: 0, items: [] },
+        solidViolations: {
+          srp: [], ocp: [], lsp: [], isp: [], dip: []
+        },
+        designPatterns: {
+          polymorphism: { implementations: [], violations: [] },
+          dependencyInjection: { implementations: [], violations: [] },
+          ioc: { implementations: [], violations: [] }
+        }
       },
-      
       featureAreas: {
-          auth: { total: 0, implemented: 0 },
-          forum: { total: 0, implemented: 0 },
-          lms: { total: 0, implemented: 0 },
-          integration: { total: 0, implemented: 0 },
-          other: { total: 0, implemented: 0 }
+        auth: { total: 0, implemented: 0 },
+        forum: { total: 0, implemented: 0 },
+        lms: { total: 0, implemented: 0 },
+        integration: { total: 0, implemented: 0 },
+        other: { total: 0, implemented: 0 }
       },
-      
       relationships: [],
-      
       predictions: {
-          velocityData: {
-              models: 1.5,       // Models implemented per week
-              apiEndpoints: 3,    // API endpoints implemented per week
-              uiComponents: 5,    // UI components implemented per week
-              tests: 2           // Tests added per week
-          },
-          estimates: {}
+        velocityData: {
+          models: 1.5,
+          apiEndpoints: 3,
+          uiComponents: 5,
+          tests: 2
+        },
+        estimates: {}
+      },
+      sourceSystems: {
+        canvas: { models: { total: 0, details: [] }, controllers: { total: 0, details: [] }, filesByType: {} },
+        discourse: { models: { total: 0, details: [] }, controllers: { total: 0, details: [] }, filesByType: {} }
+      },
+      sourceToTarget: {
+        models: [],
+        controllers: [],
+        components: []
       }
     };
-
-    // Initialize utility classes
-    this.fsUtils = new FileSystemUtils(this.baseDir, this.getExcludePatterns());
-    this.analysisUtils = new AnalysisUtils(this.baseDir, this.fsUtils, this.config, this.metrics);
-    this.astAnalyzer = new AstAnalyzer();
-    this.predictor = new ProjectPredictor(this.metrics);
   }
 
   /**
-   * Defines the patterns for excluding directories and files during discovery.
+   * Get exclude patterns for file discovery
    */
   getExcludePatterns() {
-    // Keep exclude patterns logic here or move fully to fsUtils if preferred
     return [
-      /node_modules/,
-      /\.git/,
-      /target\/(?!.*\.rs$)/, // Exclude target dir except .rs files
-      /dist/,
-      /build/,
-      /\.cache/,
-      /\.next/,
-      /\.nuxt/,
-      /\.DS_Store/,
-      /coverage/,
-      /\.vscode/,
-      /\.idea/,
-      /assets/, // Exclude assets dir
-      /public/, // Exclude public dir
-      /docs/, // Exclude docs dir
-      /references/, // Exclude references dir
-      /analysis_summary/, // Exclude analysis_summary dir
-      /md_dashboard/, // Exclude md_dashboard dir
-      /tools\/__pycache__/, // Exclude python cache
-      /.*\.log$/, // Exclude log files
-      /.*\.tmp$/, // Exclude temp files
-      /.*\.bak.?$/, // Exclude backup files
-      /.*\.swp$/, // Exclude vim swap files
-      /LMS\.code-workspace/, // Exclude workspace file
-      /package-lock\.json/, // Exclude lock file
-      /yarn\.lock/, // Exclude lock file
-      /unified-project-analyzer\.js/, // Exclude self
-      /project-analyzer\.js.*/, // Exclude older analyzer versions
-      /debug-analyzer\.js/,
-      /status-analyzer\.js/,
-      /advanced-api-analyzer\.js/,
-      /fix-.*\.js/, // Exclude fix scripts
-      /cleanup-docs\.js/,
-      /run-full-analysis\.js/,
-      /status-updater\.js/,
-      /analyze_project\.pdb/, // Exclude pdb file
-      /fileSystemUtils\.js/, // Exclude the new utils file
+      /node_modules/, /\.git/, /target\/(?!.*\.rs$)/,
+      /dist/, /build/, /\.cache/, /\.next/, /\.nuxt/,
+      /\.DS_Store/, /coverage/, /\.vscode/, /\.idea/,
+      /assets/, /public/, /docs/, /references/,
+      /analysis_summary/, /md_dashboard/, /tools\/__pycache__/,
+      /.*\.log$/, /.*\.tmp$/, /.*\.bak.?$/, /.*\.swp$/,
+      /LMS\.code-workspace/, /package-lock\.json/, /yarn\.lock/,
+      /unified-project-analyzer\.js/, /project-analyzer\.js.*/,
+      /debug-analyzer\.js/, /status-analyzer\.js/,
+      /advanced-api-analyzer\.js/, /fix-.*\.js/,
+      /cleanup-docs\.js/, /run-full-analysis\.js/,
+      /status-updater\.js/, /analyze_project\.pdb/,
+      /fileSystemUtils\.js/,
     ];
   }
 
   /**
-   * Run the analysis
+   * Enhanced run method with incremental analysis and performance tracking
    */
   async analyze() {
     console.log(`Starting analysis of ${this.baseDir}...`);
-
-    // Discover and read files using FileSystemUtils
-    this.fsUtils.discoverFiles();
-    this.fsUtils.readFileContents();
-
-    // Use AnalysisUtils for analysis
-    await this.analysisUtils.analyzeModels();
-    await this.analysisUtils.analyzeApiEndpoints();
-    await this.analysisUtils.analyzeUIComponents();
-    await this.analysisUtils.analyzeTests();
-
-    // Use AnalysisUtils for code quality analysis too
-    await this.analysisUtils.analyzeCodeQuality(this.astAnalyzer);
-
-    // Generate relationship maps with Mermaid diagrams
+    console.time('Total Analysis Time');
+    
+    // Initialize performance tracking
+    this.metrics.performance = {
+      startTime: Date.now(),
+      steps: {}
+    };
+    
+    // Check if this is an incremental analysis
+    const changedFiles = this.options.incremental ? 
+      await this.performIncrementalAnalysis() : null;
+    
+    // File discovery (with tracking)
+    const startFileDiscovery = Date.now();
+    if (!changedFiles) {
+      this.fsUtils.discoverFiles();
+      this.fsUtils.readFileContents();
+    }
+    this.metrics.performance.steps.fileDiscovery = Date.now() - startFileDiscovery;
+    
+    // Core analysis (with tracking)
+    const startModelAnalysis = Date.now();
+    await this.analysisUtils.analyzeModels(changedFiles);
+    this.metrics.performance.steps.modelAnalysis = Date.now() - startModelAnalysis;
+    
+    const startApiAnalysis = Date.now();
+    await this.analysisUtils.analyzeApiEndpoints(changedFiles);
+    this.metrics.performance.steps.apiAnalysis = Date.now() - startApiAnalysis;
+    
+    const startUiAnalysis = Date.now();
+    await this.analysisUtils.analyzeUIComponents(changedFiles);
+    this.metrics.performance.steps.uiAnalysis = Date.now() - startUiAnalysis;
+    
+    const startTestAnalysis = Date.now();
+    await this.analysisUtils.analyzeTests(changedFiles);
+    this.metrics.performance.steps.testAnalysis = Date.now() - startTestAnalysis;
+    
+    const startQualityAnalysis = Date.now();
+    await this.analysisUtils.analyzeCodeQuality(this.astAnalyzer, changedFiles);
+    this.metrics.performance.steps.codeQualityAnalysis = Date.now() - startQualityAnalysis;
+    
+    // GitHub integration (if configured)
+    if (this.githubAnalyzer) {
+      const startGitHubAnalysis = Date.now();
+      await this.githubAnalyzer.analyzeRepository();
+      this.metrics.performance.steps.githubAnalysis = Date.now() - startGitHubAnalysis;
+    }
+    
+    // Source systems analysis
+    if (Object.keys(this.sourceSystems).length > 0) {
+      const startSourceAnalysis = Date.now();
+      await this.sourceAnalyzer.analyzeSourceSystems(
+        this.baseDir, 
+        this.sourceSystems, 
+        this.fsUtils, 
+        this.options.useCache
+      );
+      this.metrics.performance.steps.sourceAnalysis = Date.now() - startSourceAnalysis;
+    }
+    
+    // Additional analysis steps
+    const startRelationships = Date.now();
     await this.generateRelationshipMaps();
-
-    // Make completion predictions (use only this one)
+    this.metrics.performance.steps.relationships = Date.now() - startRelationships;
+    
+    const startCodeSmells = Date.now();
+    await this.detectCodeSmells();
+    this.metrics.performance.steps.codeSmells = Date.now() - startCodeSmells;
+    
+    // ML-based code analysis
+    const startMlAnalysis = Date.now();
+    const _codeAnomalies = this.mlAnalyzer.detectAbnormalCode();
+    this.metrics.performance.steps.mlAnalysis = Date.now() - startMlAnalysis;
+    
+    const startPredictor = Date.now();
     this.predictor.predictCompletion();
-
-    // Update project status
+    this.metrics.performance.steps.predictor = Date.now() - startPredictor;
+    
+    const startStatusUpdate = Date.now();
     this.updateProjectStatus();
-
-    // Generate central reference hub (new)
-    await this.generateCentralReferenceHub();
-
+    this.metrics.performance.steps.statusUpdate = Date.now() - startStatusUpdate;
+    
+    // Run Gemini AI analysis if enabled
+    if (this.options.useAI !== false) {
+      const startGeminiAnalysis = Date.now();
+      await this.geminiAnalyzer.generateCodeInsights(this.fsUtils.getAllFiles(), this.fsUtils);
+      this.metrics.performance.steps.geminiAnalysis = Date.now() - startGeminiAnalysis;
+    }
+    
+    // Update total time
+    this.metrics.performance.totalTime = Date.now() - this.metrics.performance.startTime;
+    
+    // Update AI analysis results for Copilot and other AI tools
+    await this.updateAiAnalysisResults();
+    
+    console.timeEnd('Total Analysis Time');
     this.printSummary();
     return this.metrics;
   }
 
-  // File system related methods (discoverFiles, readFileContents, indexFileKeywords, findFilesByPatterns, getDirectoryStats) are removed.
+  /**
+   * Only analyze files that have changed since the last analysis
+   */
+  async performIncrementalAnalysis() {
+    const cacheDir = path.join(this.baseDir, '.analysis_cache');
+    if (!fs.existsSync(cacheDir)) {
+      fs.mkdirSync(cacheDir, { recursive: true });
+    }
+    
+    const lastRunFile = path.join(cacheDir, 'last_run.json');
+    let lastRun = {};
+    
+    if (fs.existsSync(lastRunFile)) {
+      try {
+        lastRun = JSON.parse(fs.readFileSync(lastRunFile, 'utf8'));
+      } catch (err) {
+        console.warn("Could not read last run data:", err.message);
+      }
+    }
+    
+    // Discover files
+    this.fsUtils.discoverFiles();
+    
+    // Filter for changed/new files only
+    const changedFiles = this.fsUtils.getAllFiles().filter(file => {
+      try {
+        const stats = fs.statSync(file);
+        const lastModified = stats.mtimeMs;
+        
+        // Check if file is new or modified since last run
+        if (!lastRun.files || !lastRun.files[file] || lastRun.files[file].mtime < lastModified) {
+          return true;
+        }
+        return false;
+      } catch (err) {
+        // If there's an error reading the file, consider it changed
+        return true;
+      }
+    });
+    
+    console.log(`Found ${changedFiles.length} changed/new files out of ${this.fsUtils.getAllFiles().length} total files`);
+    
+    // Only read contents of changed files
+    this.fsUtils.readFileContents(changedFiles);
+    
+    // Record this run's file timestamps
+    const currentRun = {
+      timestamp: Date.now(),
+      files: {}
+    };
+    
+    this.fsUtils.getAllFiles().forEach(file => {
+      try {
+        const stats = fs.statSync(file);
+        currentRun.files[file] = { 
+          mtime: stats.mtimeMs,
+          size: stats.size
+        };
+      } catch (err) {
+        // Ignore errors when getting stats
+      }
+    });
+    
+    // Save current run data
+    try {
+      fs.writeFileSync(lastRunFile, JSON.stringify(currentRun, null, 2));
+    } catch (err) {
+      console.warn("Could not save run data:", err.message);
+    }
+    
+    return changedFiles;
+  }
+
+  /**
+   * Calculate percentage
+   * @param {number} value - Current value
+   * @param {number} total - Total value
+   * @returns {number} Percentage (0-100)
+   */
+  getPercentage(value, total) {
+    if (total === 0) return 0;
+    return Math.round((value / total) * 100);
+  }
 
   /**
    * Update overall project status based on metrics
@@ -185,7 +349,7 @@ class UnifiedProjectAnalyzer {
       api: `${apiPercent}%`,
       ui: `${uiPercent}%`,
       tests: `${this.metrics.tests.coverage}%`,
-      techDebt: `${this.metrics.codeQuality.techDebt.score}%` // Use calculated score
+      techDebt: `${this.metrics.codeQuality.techDebt.score}%`
     };
 
     // Determine overall phase
@@ -201,91 +365,6 @@ class UnifiedProjectAnalyzer {
   }
 
   /**
-   * Generate detailed section for reports
-   */
-  generateDetailedSection() {
-    let details = "## Implementation Details\n\n";
-
-    // Models
-    details += `### Models (${this.getPercentage(this.metrics.models.implemented, this.metrics.models.total)}% Complete)\n\n`;
-    details += "| Model | File | Completeness |\n";
-    details += "|-------|------|-------------|\n";
-    this.metrics.models.details
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .forEach(m => {
-            details += `| ${m.name} | ${m.file.replace(/\\/g, '/')} | ${m.completeness}% ${m.completeness < 50 ? '⚠️ Low' : ''} |\n`;
-        });
-    details += "\n";
-
-    // API Endpoints
-    details += `### API Endpoints (${this.getPercentage(this.metrics.apiEndpoints.implemented, this.metrics.apiEndpoints.total)}% Complete)\n\n`;
-    details += "| Handler | File | Route | Completeness | Feature Area |\n";
-    details += "|---------|------|-------|-------------|--------------|\n";
-     this.metrics.apiEndpoints.details
-        .sort((a, b) => (a.featureArea + a.name).localeCompare(b.featureArea + b.name))
-        .forEach(e => {
-            details += `| ${e.name} | ${e.file.replace(/\\/g, '/')} | ${e.routePath || '-'} | ${e.completeness}% ${e.completeness < 50 ? '⚠️ Low' : ''} | ${e.featureArea} |\n`;
-        });
-    details += "\n";
-
-    // UI Components
-    details += `### UI Components (${this.getPercentage(this.metrics.uiComponents.implemented, this.metrics.uiComponents.total)}% Complete)\n\n`;
-    details += "| Component | File | Completeness |\n";
-    details += "|-----------|------|-------------|\n";
-    this.metrics.uiComponents.details
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .forEach(c => {
-            details += `| ${c.name} | ${c.file.replace(/\\/g, '/')} | ${c.completeness}% ${c.completeness < 50 ? '⚠️ Low' : ''} |\n`;
-        });
-    details += "\n";
-
-     // Code Quality
-     details += `### Code Quality Metrics\n\n`;
-     details += `| Metric              | Value |\n`;
-     details += `|---------------------|-------|\n`;
-     details += `| Avg Complexity      | ${this.metrics.codeQuality.complexity.average.toFixed(1)} |\n`;
-     details += `| High Complexity Files | ${this.metrics.codeQuality.complexity.high} |\n`;
-     // details += `| Duplication Count   | ${this.metrics.codeQuality.duplications.count} |\n`; // Add if implemented
-     // details += `| Duplicated Lines    | ${this.metrics.codeQuality.duplications.lines} |\n`; // Add if implemented
-     details += `| Technical Debt Score| ${this.metrics.codeQuality.techDebt.score}% |\n`;
-     details += "\n";
-
-     if (this.metrics.codeQuality.techDebt.items.length > 0) {
-         details += `#### Top Technical Debt Items\n\n`;
-         details += `| File | Issue | Complexity/Score | Recommendation |\n`;
-         details += `|------|-------|-----------------|----------------|\n`;
-         this.metrics.codeQuality.techDebt.items
-             .sort((a, b) => b.score - a.score) // Sort by score descending
-             .slice(0, 10) // Show top 10
-             .forEach(item => {
-                 details += `| ${item.file.replace(/\\/g, '/')} | ${item.issue} | ${item.score} | ${item.recommendation} |\n`;
-             });
-         details += "\n";
-     }
-
-
-    return details;
-  }
-
-  /**
-   * Get the feature area with the lowest implementation percentage
-   */
-  getLowestImplementedArea() {
-    let lowestPercent = 101;
-    let lowestArea = 'N/A';
-
-    for (const area in this.metrics.featureAreas) {
-      const { implemented, total } = this.metrics.featureAreas[area];
-      const percent = this.getPercentage(implemented, total);
-      if (total > 0 && percent < lowestPercent) {
-        lowestPercent = percent;
-        lowestArea = area;
-      }
-    }
-    return lowestArea;
-  }
-
-  /**
    * Generate relationship maps using Mermaid syntax
    */
   async generateRelationshipMaps() {
@@ -296,364 +375,56 @@ class UnifiedProjectAnalyzer {
       fs.mkdirSync(docsDir, { recursive: true });
     }
     
-    // Detect code smells related to SOLID principles
-    await this.detectCodeSmells();
-    
     // Delegate the relationship detection to analysisUtils
     if (this.analysisUtils.findModelRelationships) {
       await this.analysisUtils.findModelRelationships();
     }
     
-    // Rest of the method can stay as is since it's just visualization
+    // Generate the diagram
     let mermaidDiagram = "graph LR\n";
     const nodes = new Set();
     this.metrics.relationships.forEach(rel => {
-        nodes.add(rel.from);
-        nodes.add(rel.to);
-        const arrow = rel.type === 'OneToMany' ? '-->|1..*|' : '-->';
-        mermaidDiagram += `  ${rel.from}${arrow}${rel.to}\n`;
+      nodes.add(rel.from);
+      nodes.add(rel.to);
+      const arrow = rel.type === 'OneToMany' ? '-->|1..*|' : '-->';
+      mermaidDiagram += `  ${rel.from}${arrow}${rel.to}\n`;
     });
 
-     // Add nodes that might not have relationships yet
-     this.metrics.models.details.forEach(m => nodes.add(m.name));
-     // Add styles for nodes (optional)
-     nodes.forEach(node => {
-         const model = this.metrics.models.details.find(m => m.name === node);
-         const completeness = model ? model.completeness : 0;
-         let style = 'fill:#eee,stroke:#333,stroke-width:1px';
-         if (completeness >= 75) style = 'fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px'; // Green
-         else if (completeness >= 40) style = 'fill:#fff9c4,stroke:#fbc02d,stroke-width:1px'; // Yellow
-         else if (completeness > 0) style = 'fill:#ffcdd2,stroke:#c62828,stroke-width:1px'; // Red
-         mermaidDiagram += `  style ${node} ${style}\n`;
-     });
+    // Add nodes that might not have relationships yet
+    this.metrics.models.details.forEach(m => nodes.add(m.name));
+    
+    // Add styles for nodes
+    nodes.forEach(node => {
+      const model = this.metrics.models.details.find(m => m.name === node);
+      const completeness = model ? model.completeness : 0;
+      let style = 'fill:#eee,stroke:#333,stroke-width:1px';
+      if (completeness >= 75) style = 'fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px'; // Green
+      else if (completeness >= 40) style = 'fill:#fff9c4,stroke:#fbc02d,stroke-width:1px'; // Yellow
+      else if (completeness > 0) style = 'fill:#ffcdd2,stroke:#c62828,stroke-width:1px'; // Red
+      mermaidDiagram += `  style ${node} ${style}\n`;
+    });
 
-
-    // Save to a file (e.g., docs/relationship_map.md)
+    // Save to a file
     const mapContent = `# Model Relationship Map\n\n\`\`\`mermaid\n${mermaidDiagram}\n\`\`\`\n`;
     try {
-        fs.writeFileSync(path.join(this.baseDir, 'docs', 'relationship_map.md'), mapContent);
-        console.log("Relationship map saved to docs/relationship_map.md");
+      fs.writeFileSync(path.join(this.baseDir, 'docs', 'relationship_map.md'), mapContent);
+      console.log("Relationship map saved to docs/relationship_map.md");
     } catch (err) {
-        console.error("Error saving relationship map:", err.message);
+      console.error("Error saving relationship map:", err.message);
     }
   }
 
-
   /**
-   * Determine feature area based on file path or name
-   */
-  determineApiFeatureArea(name = '', filePath = '', routePath = '') {
-    return this.analysisUtils.determineApiFeatureArea(name, filePath, routePath);
-  }
-
-  /**
-   * Add an API endpoint to metrics
-   */
-  addApiEndpoint(name, filePath, completeness, featureArea = 'other', routePath = null) {
-    return this.analysisUtils.addApiEndpoint(name, filePath, completeness, featureArea, routePath);
-  }
-
-  /**
-   * Print a summary of the analysis results
-   */
-  printSummary() {
-    console.log("\n--- Analysis Summary ---");
-    console.log(`Models: ${this.metrics.models.implemented}/${this.metrics.models.total} (${this.getPercentage(this.metrics.models.implemented, this.metrics.models.total)}%)`);
-    console.log(`API Endpoints: ${this.metrics.apiEndpoints.implemented}/${this.metrics.apiEndpoints.total} (${this.getPercentage(this.metrics.apiEndpoints.implemented, this.metrics.apiEndpoints.total)}%)`);
-    console.log(`UI Components: ${this.metrics.uiComponents.implemented}/${this.metrics.uiComponents.total} (${this.getPercentage(this.metrics.uiComponents.implemented, this.metrics.uiComponents.total)}%)`);
-    console.log(`Tests: ${this.metrics.tests.total} (Coverage: ${this.metrics.tests.coverage}%)`);
-    console.log(`Code Quality: Avg Complexity=${this.metrics.codeQuality.complexity.average.toFixed(1)}, High Complexity Files=${this.metrics.codeQuality.complexity.high}, Tech Debt=${this.metrics.codeQuality.techDebt.score}%`);
-    console.log(`Overall Phase: ${this.metrics.overallPhase}`);
-    console.log("----------------------\n");
-  }
-
-  /**
-   * Calculate percentage safely
-   */
-  getPercentage(value, total) {
-    if (total === 0) return 0;
-    return Math.round((value / total) * 100);
-  }
-
-  /**
-   * Parse code content to AST, handling potential errors
-   */
-  parseToAst(content, filePath = 'unknown') {
-    return this.astAnalyzer.parseToAst(content, filePath);
-  }
-
-  /**
-   * Calculate Cyclomatic Complexity using AST
-   */
-  calculateComplexity(ast) {
-    return this.astAnalyzer.calculateComplexity(ast);
-  }
-
-  /**
-   * Analyze AST for component details (props, hooks, state, handlers)
-   */
-  analyzeComponentAst(content, filePath) {
-    return this.astAnalyzer.analyzeComponentAst(content, filePath);
-  }
-
-  /**
-   * Generate the Central Reference Hub Markdown file
-   */
-  async generateCentralReferenceHub() {
-    console.log("Generating Central Reference Hub...");
-    const hubPath = path.join(this.baseDir, 'docs', 'central_reference_hub.md');
-
-    // --- Project Overview ---
-    const overview = {
-        overall_status: this.metrics.overallPhase,
-        project_stats: {
-            foundation_complete: this.metrics.overallPhase !== 'planning', // Basic check
-            model_implementation: this.getPercentage(this.metrics.models.implemented, this.metrics.models.total) + '%',
-            api_implementation: this.getPercentage(this.metrics.apiEndpoints.implemented, this.metrics.apiEndpoints.total) + '%',
-            ui_implementation: this.getPercentage(this.metrics.uiComponents.implemented, this.metrics.uiComponents.total) + '%',
-            test_coverage: this.metrics.tests.coverage + '%',
-            technical_debt: this.metrics.codeQuality.techDebt.score + '%'
-        },
-        // Add source/target system info if available/needed
-        target_system: {
-            code_location: this.baseDir,
-            // Add stack info if detectable or configured
-        },
-        completion_forecasts: {
-            models: this.metrics.predictions.estimates.models.date,
-            api_endpoints: this.metrics.predictions.estimates.apiEndpoints.date,
-            ui_components: this.metrics.predictions.estimates.uiComponents.date,
-            entire_project: this.metrics.predictions.estimates.project.date
-        }
-    };
-
-    // --- Source-to-Target Mapping (Placeholder/Example) ---
-    // This would ideally come from a configuration file or more advanced analysis
-    const mappingTable = `| Component | Source System | Source Location | Target Location | Status | Priority |
-|-----------|---------------|-----------------|-----------------|--------|----------|
-| User Model | Both | \`canvas/.../user.rb\` + \`discourse/.../user.rb\` | \`src-tauri/src/models/user.rs\` | ✅ ${this.metrics.models.details.find(m=>m.name==='User')?.completeness || 0}% | High |
-| Forum Topics | Discourse | \`discourse/.../topic.rb\` | \`src-tauri/src/models/topic.rs\` | ✅ ${this.metrics.models.details.find(m=>m.name==='Topic')?.completeness || 0}% | High |
-| Forum Posts | Discourse | \`discourse/.../post.rb\` | \`src-tauri/src/models/post.rs\` | ✅ ${this.metrics.models.details.find(m=>m.name==='Post')?.completeness || 0}% | High |
-| Courses | Canvas | \`canvas/.../course.rb\` | \`src-tauri/src/models/course.rs\` | ✅ ${this.metrics.models.details.find(m=>m.name==='Course')?.completeness || 0}% | High |
-| Forum API | Discourse | \`discourse/.../topics_controller.rb\` | \`src-tauri/src/api/forum.rs\` | ❌ ${this.getPercentage(this.metrics.featureAreas.forum.implemented, this.metrics.featureAreas.forum.total)}% | High |
-| Course API | Canvas | \`canvas/.../courses_controller.rb\` | \`src-tauri/src/api/lms/courses.rs\` | ❌ ${this.getPercentage(this.metrics.featureAreas.lms.implemented, this.metrics.featureAreas.lms.total)}% | High |
-| UI Components | Both | Multiple files | \`src/components/\` | ✅ ${this.getPercentage(this.metrics.uiComponents.implemented, this.metrics.uiComponents.total)}% | High |
-`; // Add more mappings as needed
-
-    // --- Integration Conflicts (Placeholder) ---
-    const conflicts = {
-        model_conflicts: [ /* ... populate based on analysis ... */ ],
-        route_conflicts: [ /* ... populate based on analysis ... */ ]
-    };
-
-    // --- Implementation Tasks (Placeholder) ---
-    // Prioritize based on missing features or low completeness
-    const tasks = [
-        `1. **Complete API Endpoint Implementation** (${this.metrics.apiEndpoints.implemented}/${this.metrics.apiEndpoints.total} completed)`,
-        `   - High Priority: Focus on areas like '${this.getLowestImplementedArea()}'`,
-        `2. **Complete UI Component Implementation** (${this.metrics.uiComponents.implemented}/${this.metrics.uiComponents.total} completed)`,
-        `   - Implement components corresponding to new API endpoints`,
-        `3. **Address Technical Debt** (Score: ${this.metrics.codeQuality.techDebt.score}%)`,
-        `   - Refactor ${this.metrics.codeQuality.complexity.high} high complexity files`,
-        `   - Improve test coverage (currently ${this.metrics.tests.coverage}%)`,
-        `4. **Integrate Key Systems** (e.g., Search, Notifications - if applicable)`
-    ];
-
-
-    // --- Directory Structure ---
-    // Use fsUtils project structure data
-    let dirStructure = "```\n/\n";
-    const sortedDirs = [...this.fsUtils.getProjectStructure().directories].sort();
-    const topLevelDirs = sortedDirs.filter(d => !d.includes('/') && !d.includes('\\'));
-    const structureMap = {};
-
-     // Build nested structure
-     sortedDirs.forEach(dir => {
-         const parts = dir.split(/[\\\/]/);
-         let currentLevel = structureMap;
-         parts.forEach(part => {
-             if (!currentLevel[part]) {
-                 currentLevel[part] = {};
-             }
-             currentLevel = currentLevel[part];
-         });
-     });
-
-     const buildStructureString = (level, indent = ' ') => {
-         let str = '';
-         Object.keys(level).sort().forEach(key => {
-             const dirPath = indent.substring(1).replace(/ /g, '/').replace('├──', '').replace('└──', '').trim() + key; // Approximate path
-             const category = this.getDirCategory(dirPath);
-             const categoryLabel = category ? ` # ${category.charAt(0).toUpperCase() + category.slice(1)}` : '';
-             str += `${indent}├── ${key}/${categoryLabel}\n`;
-             str += buildStructureString(level[key], indent + '│  ');
-         });
-         return str.replace(/├──(?=[^├──]*$)/, '└──'); // Fix last item marker
-     };
-
-     dirStructure += buildStructureString(structureMap);
-     dirStructure += "```\n";
-
-
-    // --- Implementation Details Table ---
-    const detailsSection = this.generateDetailedSection(); // Use existing method
-
-    // --- SOLID Violations Table ---
-    let solidViolationsSection = `## 📊 SOLID Principles Violations\n\n`;
-
-    // SRP violations
-    const srpViolations = this.metrics.codeQuality.solidViolations?.srp || [];
-    solidViolationsSection += `### Single Responsibility Principle (${srpViolations.length} violations)\n\n`;
-
-    if (srpViolations.length > 0) {
-      solidViolationsSection += `| Component | File | Score | Details |\n`;
-      solidViolationsSection += `|-----------|------|-------|--------|\n`;
-      
-      srpViolations
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 5) // Show top 5 violations
-        .forEach(v => {
-          solidViolationsSection += `| ${v.name} | ${v.file.replace(/\\/g, '/')} | ${v.score} | ${v.details} |\n`;
-        });
-      
-      if (srpViolations.length > 5) {
-        solidViolationsSection += `\n_...and ${srpViolations.length - 5} more violations. See full report in docs/solid_code_smells.md_\n`;
-      }
-    } else {
-      solidViolationsSection += `No SRP violations detected.\n`;
-    }
-
-    // Add other SOLID principles here as they're implemented
-
-    // --- SOLID Violations Summary ---
-    solidViolationsSection += `## 📊 SOLID Principles Violations\n\n`;
-
-    const solidViolations = this.metrics.codeQuality.solidViolations;
-    const totalViolations = 
-      (solidViolations.srp?.length || 0) + 
-      (solidViolations.ocp?.length || 0) + 
-      (solidViolations.lsp?.length || 0) + 
-      (solidViolations.isp?.length || 0) + 
-      (solidViolations.dip?.length || 0);
-
-    solidViolationsSection += `| Principle | Violations | Most Affected Component |\n`;
-    solidViolationsSection += `|-----------|------------|------------------------|\n`;
-
-    // Helper to get the most problematic component
-    const getMostProblematicComponent = (violations) => {
-      if (!violations || violations.length === 0) return '-';
-      return violations.sort((a, b) => b.score - a.score)[0].name;
-    };
-
-    solidViolationsSection += `| Single Responsibility | ${solidViolations.srp?.length || 0} | ${getMostProblematicComponent(solidViolations.srp)} |\n`;
-    solidViolationsSection += `| Open-Closed | ${solidViolations.ocp?.length || 0} | ${getMostProblematicComponent(solidViolations.ocp)} |\n`;
-    solidViolationsSection += `| Liskov Substitution | ${solidViolations.lsp?.length || 0} | ${getMostProblematicComponent(solidViolations.lsp)} |\n`;
-    solidViolationsSection += `| Interface Segregation | ${solidViolations.isp?.length || 0} | ${getMostProblematicComponent(solidViolations.isp)} |\n`;
-    solidViolationsSection += `| Dependency Inversion | ${solidViolations.dip?.length || 0} | ${getMostProblematicComponent(solidViolations.dip)} |\n`;
-
-    solidViolationsSection += `\n*For detailed analysis, see [SOLID Code Smells Report](docs/solid_code_smells.md)*\n\n`;
-
-
-    // --- Assemble Hub Content ---
-    const hubContent = `# LMS Integration Project - Central Reference Hub
-
-_Last updated: ${new Date().toISOString().split('T')[0]}_
-
-## 📊 Project Overview
-
-\`\`\`json
-${JSON.stringify(overview, null, 2)}
-\`\`\`
-
-## 🔄 Source-to-Target Mapping
-
-${mappingTable}
-
-## 🔍 Integration Conflicts (Placeholder)
-
-\`\`\`json
-${JSON.stringify(conflicts, null, 2)}
-\`\`\`
-
-## 📋 Implementation Tasks
-
-${tasks.join('\n')}
-
-## 📁 Project Directory Structure
-
-${dirStructure}
-
-${detailsSection}
-
-${solidViolationsSection}
-
-## 📈 Project Trajectories (Predictions)
-
-\`\`\`json
-${JSON.stringify(this.metrics.predictions.estimates, null, 2)}
-\`\`\`
-`;
-
-    // --- Write to File ---
-    try {
-      fs.writeFileSync(hubPath, hubContent);
-      console.log(`Central Reference Hub saved to ${hubPath}`);
-    } catch (err) {
-      console.error("Error saving Central Reference Hub:", err.message);
-    }
-  }
-
-   /** Helper to get directory category */
-   getDirCategory(dirPath) {
-     return this.fsUtils.getDirCategory(dirPath);
-   }
-
-  /**
-   * Add a model to metrics - delegates to analysisUtils
-   */
-  addModel(name, filePath, completeness) {
-    return this.analysisUtils.addModel(name, filePath, completeness);
-  }
-
-  /**
-   * Add an API endpoint to metrics - delegates to analysisUtils
-   */
-  addApiEndpoint(name, filePath, completeness, featureArea = 'other', routePath = null) {
-    return this.analysisUtils.addApiEndpoint(name, filePath, completeness, featureArea, routePath);
-  }
-
-  /**
-   * Add a UI component to metrics - delegates to analysisUtils
-   */
-  addUIComponent(name, filePath, completeness) {
-    return this.analysisUtils.addUIComponent(name, filePath, completeness);
-  }
-
-  /**
-   * Add a test to metrics - delegates to analysisUtils
-   */
-  addTest(name, filePath, passing = false) {
-    return this.analysisUtils.addTest(name, filePath, passing);
-  }
-
-  /**
-   * Detect code smells related to SOLID principles
+   * Detect code smells related to SOLID principles and design patterns
    */
   async detectCodeSmells() {
     console.log("Analyzing code for SOLID principles and design patterns...");
     
-    // Initialize code smells array in metrics if not exists
+    // Ensure required structures exist
     if (!this.metrics.codeQuality.solidViolations) {
-      this.metrics.codeQuality.solidViolations = {
-        srp: [],
-        ocp: [],
-        lsp: [],
-        isp: [],
-        dip: []
-      };
+      this.metrics.codeQuality.solidViolations = { srp: [], ocp: [], lsp: [], isp: [], dip: [] };
     }
     
-    // Initialize design patterns tracking
     if (!this.metrics.codeQuality.designPatterns) {
       this.metrics.codeQuality.designPatterns = {
         polymorphism: { implementations: [], violations: [] },
@@ -662,1227 +433,1777 @@ ${JSON.stringify(this.metrics.predictions.estimates, null, 2)}
       };
     }
     
-    // Process all JavaScript/TypeScript files
+    // Process JavaScript/TypeScript files
     const jsFiles = this.fsUtils.filterFiles(/\.(js|jsx|ts|tsx)$/);
     for (const file of jsFiles) {
       const content = this.fsUtils.getFileContent(file);
       if (!content) continue;
       
       try {
-        // Parse the file to an AST
-        const ast = this.parseToAst(content, file);
+        const ast = this.astAnalyzer.parseToAst(content, file);
         if (!ast) continue;
         
-        // Detect violations for each SOLID principle
-        this.detectSRPViolations(ast, file);
-        this.detectOCPViolations(ast, file);
-        this.detectLSPViolations(ast, file);
-        this.detectISPViolations(ast, file);
-        this.detectDIPViolations(ast, file);
+        // Detect violations using the modular analyzers
+        this.solidAnalyzer.detectSRPViolations(ast, file);
+        this.solidAnalyzer.detectOCPViolations(ast, file);
+        this.solidAnalyzer.detectLSPViolations(ast, file);
+        this.solidAnalyzer.detectISPViolations(ast, file);
+        this.solidAnalyzer.detectDIPViolations(ast, file);
         
-        // Detect patterns and anti-patterns
-        this.detectPolymorphism(ast, file);
-        this.detectDependencyInjection(ast, file);
-        this.detectIoC(ast, file);
+        this.patternAnalyzer.detectPolymorphism(ast, file);
+        this.patternAnalyzer.detectDependencyInjection(ast, file);
+        this.patternAnalyzer.detectIoC(ast, file);
       } catch (error) {
         console.error(`Error analyzing ${file} for code smells:`, error.message);
       }
     }
     
-    // Process all Rust files
+    // Process Rust files
     const rustFiles = this.fsUtils.filterFiles(/\.rs$/);
     for (const file of rustFiles) {
       const content = this.fsUtils.getFileContent(file);
       if (!content) continue;
-      
-      // For Rust files, we can only detect some principles with regex
-      this.detectRustSRPViolations(content, file);
-      // Add more Rust-specific detectors if needed
+      this.solidAnalyzer.detectRustSRPViolations(content, file);
     }
     
-    // Generate a code smells report
-    await this.generateCodeSmellsReport();
+    // Generate reports
+    await this.reportGenerator.generateCodeSmellsReport();
   }
 
   /**
-   * Detect Single Responsibility Principle violations in JavaScript/TypeScript code
+   * Generate specialized RAG documents for AI training
    */
-  detectSRPViolations(ast, filePath) {
-    const violations = [];
+  async generateRagDocuments() {
+    console.log("Generating specialized RAG documents for AI training...");
+    const ragOutputDir = path.join(this.baseDir, 'rag_knowledge_base');
     
-    // Function to calculate responsibility score based on various metrics
-    const calculateResponsibilityScore = (node) => {
-      // Metrics that indicate multiple responsibilities
-      let distinctConcerns = 0;
-      let mixedFunctionality = false;
-      let highComplexity = false;
-      let tooManyMethods = false;
-      let tooManyDependencies = false;
-      let methodsWithDifferentPrefixes = new Set();
-      
-      // Get class/function name
-      let name = "anonymous";
-      if (node.id && node.id.name) {
-        name = node.id.name;
+    if (!fs.existsSync(ragOutputDir)) {
+      fs.mkdirSync(ragOutputDir, { recursive: true });
+    }
+    
+    // Initialize knowledge graph generator if not already done
+    if (!this.knowledgeGraphGenerator) {
+      const KnowledgeGraphGenerator = require('./modules/knowledge-graph-generator');
+      this.knowledgeGraphGenerator = new KnowledgeGraphGenerator(this.metrics, {
+        outputDir: 'rag_knowledge_base',
+        generateVisualization: true
+      });
+    }
+    
+    // Generate source systems semantic knowledge base
+    const sourceSystems = ['canvas', 'discourse'];
+    
+    for (const system of sourceSystems) {
+      // Skip if the system isn't available
+      if (!this.sourceSystems[system]) {
+        console.warn(`Source system ${system} not available for RAG document generation`);
+        continue;
       }
       
-      // Count methods if it's a class
-      let methods = [];
-      let dependenciesCount = 0;
+      await this.generateSystemKnowledgeBase(system, ragOutputDir);
+      await this.generateSystemBehaviorDocuments(system, ragOutputDir);
+      await this.generateSystemArchitecturePatterns(system, ragOutputDir);
+      await this.generateSystemAPIContracts(system, ragOutputDir);
+    }
+    
+    // Generate cross-system integration knowledge
+    await this.generateIntegrationKnowledgeBase(sourceSystems, ragOutputDir);
+    
+    // Generate technical implementation documentation
+    await this.generateTechnicalImplementationDocs();
+    
+    // Generate semantic embeddings for efficient retrieval
+    if (this.mlAnalyzer && typeof this.mlAnalyzer.generateEmbeddingsForRagDocuments === 'function') {
+      const embeddings = await this.mlAnalyzer.generateEmbeddingsForRagDocuments(ragOutputDir);
       
-      // For classes, check methods and their prefixes
-      if (node.type === 'ClassDeclaration') {
-        // Extract methods
-        methods = node.body.body.filter(item => 
-          item.type === 'ClassMethod' || item.type === 'MethodDefinition'
-        );
+      // Initialize RAG system and store embeddings in vector database
+      if (embeddings) {
+        await this.initializeRagSystem();
         
-        // Count dependencies (constructor parameters or class properties that look like services)
-        const constructor = node.body.body.find(item => 
-          (item.type === 'ClassMethod' || item.type === 'MethodDefinition') && 
-          item.key.name === 'constructor'
-        );
-        
-        if (constructor && constructor.params) {
-          dependenciesCount = constructor.params.length;
-        }
-        
-        // Check if methods have different prefixes (indicating different responsibilities)
-        methods.forEach(method => {
-          if (method.key && method.key.name) {
-            const methodName = method.key.name;
-            if (methodName !== 'constructor') {
-              // Extract prefix (e.g., "get" from "getUserData")
-              const prefix = methodName.match(/^([a-z]+)[A-Z]/);
-              if (prefix && prefix[1]) {
-                methodsWithDifferentPrefixes.add(prefix[1]);
-              }
+        // Load embeddings into vector database
+        if (this.vectorDB) {
+          console.log("Importing embeddings into vector database...");
+          
+          // Convert embeddings from object to array format
+          const embeddingsArray = Object.entries(embeddings).map(([id, vector]) => ({
+            id,
+            vector,
+            metadata: {
+              source: id,
+              system: id.split('/')[0],
+              category: id.split('/')[1] || 'general'
             }
-          }
-        });
-        
-        // Too many methods is a code smell
-        tooManyMethods = methods.length > 10;
-        
-        // Too many dependencies might indicate too many responsibilities
-        tooManyDependencies = dependenciesCount > 5;
-        
-        // Different method prefixes might indicate different responsibilities
-        distinctConcerns = methodsWithDifferentPrefixes.size;
-        
-        // More than 3 different concerns is a code smell
-        mixedFunctionality = distinctConcerns > 3;
+          }));
+          
+          await this.vectorDB.bulkStoreEmbeddings(embeddingsArray);
+          console.log(`Stored ${embeddingsArray.length} embeddings in vector database`);
+        }
       }
-      
-      // For functions, calculate complexity
-      if (node.type === 'FunctionDeclaration') {
-        const complexity = this.calculateComplexity({ program: { body: [node] } });
-        highComplexity = complexity > 10;
-      }
-      
-      // Calculate overall score (0-100, higher is worse)
-      let score = 0;
-      if (mixedFunctionality) score += 30;
-      if (highComplexity) score += 25;
-      if (tooManyMethods) score += 20;
-      if (tooManyDependencies) score += 15;
-      score += (distinctConcerns * 5);
-      
-      return {
-        name,
-        score,
-        distinctConcerns,
-        methods: methods.length,
-        dependencies: dependenciesCount,
-        recommendation: score > 40 ? 'Consider splitting this into multiple classes/functions with single responsibilities' : null
-      };
-    };
+    } else {
+      console.warn("ML Analyzer not available or missing embedding generation capability");
+    }
     
-    // Visit classes and functions in the AST
-    traverse(ast, {
-      ClassDeclaration(path) {
-        const result = calculateResponsibilityScore(path.node);
-        if (result.score > 40) {
-          violations.push({
-            type: 'SRP',
-            file: filePath,
-            name: result.name,
-            score: result.score,
-            details: `Class has ${result.methods} methods with ${result.distinctConcerns} distinct concerns`,
-            recommendation: result.recommendation
-          });
-        }
-      },
-      
-      FunctionDeclaration(path) {
-        const result = calculateResponsibilityScore(path.node);
-        if (result.score > 40) {
-          violations.push({
-            type: 'SRP',
-            file: filePath,
-            name: result.name,
-            score: result.score,
-            details: 'Function has too many responsibilities or is too complex',
-            recommendation: result.recommendation
-          });
-        }
-      }
+    console.log(`RAG documents generated successfully in ${ragOutputDir}`);
+    return ragOutputDir;
+  }
+
+  /**
+   * Create and initialize the RAG system
+   */
+  async initializeRagSystem() {
+    console.log("Initializing RAG system...");
+    
+    // Create vector database adapter
+    this.vectorDB = new VectorDatabaseAdapter({
+      dbType: 'qdrant',  // Use 'memory' if Qdrant is not available
+      dimensions: 512,
+      collectionName: 'canvas_discourse_integration'
     });
     
-    // Add violations to metrics
-    if (violations.length > 0) {
-      this.metrics.codeQuality.solidViolations.srp.push(...violations);
-      
-      // Also add to technical debt
-      violations.forEach(v => {
-        this.metrics.codeQuality.techDebt.items.push({
-          file: v.file,
-          issue: `SRP Violation: ${v.details}`,
-          score: v.score,
-          recommendation: v.recommendation
+    // Create RAG retriever
+    this.ragRetriever = new RagRetriever(this.vectorDB, {
+      mlAnalyzer: this.mlAnalyzer,
+      ragDir: path.join(this.baseDir, 'rag_knowledge_base')
+    });
+    
+    // Initialize system
+    try {
+      await this.vectorDB.initialize();
+      await this.ragRetriever.initialize();
+      console.log("RAG system initialized successfully");
+      return true;
+    } catch (error) {
+      console.error(`Failed to initialize RAG system: ${error.message}`);
+      // Fall back to memory database if Qdrant fails
+      if (this.vectorDB.options.dbType === 'qdrant') {
+        console.log("Falling back to in-memory vector database");
+        this.vectorDB = new VectorDatabaseAdapter({
+          dbType: 'memory',
+          dimensions: 512
         });
-      });
+        this.ragRetriever = new RagRetriever(this.vectorDB, { 
+          mlAnalyzer: this.mlAnalyzer,
+          ragDir: path.join(this.baseDir, 'rag_knowledge_base')
+        });
+        
+        await this.vectorDB.initialize();
+        await this.ragRetriever.initialize();
+        return true;
+      }
+      return false;
     }
   }
 
   /**
-   * Detect Single Responsibility Principle violations in Rust code using regex
+   * Query the RAG system for information
+   * @param {string} query - User query
+   * @param {Object} options - Query options
+   * @returns {Object} Query results
    */
-  detectRustSRPViolations(content, filePath) {
-    // Simple heuristics for Rust files
-    const violations = [];
-    
-    // Get struct name from content
-    const structMatch = content.match(/struct\s+(\w+)/);
-    let name = structMatch ? structMatch[1] : "unknown";
-    
-    // Count impl blocks for the struct (might indicate multiple responsibilities)
-    const implCount = (content.match(new RegExp(`impl\\s+${name}`, 'g')) || []).length;
-    
-    // Count functions in the impl blocks
-    const functionMatches = content.match(/fn\s+\w+/g) || [];
-    const functionCount = functionMatches.length;
-    
-    // Try to detect different method prefixes
-    const methodPrefixes = new Set();
-    functionMatches.forEach(fn => {
-      const match = fn.match(/fn\s+([a-z]+)_/);
-      if (match && match[1]) {
-        methodPrefixes.add(match[1]);
-      }
-    });
-    
-    // Calculate a simple score
-    let score = 0;
-    if (implCount > 3) score += 20;
-    if (functionCount > 10) score += 20;
-    if (methodPrefixes.size > 3) score += 30;
-    if (content.length > 500) score += Math.min(30, content.length / 100);
-    
-    if (score > 40) {
-      violations.push({
-        type: 'SRP',
-        file: filePath,
-        name: name,
-        score: score,
-        details: `Struct has ${functionCount} methods with ${methodPrefixes.size} distinct prefixes across ${implCount} impl blocks`,
-        recommendation: 'Consider splitting this struct into multiple structs with single responsibilities'
-      });
-      
-      // Add to metrics
-      this.metrics.codeQuality.solidViolations.srp.push(...violations);
-      
-      // Also add to technical debt
-      violations.forEach(v => {
-        this.metrics.codeQuality.techDebt.items.push({
-          file: v.file,
-          issue: `SRP Violation: ${v.details}`,
-          score: v.score,
-          recommendation: v.recommendation
-        });
-      });
-    }
-  }
-
-  /**
-   * Detect Open-Closed Principle violations in JavaScript/TypeScript code
-   */
-  detectOCPViolations(ast, filePath) {
-    const violations = [];
-    
-    // Visit classes and track inheritance/extension patterns
-    traverse(ast, {
-      ClassDeclaration(path) {
-        const className = path.node.id?.name || 'Anonymous';
-        
-        // Check for large switch statements or if/else chains that could indicate OCP violations
-        let largeConditionalBlocks = [];
-        
-        // Find methods with switch statements or long if-else chains
-        path.traverse({
-          SwitchStatement(switchPath) {
-            // Count cases in switch statement
-            const caseCount = switchPath.node.cases?.length || 0;
-            if (caseCount > 3) {
-              // Get the parent function or method name
-              let methodName = 'unknown';
-              let parentFunc = switchPath.findParent(p => p.isClassMethod() || p.isFunctionDeclaration());
-              if (parentFunc && parentFunc.node.key) {
-                methodName = parentFunc.node.key.name;
-              }
-              
-              largeConditionalBlocks.push({
-                type: 'switch',
-                caseCount,
-                methodName,
-                loc: switchPath.node.loc
-              });
-            }
-          },
-          
-          // Track long if-else chains
-          IfStatement(ifPath) {
-            let chainLength = 1;
-            let current = ifPath;
-            
-            // Count consecutive else-if statements
-            while (current.node.alternate && current.node.alternate.type === 'IfStatement') {
-              chainLength++;
-              current = current.get('alternate');
-            }
-            
-            if (current.node.alternate) {
-              chainLength++; // Count the final else
-            }
-            
-            if (chainLength > 3) {
-              // Get the parent function or method name
-              let methodName = 'unknown';
-              let parentFunc = ifPath.findParent(p => p.isClassMethod() || p.isFunctionDeclaration());
-              if (parentFunc && parentFunc.node.key) {
-                methodName = parentFunc.node.key.name;
-              }
-              
-              largeConditionalBlocks.push({
-                type: 'if-else',
-                chainLength,
-                methodName,
-                loc: ifPath.node.loc
-              });
-            }
-          }
-        });
-        
-        // If we found OCP violations, add them
-        if (largeConditionalBlocks.length > 0) {
-          // Calculate a score based on the number and size of conditional blocks
-          const score = Math.min(100, largeConditionalBlocks.reduce(
-            (sum, block) => sum + (block.type === 'switch' ? block.caseCount * 5 : block.chainLength * 7), 
-            20
-          ));
-          
-          const details = largeConditionalBlocks.map(block => 
-            `${block.type === 'switch' ? 'Switch with' : 'If-else chain with'} ${block.type === 'switch' ? block.caseCount : block.chainLength} cases in method ${block.methodName}`
-          ).join('; ');
-          
-          violations.push({
-            type: 'OCP',
-            file: filePath,
-            name: className,
-            score,
-            details: `Potential violation with conditional logic: ${details}`,
-            recommendation: 'Consider using polymorphism or the Strategy pattern instead of conditional logic'
-          });
-        }
-      }
-    });
-    
-    // Add violations to metrics
-    if (violations.length > 0) {
-      this.metrics.codeQuality.solidViolations.ocp.push(...violations);
-      
-      // Also add to technical debt
-      violations.forEach(v => {
-        this.metrics.codeQuality.techDebt.items.push({
-          file: v.file,
-          issue: `OCP Violation: ${v.details}`,
-          score: v.score,
-          recommendation: v.recommendation
-        });
-      });
-    }
-  }
-
-/**
- * Detect Liskov Substitution Principle violations in JavaScript/TypeScript code
- */
-detectLSPViolations(ast, filePath) {
-  const violations = [];
-  const classHierarchy = new Map(); // Track class inheritance
-  
-  // First pass: build class hierarchy
-  traverse(ast, {
-    ClassDeclaration(path) {
-      const className = path.node.id?.name || 'Anonymous';
-      const superClassName = path.node.superClass?.name || null;
-      
-      // Store the class info
-      classHierarchy.set(className, {
-        superClass: superClassName,
-        methods: new Map(), // Will store method signatures
-        properties: new Set(), // Will store property names
-      });
-      
-      // Extract methods and their parameters
-      path.node.body.body.forEach(member => {
-        if (member.type === 'ClassMethod' || member.type === 'MethodDefinition') {
-          const methodName = member.key.name;
-          const params = member.params.map(p => p.type);
-          classHierarchy.get(className).methods.set(methodName, params);
-        } 
-        // Extract properties (for TypeScript classes with property declarations)
-        else if (member.type === 'ClassProperty') {
-          const propName = member.key.name;
-          classHierarchy.get(className).properties.add(propName);
-        }
-      });
-    }
-  });
-  
-  // Second pass: check for LSP violations in subclasses
-  for (const [className, classInfo] of classHierarchy.entries()) {
-    if (!classInfo.superClass) continue; // Skip if not a subclass
-    
-    const superClassInfo = classHierarchy.get(classInfo.superClass);
-    if (!superClassInfo) continue; // Super class not found in this file
-    
-    // Check for method signature changes
-    for (const [methodName, superParams] of superClassInfo.methods.entries()) {
-      // If subclass overrides the method
-      if (classInfo.methods.has(methodName)) {
-        const subParams = classInfo.methods.get(methodName);
-        
-        // Check if parameter count is different (potential LSP violation)
-        if (subParams.length !== superParams.length) {
-          violations.push({
-            type: 'LSP',
-            file: filePath,
-            name: className,
-            score: 60,
-            details: `Method ${methodName} changes parameter count from parent class ${classInfo.superClass}`,
-            recommendation: 'Ensure subclass methods maintain the same signature as parent class methods'
-          });
-        }
-      }
-    }
-  }
-  
-  // Add violations to metrics
-  if (violations.length > 0) {
-    this.metrics.codeQuality.solidViolations.lsp.push(...violations);
-    
-    // Also add to technical debt
-    violations.forEach(v => {
-      this.metrics.codeQuality.techDebt.items.push({
-        file: v.file,
-        issue: `LSP Violation: ${v.details}`,
-        score: v.score,
-        recommendation: v.recommendation
-      });
-    });
-  }
-}
-
-  /**
-   * Detect Interface Segregation Principle violations in JavaScript/TypeScript code
-   */
-  detectISPViolations(ast, filePath) {
-    const violations = [];
-    
-    // For JavaScript, we can look for objects with too many properties
-    // or classes with many methods that aren't fully utilized by clients
-    
-    traverse(ast, {
-      // Look for large interface-like objects or classes
-      ObjectExpression(path) {
-        const properties = path.node.properties.length;
-        
-        // If the object has too many properties, it might violate ISP
-        if (properties > 10) {
-          let objectName = "Anonymous";
-          
-          // Try to get the variable name if it's part of a variable declaration
-          const varDecl = path.findParent(p => p.isVariableDeclarator());
-          if (varDecl && varDecl.node.id) {
-            objectName = varDecl.node.id.name;
-          }
-          
-          violations.push({
-            type: 'ISP',
-            file: filePath,
-            name: objectName,
-            score: Math.min(80, properties * 3),
-            details: `Large object with ${properties} properties might be violating ISP`,
-            recommendation: 'Consider splitting this object into smaller, more focused interfaces'
-          });
-        }
-      },
-      
-      // Check for classes with many methods that could be split
-      ClassDeclaration(path) {
-        const className = path.node.id?.name || 'Anonymous';
-        
-        // Count public methods (potential interface methods)
-        const methods = path.node.body.body.filter(member => 
-          (member.type === 'ClassMethod' || member.type === 'MethodDefinition') &&
-          (!member.accessibility || member.accessibility === 'public')
-        );
-        
-        // Group methods by prefix to detect potential interfaces
-        const methodPrefixes = new Map();
-        methods.forEach(method => {
-          const methodName = method.key.name;
-          if (methodName === 'constructor') return;
-          
-          // Extract prefix (e.g., "get" from "getUserData")
-          const prefix = methodName.match(/^([a-z]+)[A-Z]/);
-          if (prefix && prefix[1]) {
-            if (!methodPrefixes.has(prefix[1])) {
-              methodPrefixes.set(prefix[1], []);
-            }
-            methodPrefixes.get(prefix[1]).push(methodName);
-          }
-        });
-        
-        // If we have multiple method groups and many methods overall, suggest interface segregation
-        if (methods.length > 8 && methodPrefixes.size > 2) {
-          const details = Array.from(methodPrefixes.entries())
-            .map(([prefix, methods]) => `${prefix}* methods (${methods.length})`)
-            .join(', ');
-            
-          violations.push({
-            type: 'ISP',
-            file: filePath,
-            name: className,
-            score: Math.min(80, methods.length * 4),
-            details: `Class with ${methods.length} methods contains multiple responsibilities: ${details}`,
-            recommendation: 'Consider splitting this class into multiple interfaces based on method groups'
-          });
-        }
-      }
-    });
-    
-    // Add violations to metrics
-    if (violations.length > 0) {
-      this.metrics.codeQuality.solidViolations.isp.push(...violations);
-      
-      // Also add to technical debt
-      violations.forEach(v => {
-        this.metrics.codeQuality.techDebt.items.push({
-          file: v.file,
-          issue: `ISP Violation: ${v.details}`,
-          score: v.score,
-          recommendation: v.recommendation
-        });
-      });
-    }
-  }
-
-  /**
-   * Detect Dependency Inversion Principle violations in JavaScript/TypeScript code
-   */
-  detectDIPViolations(ast, filePath) {
-    const violations = [];
-    
-    // Look for concrete class instantiations in constructors
-    traverse(ast, {
-      ClassDeclaration(path) {
-        const className = path.node.id?.name || 'Anonymous';
-        const concreteInstantiations = [];
-        
-        // Find the constructor
-        const constructor = path.node.body.body.find(
-          node => node.type === 'ClassMethod' && node.key.name === 'constructor'
-        );
-        
-        if (!constructor) return;
-        
-        // Look for 'new' expressions in the constructor
-        path.traverse({
-          NewExpression(newExprPath) {
-            // Only check news in the constructor
-            const isInConstructor = newExprPath.findParent(
-              p => p.isClassMethod() && p.node.key.name === 'constructor'
-            );
-            
-            if (isInConstructor) {
-              const concreteName = newExprPath.node.callee.name;
-              if (concreteName) {
-                concreteInstantiations.push(concreteName);
-              }
-            }
-          }
-        });
-        
-        // If we found concrete instantiations, report DIP violation
-        if (concreteInstantiations.length > 0) {
-          violations.push({
-            type: 'DIP',
-            file: filePath,
-            name: className,
-            score: 50 + (concreteInstantiations.length * 10),
-            details: `Class directly instantiates concrete classes in constructor: ${concreteInstantiations.join(', ')}`,
-            recommendation: 'Use dependency injection instead of direct instantiation'
-          });
-        }
-      }
-    });
-    
-    // Add violations to metrics
-    if (violations.length > 0) {
-      this.metrics.codeQuality.solidViolations.dip.push(...violations);
-      
-      // Also add to technical debt
-      violations.forEach(v => {
-        this.metrics.codeQuality.techDebt.items.push({
-          file: v.file,
-          issue: `DIP Violation: ${v.details}`,
-          score: v.score,
-          recommendation: v.recommendation
-        });
-      });
-    }
-  }
-
-/**
- * Detect polymorphism usage and violations in code
- */
-detectPolymorphism(ast, filePath) {
-  const polymorphismImplementations = [];
-  const polymorphismViolations = [];
-  
-  // Track class hierarchy for polymorphism analysis
-  const classHierarchy = new Map();
-  
-  // First pass: build class hierarchy
-  traverse(ast, {
-    ClassDeclaration(path) {
-      const className = path.node.id?.name || 'Anonymous';
-      const superClassName = path.node.superClass?.name || null;
-      
-      if (!superClassName) return; // Not relevant for polymorphism if no parent
-      
-      // Store the class and its methods
-      classHierarchy.set(className, {
-        superClass: superClassName,
-        methods: new Map(),
-        overriddenMethods: new Set()
-      });
-      
-      // Extract methods
-      path.node.body.body.forEach(member => {
-        if (member.type === 'ClassMethod' || member.type === 'MethodDefinition') {
-          const methodName = member.key.name;
-          classHierarchy.get(className).methods.set(methodName, member);
-        }
-      });
-    }
-  });
-  
-  // Second pass: analyze method overrides for polymorphism
-  for (const [className, classInfo] of classHierarchy.entries()) {
-    const superClassInfo = classHierarchy.get(classInfo.superClass);
-    if (!superClassInfo) continue; // Super class not found in this file
-    
-    // Analyze methods that override parent class methods
-    for (const [methodName, method] of classInfo.methods.entries()) {
-      if (methodName === 'constructor') continue;
-      
-      // Check if this method exists in the parent class
-      if (superClassInfo.methods.has(methodName)) {
-        // This is an overridden method - good for polymorphism
-        classInfo.overriddenMethods.add(methodName);
-        
-        polymorphismImplementations.push({
-          file: filePath,
-          name: `${className}.${methodName}`,
-          details: `Method ${methodName} in class ${className} overrides parent class ${classInfo.superClass}`,
-          type: 'method-override',
-          score: 70 // Good score for proper polymorphism
-        });
-      }
+  async queryRag(query, options = {}) {
+    if (!this.ragRetriever) {
+      await this.initializeRagSystem();
     }
     
-    // Check for typical polymorphism violations
-    
-    // 1. Check for instanceof/type checks (often a polymorphism violation)
-    path.traverse({
-      IfStatement(ifPath) {
-        const test = ifPath.node.test;
-        
-        // Check for instanceof expressions
-        if (test.type === 'BinaryExpression' && 
-            (test.operator === 'instanceof' || 
-             (test.operator === '===' && test.right.type === 'StringLiteral' && test.left.property?.name === 'name'))) {
-          
-          let methodName = 'unknown';
-          const parentFunc = ifPath.findParent(p => p.isClassMethod() || p.isFunctionDeclaration());
-          if (parentFunc?.node.key) {
-            methodName = parentFunc.node.key.name;
-          }
-          
-          polymorphismViolations.push({
-            file: filePath,
-            name: `${className}.${methodName}`,
-            details: `Type checking with ${test.operator === 'instanceof' ? 'instanceof' : 'constructor.name'} instead of using polymorphism`,
-            type: 'type-checking',
-            score: 65,
-            recommendation: 'Replace type checking with polymorphic method calls'
-          });
-        }
-      }
-    });
-  }
-  
-  // Find usage of polymorphism (method calls on parent type variables)
-  traverse(ast, {
-    CallExpression(path) {
-      // Look for obj.method() pattern where obj could be polymorphic
-      if (path.node.callee.type === 'MemberExpression') {
-        const methodName = path.node.callee.property.name;
-        
-        // Check if this methodName exists in multiple classes in our hierarchy
-        let polymorphicMethodCount = 0;
-        let implementingClasses = [];
-        
-        for (const [className, classInfo] of classHierarchy.entries()) {
-          if (classInfo.overriddenMethods.has(methodName)) {
-            polymorphicMethodCount++;
-            implementingClasses.push(className);
-          }
-        }
-        
-        if (polymorphicMethodCount > 1) {
-          polymorphismImplementations.push({
-            file: filePath,
-            name: methodName,
-            details: `Method ${methodName} is potentially used polymorphically (implemented by ${implementingClasses.join(', ')})`,
-            type: 'polymorphic-usage',
-            score: 60
-          });
-        }
-      }
+    if (!this.ragRetriever) {
+      throw new Error("RAG system not initialized");
     }
-  });
-  
-  // Store results in metrics
-  if (!this.metrics.codeQuality.designPatterns) {
-    this.metrics.codeQuality.designPatterns = {
-      polymorphism: { implementations: [], violations: [] },
-      dependencyInjection: { implementations: [], violations: [] },
-      ioc: { implementations: [], violations: [] }
-    };
-  }
-  
-  this.metrics.codeQuality.designPatterns.polymorphism.implementations.push(...polymorphismImplementations);
-  this.metrics.codeQuality.designPatterns.polymorphism.violations.push(...polymorphismViolations);
-  
-  // Also add violations to technical debt
-  polymorphismViolations.forEach(v => {
-    this.metrics.codeQuality.techDebt.items.push({
-      file: v.file,
-      issue: `Polymorphism Violation: ${v.details}`,
-      score: v.score,
-      recommendation: v.recommendation || 'Use proper inheritance and method overriding'
-    });
-  });
-}
-
-/**
- * Detect dependency injection patterns and violations
- */
-detectDependencyInjection(ast, filePath) {
-  const diImplementations = [];
-  const diViolations = [];
-  
-  // Look for constructor dependency injection pattern
-  traverse(ast, {
-    ClassDeclaration(path) {
-      const className = path.node.id?.name || 'Anonymous';
-      const constructor = path.node.body.body.find(
-        node => node.type === 'ClassMethod' && node.key.name === 'constructor'
+    
+    console.log(`Querying RAG system: "${query}"`);
+    
+    const results = await this.ragRetriever.search(query, options);
+    
+    // Generate context for LLM if needed
+    if (options.generateContext) {
+      results.context = this.ragRetriever.generateLlmContext(
+        results.documents, 
+        options.contextOptions
       );
-      
-      if (!constructor) return;
-      
-      // Check for dependencies passed to constructor
-      const params = constructor.params || [];
-      const dependencies = [];
-      const savedDeps = new Set();
-      
-      // Look for dependencies saved to instance variables
-      path.traverse({
-        AssignmentExpression(assignPath) {
-          // Check for this.something = param pattern
-          if (assignPath.node.left.type === 'MemberExpression' && 
-              assignPath.node.left.object.type === 'ThisExpression') {
-            
-            const varName = assignPath.node.left.property.name;
-            
-            // If right side is an identifier that matches a parameter
-            if (assignPath.node.right.type === 'Identifier') {
-              const paramName = assignPath.node.right.name;
-              const paramIndex = params.findIndex(p => p.name === paramName);
-              
-              if (paramIndex >= 0) {
-                savedDeps.add(paramName);
-                dependencies.push({
-                  param: paramName,
-                  instanceVar: varName,
-                  isService: varName.endsWith('Service') || 
-                             varName.endsWith('Repository') || 
-                             varName.endsWith('Manager') ||
-                             varName.endsWith('Provider')
-                });
-              }
-            }
-          }
-        }
-      });
-      
-      // If we have dependencies, this might be DI
-      if (dependencies.length > 0) {
-        const serviceCount = dependencies.filter(d => d.isService).length;
-        
-        // Calculate a DI quality score
-        const diScore = Math.min(100, 40 + (serviceCount * 10));
-        
-        diImplementations.push({
-          file: filePath,
-          name: className,
-          details: `Class receives ${dependencies.length} dependencies via constructor (${serviceCount} likely services)`,
-          type: 'constructor-injection',
-          score: diScore,
-          dependencies: dependencies.map(d => d.instanceVar)
-        });
-      }
-      
-      // Check for DI violations: instances created with 'new' inside class
-      const newExpressions = [];
-      path.traverse({
-        NewExpression(newPath) {
-          // Ignore 'new' for basic types (Date, Map, etc.)
-          const basicTypes = ['Array', 'Object', 'Date', 'Map', 'Set', 'Promise', 'RegExp'];
-          const className = newPath.node.callee.name;
-          
-          if (className && !basicTypes.includes(className)) {
-            let methodName = 'unknown';
-            const parentMethod = newPath.findParent(p => p.isClassMethod());
-            if (parentMethod?.node.key) {
-              methodName = parentMethod.node.key.name;
-            }
-            
-            newExpressions.push({
-              className,
-              methodName
-            });
-          }
-        }
-      });
-      
-      // Report violations for service-looking classes created with 'new'
-      newExpressions.forEach(expr => {
-        if (expr.className.endsWith('Service') || 
-            expr.className.endsWith('Repository') || 
-            expr.className.endsWith('Manager') ||
-            expr.className.endsWith('Factory') ||
-            expr.className.endsWith('Provider')) {
-          
-          diViolations.push({
-            file: filePath,
-            name: `${className}.${expr.methodName}`,
-            details: `Creates service '${expr.className}' with 'new' instead of using dependency injection`,
-            type: 'new-service-instance',
-            score: 75,
-            recommendation: 'Inject this dependency through constructor instead of creating it directly'
-          });
-        }
-      });
     }
-  });
-  
-  // Store results in metrics
-  this.metrics.codeQuality.designPatterns.dependencyInjection.implementations.push(...diImplementations);
-  this.metrics.codeQuality.designPatterns.dependencyInjection.violations.push(...diViolations);
-  
-  // Also add violations to technical debt
-  diViolations.forEach(v => {
-    this.metrics.codeQuality.techDebt.items.push({
-      file: v.file,
-      issue: `DI Violation: ${v.details}`,
-      score: v.score,
-      recommendation: v.recommendation || 'Use proper dependency injection'
-    });
-  });
-}
-
-/**
- * Detect Inversion of Control patterns and violations
- */
-detectIoC(ast, filePath) {
-  const iocImplementations = [];
-  const iocViolations = [];
-  
-  // Look for IoC container/registration patterns
-  let hasIoCContainer = false;
-  
-  traverse(ast, {
-    // Look for signs of an IoC container
-    CallExpression(path) {
-      const callee = path.node.callee;
-      if (callee.type !== 'MemberExpression') return;
-      
-      const methodName = callee.property.name;
-      const objectName = callee.object.name || 
-                        (callee.object.type === 'MemberExpression' ? callee.object.property.name : '');
-      
-      // Common IoC container registration methods
-      const iocRegisterMethods = [
-        'register', 'registerSingleton', 'registerTransient', 'addSingleton', 
-        'addTransient', 'bind', 'provide', 'service', 'factory'
-      ];
-      
-      if (iocRegisterMethods.includes(methodName)) {
-        hasIoCContainer = true;
-        iocImplementations.push({
-          file: filePath,
-          name: objectName || 'IoC container',
-          details: `IoC registration with '${methodName}'`,
-          type: 'registration',
-          score: 80
-        });
-      }
-      
-      // Common IoC container resolution methods
-      const iocResolveMethods = [
-        'resolve', 'get', 'getService', 'make', 'createInstance', 'inject'
-      ];
-      
-      if (iocResolveMethods.includes(methodName)) {
-        hasIoCContainer = true;
-        iocImplementations.push({
-          file: filePath,
-          name: objectName || 'IoC container',
-          details: `IoC service resolution with '${methodName}'`,
-          type: 'resolution',
-          score: 75
-        });
-      }
-    },
     
-    // IoC-related imports
-    ImportDeclaration(path) {
-      const source = path.node.source.value;
-      
-      // Common IoC libraries
-      const iocLibraries = [
-        'inversify', 'tsyringe', 'typedi', 'awilix', 'injection', 'di', 
-        'container', 'service-locator', 'dependency-injection'
-      ];
-      
-      if (iocLibraries.some(lib => source.includes(lib))) {
-        hasIoCContainer = true;
-        iocImplementations.push({
-          file: filePath,
-          name: source,
-          details: `Using IoC library: ${source}`,
-          type: 'library-usage',
-          score: 90
-        });
-      }
-    },
-    
-    // Look for decorators that might be IoC-related
-    Decorator(path) {
-      const expression = path.node.expression;
-      let decoratorName;
-      
-      if (expression.type === 'Identifier') {
-        decoratorName = expression.name;
-      } else if (expression.type === 'CallExpression' && expression.callee.type === 'Identifier') {
-        decoratorName = expression.callee.name;
-      }
-      
-      // Common IoC decorators
-      const iocDecorators = [
-        'Injectable', 'Service', 'Inject', 'Singleton', 'Provides',
-        'Component', 'Autowired', 'Dependency'
-      ];
-      
-      if (decoratorName && iocDecorators.includes(decoratorName)) {
-        hasIoCContainer = true;
-        
-        let targetName = 'unknown';
-        const parent = path.parent;
-        if (parent.type === 'ClassDeclaration' && parent.id) {
-          targetName = parent.id.name;
-        } else if (parent.type === 'ClassMethod' && parent.key) {
-          targetName = parent.key.name;
-        } else if (parent.type === 'ClassProperty' && parent.key) {
-          targetName = parent.key.name;
-        }
-        
-        iocImplementations.push({
-          file: filePath,
-          name: targetName,
-          details: `IoC decorator: @${decoratorName}`,
-          type: 'decorator',
-          score: 90
-        });
-      }
-    }
-  });
-  
-  // Look for potential IoC violations
-  // For example, explicit dependency instantiation in a file with IoC patterns
-  if (hasIoCContainer) {
-    traverse(ast, {
-      NewExpression(path) {
-        // Ignore 'new' for basic types (Date, Map, etc.)
-        const basicTypes = ['Array', 'Object', 'Date', 'Map', 'Set', 'Promise', 'RegExp'];
-        const className = path.node.callee.name;
-        
-        if (className && !basicTypes.includes(className) && 
-           (className.endsWith('Service') || className.endsWith('Repository'))) {
-          
-          let methodName = 'unknown';
-          const parentFunc = path.findParent(p => p.isFunction());
-          if (parentFunc && parentFunc.node.id) {
-            methodName = parentFunc.node.id.name;
-          } else if (parentFunc && parentFunc.node.key) {
-            methodName = parentFunc.node.key.name;
-          }
-          
-          iocViolations.push({
-            file: filePath,
-            name: methodName,
-            details: `Creates service '${className}' with 'new' while using IoC elsewhere`,
-            type: 'inconsistent-instantiation',
-            score: 70,
-            recommendation: 'Resolve this dependency from the IoC container instead of creating it directly'
-          });
-        }
-      }
-    });
+    return results;
   }
-  
-  // Store results in metrics
-  this.metrics.codeQuality.designPatterns.ioc.implementations.push(...iocImplementations);
-  this.metrics.codeQuality.designPatterns.ioc.violations.push(...iocViolations);
-  
-  // Also add violations to technical debt
-  iocViolations.forEach(v => {
-    this.metrics.codeQuality.techDebt.items.push({
-      file: v.file,
-      issue: `IoC Violation: ${v.details}`,
-      score: v.score,
-      recommendation: v.recommendation || 'Use the IoC container consistently throughout the codebase'
-    });
-  });
-}
 
   /**
-   * Generate a report of code smells
+   * Generate all reports
    */
-  async generateCodeSmellsReport() {
-    console.log("Generating code smells report...");
+  async generateAllReports() {
+    console.log("Generating all analysis reports...");
+    
+    // Basic reports
+    await this.reportGenerator.generateCodeSmellsReport();
+    
+    // Source comparison report if we have source systems
+    if (Object.keys(this.sourceSystems).length > 0) {
+      await this.sourceAnalyzer.generateSourceComparisonReport(this.baseDir);
+    }
+    
+    // Generate central reference hub
+    await this.reportGenerator.generateCentralReferenceHub(this.fsUtils);
+    
+    // New enhanced reports
+    await this.reportGenerator.generateTimelineReport();
+    await this.reportGenerator.generateArchitectureReport();
+    await this.reportGenerator.generateFeatureCoverageMap();
+    
+    // Generate database documentation with SQLite + sqlx hardcoded
+    await this.reportGenerator.generateDatabaseDocumentation();
+    
+    // Generate performance report
+    await this.generatePerformanceReport();
+    
+    // Visual dashboard
+    await this.visualReportGenerator.generateDashboard();
+    
+    // Gemini AI reports
+    if (this.options.useAI !== false) {
+      await this.geminiAnalyzer.generateProjectAssessmentReport(this.baseDir);
+      await this.geminiAnalyzer.generateCodeInsightsReport();
+      
+      // Generate source mapping improvement report if we have source systems
+      if (Object.keys(this.sourceSystems).length > 0) {
+        const mappingAnalysis = await this.geminiAnalyzer.generateMappingImprovement();
+        if (mappingAnalysis) {
+          const reportPath = path.join(this.baseDir, 'docs', 'gemini_mapping_analysis.md');
+          fs.writeFileSync(reportPath, 
+            `# Gemini AI Source-Target Mapping Analysis\n\n_Generated on: ${new Date().toISOString().split('T')[0]}_\n\n${mappingAnalysis}`
+          );
+          console.log(`Gemini mapping analysis report saved to ${reportPath}`);
+        }
+      }
+    }
+    
+    // Generate index.html to link all reports
+    this.generateReportIndex();
+    
+    // Update integration documentation
+    await this.updateIntegrationDocumentation();
+    
+    console.log('All reports generated successfully');
+  }
+
+  /**
+   * Generate an HTML index page linking all reports
+   */
+  generateReportIndex() {
+    const docsDir = path.join(this.baseDir, 'docs');
+    if (!fs.existsSync(docsDir)) {
+      fs.mkdirSync(docsDir, { recursive: true });
+    }
+    
+    // Find all markdown files in the docs directory
+    const reports = fs.readdirSync(docsDir)
+      .filter(file => file.endsWith('.md'))
+      .map(file => ({
+        file,
+        name: file.replace('.md', '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+      }));
+    
+    // Group reports by category
+    const categories = {
+      'Primary Reports': ['central_reference_hub', 'system_architecture', 'feature_coverage_map', 'project_timeline'],
+      'Code Quality': ['code_smells', 'performance_analysis', 'solid_violations'],
+      'AI Insights': ['gemini_project_assessment', 'ai_code_insights', 'gemini_mapping_analysis'],
+      'Other Reports': []
+    };
+    
+    // Categorize reports
+    reports.forEach(report => {
+      let assigned = false;
+      Object.entries(categories).forEach(([category, files]) => {
+        if (files.some(f => report.file.startsWith(f))) {
+          if (!categories[category].includes(report)) {
+            categories[category].push(report);
+          }
+          assigned = true;
+        }
+      });
+      
+      if (!assigned) {
+        categories['Other Reports'].push(report);
+      }
+    });
+    
+    // Generate HTML
+    let html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LMS Project Analysis Reports</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    h1 {
+      color: #2c3e50;
+      border-bottom: 2px solid #3498db;
+      padding-bottom: 10px;
+    }
+    h2 {
+      color: #2980b9;
+      margin-top: 30px;
+    }
+    .report-card {
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      padding: 15px;
+      margin: 10px 0;
+      background-color: #f9f9f9;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .report-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .report-card h3 {
+      margin-top: 0;
+      color: #3498db;
+    }
+    .report-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    a {
+      color: #3498db;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    .last-updated {
+      color: #7f8c8d;
+      font-size: 0.9rem;
+      margin-top: 5px;
+    }
+    .category-description {
+      margin-bottom: 20px;
+      padding-left: 10px;
+      border-left: 3px solid #3498db;
+    }
+  </style>
+</head>
+<body>
+  <h1>LMS Project Analysis Reports</h1>
+  <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+  
+  <p>These reports provide a comprehensive view of the LMS project's status, architecture, and code quality.</p>`;
+    
+    Object.entries(categories).forEach(([category, categoryReports]) => {
+      if (categoryReports.length === 0) return;
+      
+      html += `
+  <h2>${category}</h2>`;
+      
+      if (category === 'Primary Reports') {
+        html += `
+  <div class="category-description">
+    Key reports that provide a high-level overview of the project.
+  </div>`;
+      } else if (category === 'Code Quality') {
+        html += `
+  <div class="category-description">
+    Reports that focus on code quality, performance, and architectural concerns.
+  </div>`;
+      } else if (category === 'AI Insights') {
+        html += `
+  <div class="category-description">
+    AI-generated insights and assessments of the project.
+  </div>`;
+      }
+      
+      html += `
+  <div class="report-list">`;
+      
+      categoryReports.forEach(report => {
+        if (typeof report === 'string') return; // Skip string entries used for categorization
+        
+        const reportPath = path.join(docsDir, report.file);
+        let description = '';
+        let lastUpdated = '';
+        
+        try {
+          const stats = fs.statSync(reportPath);
+          lastUpdated = new Date(stats.mtime).toLocaleDateString();
+          
+          const content = fs.readFileSync(reportPath, 'utf8');
+          // Extract first paragraph after title as description
+          const descMatch = content.match(/^# .*?\n\n.*?_.*?_\n\n(.*?)(?:\n\n|\n#)/s);
+          if (descMatch && descMatch[1]) {
+            description = descMatch[1].substring(0, 150) + '...';
+          } else {
+            description = 'Detailed report about ' + report.name.toLowerCase() + '.';
+          }
+        } catch (err) {
+          console.warn(`Error reading report metadata for ${report.file}:`, err.message);
+        }
+        
+        html += `
+    <div class="report-card">
+      <h3><a href="${report.file}">${report.name}</a></h3>
+      <p>${description}</p>
+      <div class="last-updated">Last updated: ${lastUpdated}</div>
+    </div>`;
+      });
+      
+      html += `
+  </div>`;
+    });
+    
+    html += `
+</body>
+</html>`;
+    
+    // Save the index file
+    try {
+      fs.writeFileSync(path.join(docsDir, 'index.html'), html);
+      console.log('Generated reports index at docs/index.html');
+    } catch (err) {
+      console.error('Error generating reports index:', err.message);
+    }
+  }
+
+  /**
+   * Run file analysis with worker threads for better performance
+   */
+  async analyzeFilesWithWorkers(files, analyzerFunction) {
+    // Convert to absolute paths
+    files = files.map(file => path.isAbsolute(file) ? file : path.join(this.baseDir, file));
+    
+    // Determine optimal number of workers based on CPU cores
+    const os = require('os');
+    const numWorkers = Math.max(1, os.cpus().length - 1); // Leave one core free
+    
+    console.log(`Using ${numWorkers} worker threads for analysis`);
+    
+    // Split files into chunks for each worker
+    const chunkSize = Math.ceil(files.length / numWorkers);
+    const chunks = [];
+    
+    for (let i = 0; i < files.length; i += chunkSize) {
+      chunks.push(files.slice(i, i + chunkSize));
+    }
+    
+    // Create and run worker for each chunk
+    const { Worker } = require('worker_threads');
+    const workerFile = path.join(__dirname, 'worker-analyzer.js');
+    
+    const workers = chunks.map((chunk, i) => {
+      return new Promise((resolve, reject) => {
+        const worker = new Worker(workerFile, {
+          workerData: {
+            files: chunk,
+            workerId: i,
+            analyzerFunction: analyzerFunction.toString()
+          }
+        });
+        
+        worker.on('message', resolve);
+        worker.on('error', reject);
+        worker.on('exit', code => {
+          if (code !== 0) {
+            reject(new Error(`Worker stopped with exit code ${code}`));
+          }
+        });
+      });
+    });
+    
+    // Wait for all workers to complete
+    const results = await Promise.all(workers);
+    
+    // Combine results from all workers
+    return results.flat();
+  }
+
+  /**
+   * Generate a performance analysis report
+   */
+  async generatePerformanceReport() {
+    console.log("Generating performance analysis report...");
     
     const docsDir = path.join(this.baseDir, 'docs');
     if (!fs.existsSync(docsDir)) {
       fs.mkdirSync(docsDir, { recursive: true });
     }
     
-    // Get all violations
-    const solidViolations = this.metrics.codeQuality.solidViolations;
-    const designPatterns = this.metrics.codeQuality.designPatterns || {
-      polymorphism: { implementations: [], violations: [] },
-      dependencyInjection: { implementations: [], violations: [] },
-      ioc: { implementations: [], violations: [] }
-    };
+    const outputPath = path.join(docsDir, 'performance_analysis.md');
     
-    // Generate markdown report
-    let reportContent = `# Code Quality Analysis Report\n\n`;
+    // Generate content
+    let content = `# Performance Analysis Report\n\n`;
+    content += `_Generated on: ${new Date().toISOString().split('T')[0]}_\n\n`;
     
-    // Function to create a section for SOLID principles
-    const createPrincipleSection = (violations, title, description) => {
-      let section = `## ${title}\n\n`;
-      section += `${description}\n\n`;
-      section += `Found **${violations.length}** potential violations.\n\n`;
-      
-      if (violations.length > 0) {
-        section += `| File | Component | Score | Details | Recommendation |\n`;
-        section += `|------|-----------|-------|---------|----------------|\n`;
+    // Performance metrics from analysis
+    const performanceMetrics = this.metrics.performance || { steps: {} };
+    
+    content += `## Analysis Performance\n\n`;
+    content += `These metrics show how long each step of the analysis process took to run:\n\n`;
+    content += `| Analysis Step | Time (ms) | Time (sec) |\n`;
+    content += `|--------------|------------|------------|\n`;
+    
+    // Sort steps by duration (longest first)
+    const steps = Object.entries(performanceMetrics.steps || {})
+      .sort(([, a], [, b]) => b - a);
+    
+    let totalTime = 0;
+    
+    steps.forEach(([step, time]) => {
+      const seconds = (time / 1000).toFixed(2);
+      // Format step name nicely
+      const formattedStep = step
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, str => str.toUpperCase())
+        .trim();
         
-        violations
-          .sort((a, b) => b.score - a.score)
-          .forEach(v => {
-            section += `| ${v.file.replace(/\\/g, '/')} | ${v.name} | ${v.score} | ${v.details} | ${v.recommendation || '-'} |\n`;
-          });
-      }
-      
-      return section + "\n";
-    };
+      content += `| ${formattedStep} | ${time.toLocaleString()} | ${seconds}s |\n`;
+      totalTime += time;
+    });
     
-    // Function to create a section for design patterns
-    const createPatternSection = (pattern, title, description) => {
-      const implementations = pattern.implementations || [];
-      const violations = pattern.violations || [];
+    content += `| **Total Analysis Time** | **${totalTime.toLocaleString()}** | **${(totalTime / 1000).toFixed(2)}s** |\n\n`;
+    
+    // Code performance metrics
+    content += `## Code Performance Hotspots\n\n`;
+    
+    if (this.metrics.codeQuality && this.metrics.codeQuality.complexity) {
+      const complexFiles = this.metrics.codeQuality.complexity.files || [];
       
-      let section = `## ${title}\n\n`;
-      section += `${description}\n\n`;
-      section += `Found **${implementations.length}** implementations and **${violations.length}** violations.\n\n`;
+      // Sort files by complexity
+      const sortedFiles = [...complexFiles].sort((a, b) => b.complexity - a.complexity);
       
-      if (implementations.length > 0) {
-        section += `### Implementations\n\n`;
-        section += `| File | Component | Type | Details |\n`;
-        section += `|------|-----------|------|--------|\n`;
+      content += `The following files have the highest complexity scores, which may indicate performance concerns:\n\n`;
+      content += `| File | Complexity Score | Lines of Code | Complexity/LOC |\n`;
+      content += `|------|-----------------|---------------|----------------|\n`;
+      
+      sortedFiles.slice(0, 10).forEach(file => {
+        const complexityPerLine = file.lines > 0 ? (file.complexity / file.lines).toFixed(2) : 'N/A';
+        content += `| ${path.basename(file.file)} | ${file.complexity} | ${file.lines} | ${complexityPerLine} |\n`;
+      });
+    } else {
+      content += `No complexity metrics available for performance analysis.\n`;
+    }
+    
+    content += `\n`;
+    
+    // Runtime performance estimates
+    content += `## Runtime Performance Estimates\n\n`;
+    
+    if (this.metrics.apiEndpoints && this.metrics.apiEndpoints.details) {
+      const endpoints = this.metrics.apiEndpoints.details;
+      
+      // Estimate performance for endpoints
+      content += `### API Endpoint Estimated Performance\n\n`;
+      content += `| Endpoint | Method | Estimated Response Time | Complexity |\n`;
+      content += `|----------|--------|-------------------------|------------|\n`;
+      
+      endpoints.forEach(endpoint => {
+        if (!endpoint.routePath) return;
         
-        implementations
-          .sort((a, b) => b.score - a.score)
-          .forEach(imp => {
-            section += `| ${imp.file.replace(/\\/g, '/')} | ${imp.name} | ${imp.type} | ${imp.details} |\n`;
-          });
-        section += "\n";
-      }
-      
-      if (violations.length > 0) {
-        section += `### Violations\n\n`;
-        section += `| File | Component | Details | Recommendation |\n`;
-        section += `|------|-----------|---------|----------------|\n`;
+        // Estimate response time based on endpoint complexity
+        // This is just an example - replace with real metrics if available
+        const baseTime = 100; // base time in ms
+        const complexity = endpoint.complexity || 1;
+        const estimatedTime = baseTime * complexity;
         
-        violations
-          .sort((a, b) => b.score - a.score)
-          .forEach(v => {
-            section += `| ${v.file.replace(/\\/g, '/')} | ${v.name} | ${v.details} | ${v.recommendation || '-'} |\n`;
-          });
-      }
+        const responseTime = `${estimatedTime}ms`;
+        const complexityRating = complexity <= 1 ? 'Low' : 
+                                complexity <= 2 ? 'Medium' : 'High';
+        
+        content += `| ${endpoint.routePath} | ${endpoint.httpMethod || 'GET'} | ${responseTime} | ${complexityRating} |\n`;
+      });
       
-      return section + "\n";
-    };
+      content += `\n`;
+    }
     
-    // Add sections for each SOLID principle
-    reportContent += `# SOLID Principles Analysis\n\n`;
+    // Add performance recommendations
+    content += `## Performance Recommendations\n\n`;
+    content += `Based on the analysis, here are some recommendations for improving performance:\n\n`;
     
-    reportContent += createPrincipleSection(
-      solidViolations.srp,
-      "Single Responsibility Principle Violations",
-      "A class should have only one reason to change."
+    const recommendations = [];
+    
+    // Check for high complexity files
+    if (this.metrics.codeQuality && 
+        this.metrics.codeQuality.complexity && 
+        this.metrics.codeQuality.complexity.high > 0) {
+      recommendations.push(
+        `- **Refactor High Complexity Code**: ${this.metrics.codeQuality.complexity.high} files have high complexity scores. Consider breaking these down into smaller, more manageable functions.`
+      );
+    }
+    
+    // Check for large files
+    const largeFiles = (this.metrics.codeQuality?.complexity?.files || [])
+      .filter(file => file.lines > 500);
+      
+    if (largeFiles.length > 0) {
+      recommendations.push(
+        `- **Split Large Files**: ${largeFiles.length} files exceed 500 lines of code. Consider splitting these into smaller, more focused modules.`
+      );
+    }
+    
+    // Check for unoptimized database queries
+    if (this.metrics.databaseQueries && this.metrics.databaseQueries.unoptimized > 0) {
+      recommendations.push(
+        `- **Optimize Database Queries**: ${this.metrics.databaseQueries.unoptimized} database queries could benefit from optimization, such as adding indexes or query refinement.`
+      );
+    }
+    
+    // General recommendations
+    recommendations.push(
+      `- **Implement Caching**: Consider adding caching for frequently accessed data to reduce database load.`
     );
     
-    reportContent += createPrincipleSection(
-      solidViolations.ocp,
-      "Open-Closed Principle Violations",
-      "Software entities should be open for extension, but closed for modification."
+    recommendations.push(
+      `- **Bundle and Minify Frontend Assets**: Ensure JavaScript and CSS files are properly bundled and minified for production.`
     );
     
-    reportContent += createPrincipleSection(
-      solidViolations.lsp,
-      "Liskov Substitution Principle Violations",
-      "Subtypes must be substitutable for their base types."
+    recommendations.push(
+      `- **Pagination for Large Data Sets**: Implement pagination for any API endpoints that return large data sets.`
     );
     
-    reportContent += createPrincipleSection(
-      solidViolations.isp,
-      "Interface Segregation Principle Violations",
-      "Clients should not be forced to depend on methods they do not use."
-    );
+    // Add recommendations to report
+    recommendations.forEach(rec => {
+      content += `${rec}\n\n`;
+    });
     
-    reportContent += createPrincipleSection(
-      solidViolations.dip,
-      "Dependency Inversion Principle Violations",
-      "High-level modules should not depend on low-level modules. Both should depend on abstractions."
-    );
-    
-    // Add sections for design patterns
-    reportContent += `# Design Patterns Analysis\n\n`;
-    
-    reportContent += createPatternSection(
-      designPatterns.polymorphism,
-      "Polymorphism",
-      "The ability to present the same interface for differing underlying forms (data types)."
-    );
-    
-    reportContent += createPatternSection(
-      designPatterns.dependencyInjection,
-      "Dependency Injection",
-      "A technique whereby one object supplies the dependencies of another object."
-    );
-    
-    reportContent += createPatternSection(
-      designPatterns.ioc,
-      "Inversion of Control (IoC)",
-      "A design principle in which control flow is inverted compared to traditional programming."
-    );
-    
-    // Add a summary section
-    const totalSolidViolations = solidViolations.srp.length + 
-                            solidViolations.ocp.length + 
-                            solidViolations.lsp.length +
-                            solidViolations.isp.length +
-                            solidViolations.dip.length;
-                            
-    const totalPatternViolations = designPatterns.polymorphism.violations.length +
-                              designPatterns.dependencyInjection.violations.length +
-                              designPatterns.ioc.violations.length;
-                               
-    const totalPatternImplementations = designPatterns.polymorphism.implementations.length +
-                                   designPatterns.dependencyInjection.implementations.length +
-                                   designPatterns.ioc.implementations.length;
-    
-    reportContent = `# Code Quality Analysis Report\n\n` +
-                   `**Total SOLID Violations:** ${totalSolidViolations}\n` +
-                   `**Total Pattern Implementations:** ${totalPatternImplementations}\n` +
-                   `**Total Pattern Violations:** ${totalPatternViolations}\n\n` +
-                   `## SOLID Principles Summary\n\n` +
-                   `| Principle | Violations |\n` +
-                   `|-----------|------------|\n` +
-                   `| Single Responsibility | ${solidViolations.srp.length} |\n` +
-                   `| Open-Closed | ${solidViolations.ocp.length} |\n` +
-                   `| Liskov Substitution | ${solidViolations.lsp.length} |\n` +
-                   `| Interface Segregation | ${solidViolations.isp.length} |\n` +
-                   `| Dependency Inversion | ${solidViolations.dip.length} |\n\n` +
-                   `## Design Patterns Summary\n\n` +
-                   `| Pattern | Implementations | Violations |\n` +
-                   `|---------|-----------------|------------|\n` +
-                   `| Polymorphism | ${designPatterns.polymorphism.implementations.length} | ${designPatterns.polymorphism.violations.length} |\n` +
-                   `| Dependency Injection | ${designPatterns.dependencyInjection.implementations.length} | ${designPatterns.dependencyInjection.violations.length} |\n` +
-                   `| Inversion of Control | ${designPatterns.ioc.implementations.length} | ${designPatterns.ioc.violations.length} |\n\n` +
-                   reportContent;
-    
-    // Save to a file
+    // Save the performance report
     try {
-      fs.writeFileSync(path.join(this.baseDir, 'docs', 'code_quality_report.md'), reportContent);
-      console.log("Code quality report saved to docs/code_quality_report.md");
-    } catch (err) {
-      console.error("Error saving code quality report:", err.message);
+      fs.writeFileSync(outputPath, content);
+      console.log(`Performance analysis report generated at ${outputPath}`);
+      return outputPath;
+    } catch (error) {
+      console.error(`Failed to write performance report: ${error.message}`);
+      return null;
     }
   }
 
-  // getDirectoryStats is now handled by FileSystemUtils
+  // Add these helper methods to the UnifiedProjectAnalyzer class
+
+  /**
+   * Generate Markdown for Models
+   */
+  generateMarkdownForModels(modelData) {
+    let markdown = `# ${modelData.title}\n\n`;
+    markdown += `${modelData.summary}\n\n`;
+    markdown += `System: ${modelData.system}\n`;
+    markdown += `Total Models: ${modelData.totalCount}\n\n`;
+    
+    markdown += `## Model Listing\n\n`;
+    
+    modelData.models.forEach(model => {
+      markdown += `### ${model.name}\n\n`;
+      
+      if (model.description) {
+        markdown += `${model.description}\n\n`;
+      }
+      
+      if (model.attributes && model.attributes.length > 0) {
+        markdown += `#### Attributes\n\n`;
+        markdown += `| Name | Type | Description |\n`;
+        markdown += `|------|------|-------------|\n`;
+        
+        model.attributes.forEach(attr => {
+          markdown += `| ${attr.name} | ${attr.type || 'unknown'} | ${attr.description || ''} |\n`;
+        });
+        
+        markdown += `\n`;
+      }
+      
+      if (model.relationships && model.relationships.length > 0) {
+        markdown += `#### Relationships\n\n`;
+        markdown += `| Related Model | Type | Description |\n`;
+        markdown += `|--------------|------|-------------|\n`;
+        
+        model.relationships.forEach(rel => {
+          markdown += `| ${rel.target} | ${rel.type || 'association'} | ${rel.description || ''} |\n`;
+        });
+        
+        markdown += `\n`;
+      }
+      
+      if (model.fileName) {
+        markdown += `Source: \`${model.fileName}\`\n\n`;
+      }
+      
+      markdown += `---\n\n`;
+    });
+    
+    return markdown;
+  }
+
+  /**
+   * Generate Markdown for Controllers
+   */
+  generateMarkdownForControllers(controllerData) {
+    let markdown = `# ${controllerData.title}\n\n`;
+    markdown += `${controllerData.summary}\n\n`;
+    markdown += `System: ${controllerData.system}\n`;
+    markdown += `Total Controllers: ${controllerData.totalCount}\n\n`;
+    
+    markdown += `## Controller Listing\n\n`;
+    
+    controllerData.controllers.forEach(controller => {
+      markdown += `### ${controller.name}\n\n`;
+      
+      if (controller.description) {
+        markdown += `${controller.description}\n\n`;
+      }
+      
+      if (controller.actions && controller.actions.length > 0) {
+        markdown += `#### Actions\n\n`;
+        markdown += `| Action | HTTP Method | Route | Description |\n`;
+        markdown += `|--------|------------|-------|-------------|\n`;
+        
+        controller.actions.forEach(action => {
+          markdown += `| ${action.name} | ${action.httpMethod || 'GET'} | ${action.route || ''} | ${action.description || ''} |\n`;
+        });
+        
+        markdown += `\n`;
+      }
+      
+      if (controller.usedModels && controller.usedModels.length > 0) {
+        markdown += `#### Referenced Models\n\n`;
+        markdown += `- ${controller.usedModels.join('\n- ')}\n\n`;
+      }
+      
+      if (controller.fileName) {
+        markdown += `Source: \`${controller.fileName}\`\n\n`;
+      }
+      
+      markdown += `---\n\n`;
+    });
+    
+    return markdown;
+  }
+
+  /**
+   * Generate Markdown for Workflow
+   */
+  generateMarkdownForWorkflow(workflow, system) {
+    let markdown = `# ${workflow.name.charAt(0).toUpperCase() + workflow.name.slice(1)} Workflow\n\n`;
+    
+    markdown += `## Overview\n\n`;
+    markdown += `This document describes the ${workflow.name} workflow in the ${system} system.\n\n`;
+    
+    if (workflow.controllers && workflow.controllers.length > 0) {
+      markdown += `## Related Controllers\n\n`;
+      markdown += workflow.controllers.map(c => `- ${c}`).join('\n') + '\n\n';
+    }
+    
+    if (workflow.actions && workflow.actions.length > 0) {
+      markdown += `## Actions\n\n`;
+      markdown += `| Action | Controller | Input Models | Output Models | Description |\n`;
+      markdown += `|--------|------------|--------------|---------------|-------------|\n`;
+      
+      workflow.actions.forEach(action => {
+        const inputs = action.inputModels?.join(', ') || '';
+        const outputs = action.outputModels?.join(', ') || '';
+        
+        markdown += `| ${action.name} | ${action.controller} | ${inputs} | ${outputs} | ${action.description || ''} |\n`;
+      });
+      
+      markdown += `\n`;
+    }
+    
+    if (workflow.dataFlow && workflow.dataFlow.length > 0) {
+      markdown += `## Data Flow\n\n`;
+      markdown += `\`\`\`mermaid\nflowchart LR\n`;
+      
+      workflow.dataFlow.forEach((flow, index) => {
+        markdown += `  ${flow.from.replace(/\s/g, '_')} -->|${flow.action}| ${flow.to.replace(/\s/g, '_')}\n`;
+      });
+      
+      markdown += `\`\`\`\n\n`;
+    }
+    
+    return markdown;
+  }
+
+  /**
+   * Generate Markdown for Architecture Pattern
+   */
+  generateMarkdownForPattern(pattern, system) {
+    let markdown = `# ${pattern.name} Pattern\n\n`;
+    
+    markdown += `## Overview\n\n`;
+    markdown += `${pattern.description || `This document describes the ${pattern.name} architectural pattern in the ${system} system.`}\n\n`;
+    
+    if (pattern.benefits && pattern.benefits.length > 0) {
+      markdown += `## Benefits\n\n`;
+      markdown += pattern.benefits.map(b => `- ${b}`).join('\n') + '\n\n';
+    }
+    
+    if (pattern.implementations && pattern.implementations.length > 0) {
+      markdown += `## Implementations\n\n`;
+      
+      pattern.implementations.forEach(impl => {
+        markdown += `### ${impl.name}\n\n`;
+        markdown += `${impl.description || ''}\n\n`;
+        
+        if (impl.location) {
+          markdown += `Location: \`${impl.location}\`\n\n`;
+        }
+        
+        if (impl.codeSnippet) {
+          markdown += `\`\`\`${impl.language || 'javascript'}\n`;
+          markdown += impl.codeSnippet;
+          markdown += `\n\`\`\`\n\n`;
+        }
+      });
+    }
+    
+    return markdown;
+  }
+
+  /**
+   * Generate Markdown for API endpoints
+   */
+  generateMarkdownForApiEndpoints(endpoints, system) {
+    let markdown = `# ${system.toUpperCase()} API Documentation\n\n`;
+    
+    markdown += `This document provides information about the API endpoints available in the ${system} system.\n\n`;
+    
+    // Group endpoints by resource
+    const resourceGroups = {};
+    
+    endpoints.forEach(endpoint => {
+      const parts = endpoint.path.split('/');
+      // Get the resource name (usually the first part after API version)
+      const resourceIndex = parts.findIndex(p => p === 'api' || p === 'v1' || p === 'v2') + 1;
+      const resource = resourceIndex < parts.length ? parts[resourceIndex] : 'other';
+      
+      if (!resourceGroups[resource]) {
+        resourceGroups[resource] = [];
+      }
+      
+      resourceGroups[resource].push(endpoint);
+    });
+    
+    // Generate docs for each resource group
+    for (const [resource, resourceEndpoints] of Object.entries(resourceGroups)) {
+      markdown += `## ${resource.charAt(0).toUpperCase() + resource.slice(1)}\n\n`;
+      
+      resourceEndpoints.forEach(endpoint => {
+        markdown += `### ${endpoint.method} ${endpoint.path}\n\n`;
+        
+        if (endpoint.description) {
+          markdown += `${endpoint.description}\n\n`;
+        }
+        
+        if (endpoint.parameters && endpoint.parameters.length > 0) {
+          markdown += `#### Parameters\n\n`;
+          markdown += `| Name | Type | Required | Description |\n`;
+          markdown += `|------|------|----------|-------------|\n`;
+          
+          endpoint.parameters.forEach(param => {
+            markdown += `| ${param.name} | ${param.type || 'string'} | ${param.required ? 'Yes' : 'No'} | ${param.description || ''} |\n`;
+          });
+          
+          markdown += `\n`;
+        }
+        
+        if (endpoint.requestBody) {
+          markdown += `#### Request Body\n\n`;
+          markdown += `\`\`\`json\n${JSON.stringify(endpoint.requestBody, null, 2)}\n\`\`\`\n\n`;
+        }
+        
+        if (endpoint.responses) {
+          markdown += `#### Responses\n\n`;
+          
+          for (const [code, response] of Object.entries(endpoint.responses)) {
+            markdown += `**${code}**\n\n`;
+            
+            if (response.description) {
+              markdown += `${response.description}\n\n`;
+            }
+            
+            if (response.example) {
+              markdown += `\`\`\`json\n${JSON.stringify(response.example, null, 2)}\n\`\`\`\n\n`;
+            }
+          }
+        }
+        
+        markdown += `---\n\n`;
+      });
+    }
+    
+    return markdown;
+  }
+
+  /**
+   * Generate Markdown for Integration Points
+   */
+  generateMarkdownForIntegrationPoints(integrationPoints) {
+    let markdown = `# Integration Points Between Canvas and Discourse\n\n`;
+    
+    markdown += `This document identifies potential integration points between the Canvas LMS and Discourse forum systems.\n\n`;
+    
+    // Group by integration type
+    const types = {};
+    integrationPoints.forEach(point => {
+      if (!types[point.type]) {
+        types[point.type] = [];
+      }
+      types[point.type].push(point);
+    });
+    
+    for (const [type, points] of Object.entries(types)) {
+      markdown += `## ${type.charAt(0).toUpperCase() + type.slice(1)} Integration\n\n`;
+      
+      points.forEach(point => {
+        markdown += `### ${point.name}\n\n`;
+        
+        markdown += `${point.description || ''}\n\n`;
+        
+        markdown += `**Canvas Component:** ${point.canvasComponent}\n\n`;
+        markdown += `**Discourse Component:** ${point.discourseComponent}\n\n`;
+        
+        if (point.implementationNotes) {
+          markdown += `#### Implementation Notes\n\n`;
+          markdown += point.implementationNotes + '\n\n';
+        }
+        
+        if (point.dataFlow) {
+          markdown += `#### Data Flow\n\n`;
+          markdown += `\`\`\`mermaid\nsequenceDiagram\n`;
+          
+          point.dataFlow.forEach(flow => {
+            markdown += `  ${flow.from}->>${flow.to}: ${flow.description}\n`;
+          });
+          
+          markdown += `\`\`\`\n\n`;
+        }
+        
+        markdown += `---\n\n`;
+      });
+    }
+    
+    return markdown;
+  }
+
+  /**
+   * Generate Markdown for Model Mappings
+   */
+  generateMarkdownForModelMappings(modelMappings) {
+    let markdown = `# Cross-System Model Mappings\n\n`;
+    
+    markdown += `This document defines mappings between Canvas and Discourse data models for integration purposes.\n\n`;
+    
+    markdown += `| Canvas Model | Discourse Model | Mapping Type | Description |\n`;
+    markdown += `|-------------|----------------|--------------|-------------|\n`;
+    
+    modelMappings.forEach(mapping => {
+      markdown += `| ${mapping.canvasModel} | ${mapping.discourseModel} | ${mapping.type} | ${mapping.description || ''} |\n`;
+    });
+    
+    markdown += `\n## Detailed Mappings\n\n`;
+    
+    modelMappings.forEach(mapping => {
+      markdown += `### ${mapping.canvasModel} ↔ ${mapping.discourseModel}\n\n`;
+      
+      if (mapping.description) {
+        markdown += `${mapping.description}\n\n`;
+      }
+      
+      if (mapping.attributes && mapping.attributes.length > 0) {
+        markdown += `#### Attribute Mappings\n\n`;
+        markdown += `| Canvas Attribute | Discourse Attribute | Transformation | Notes |\n`;
+        markdown += `|-----------------|---------------------|---------------|-------|\n`;
+        
+        mapping.attributes.forEach(attr => {
+          markdown += `| ${attr.canvas} | ${attr.discourse} | ${attr.transformation || 'N/A'} | ${attr.notes || ''} |\n`;
+        });
+        
+        markdown += `\n`;
+      }
+    });
+    
+    return markdown;
+  }
+
+  /**
+   * Generate system knowledge base documents
+   * @param {string} system - System name (canvas, discourse)
+   * @param {string} outputDir - Output directory
+   */
+  async generateSystemKnowledgeBase(system, outputDir) {
+    console.log(`Generating knowledge base for ${system}...`);
+    
+    // Create system directory if it doesn't exist
+    const systemDir = path.join(outputDir, system);
+    if (!fs.existsSync(systemDir)) {
+      fs.mkdirSync(systemDir, { recursive: true });
+    }
+    
+    // Generate documents based on system type
+    switch(system) {
+      case 'canvas':
+        await this.generateCanvasDocuments(systemDir);
+        break;
+      case 'discourse':
+        await this.generateDiscourseDocuments(systemDir);
+        break;
+      default:
+        console.warn(`Unknown system: ${system}`);
+    }
+    
+    console.log(`Generated knowledge base for ${system}`);
+  }
+
+  /**
+   * Generate Canvas system documents
+   * @param {string} outputDir - Output directory
+   */
+  async generateCanvasDocuments(outputDir) {
+    console.log("Generating Canvas documents...");
+    
+    // Create models directory
+    const modelsDir = path.join(outputDir, 'models');
+    fsExtra.ensureDirSync(modelsDir);  // Changed from fs.ensureDirSync
+    
+    // Simple placeholder for demo purposes - in a real implementation, 
+    // you would analyze the actual Canvas codebase
+    const models = [
+      { 
+        name: 'Course',
+        description: 'Canvas Course model representing a course in the LMS',
+        properties: [
+          { name: 'id', type: 'integer', description: 'Unique identifier' },
+          { name: 'name', type: 'string', description: 'Course name' },
+          { name: 'code', type: 'string', description: 'Course code' },
+          { name: 'workflow_state', type: 'string', description: 'Current state of the course' }
+        ],
+        relationships: [
+          { name: 'enrollments', type: 'has_many', target: 'Enrollment', description: 'Student enrollments' },
+          { name: 'discussion_topics', type: 'has_many', target: 'DiscussionTopic', description: 'Discussion topics' }
+        ]
+      },
+      { 
+        name: 'DiscussionTopic',
+        description: 'Canvas discussion topic model',
+        properties: [
+          { name: 'id', type: 'integer', description: 'Unique identifier' },
+          { name: 'title', type: 'string', description: 'Topic title' },
+          { name: 'message', type: 'text', description: 'Topic content' }
+        ],
+        relationships: [
+          { name: 'course', type: 'belongs_to', target: 'Course', description: 'Associated course' },
+          { name: 'entries', type: 'has_many', target: 'DiscussionEntry', description: 'Discussion replies' }
+        ]
+      }
+    ];
+    
+    // Generate model documentation
+    for (const model of models) {
+      const modelDoc = this.generateModelDocument(model, 'canvas');
+      fs.writeFileSync(path.join(modelsDir, `${model.name.toLowerCase()}.md`), modelDoc);
+    }
+    
+    // Generate API documentation
+    const apisDir = path.join(outputDir, 'apis');
+    fsExtra.ensureDirSync(apisDir);  // Changed from fs.ensureDirSync
+    
+    const apis = [
+      {
+        name: 'Courses API',
+        description: 'API endpoints for managing Canvas courses',
+        endpoints: [
+          { path: '/api/v1/courses', method: 'GET', description: 'List courses' },
+          { path: '/api/v1/courses/:id', method: 'GET', description: 'Get a single course' },
+          { path: '/api/v1/courses/:course_id/discussion_topics', method: 'GET', description: 'List discussion topics' }
+        ]
+      }
+    ];
+    
+    // Generate API documentation
+    for (const api of apis) {
+      const apiDoc = this.generateApiDocument(api, 'canvas');
+      fs.writeFileSync(path.join(apisDir, `${api.name.toLowerCase().replace(/\s+/g, '_')}.md`), apiDoc);
+    }
+  }
+
+  /**
+   * Generate Discourse system documents
+   * @param {string} outputDir - Output directory
+   */
+  async generateDiscourseDocuments(outputDir) {
+    console.log("Generating Discourse documents...");
+    
+    // Create models directory
+    const modelsDir = path.join(outputDir, 'models');
+    fsExtra.ensureDirSync(modelsDir);  // Changed from fs.ensureDirSync
+    
+    // Simple placeholder for demo purposes
+    const models = [
+      { 
+        name: 'Topic',
+        description: 'Discourse Topic model representing a discussion topic',
+        properties: [
+          { name: 'id', type: 'integer', description: 'Unique identifier' },
+          { name: 'title', type: 'string', description: 'Topic title' },
+          { name: 'category_id', type: 'integer', description: 'Category ID' }
+        ],
+        relationships: [
+          { name: 'category', type: 'belongs_to', target: 'Category', description: 'Parent category' },
+          { name: 'posts', type: 'has_many', target: 'Post', description: 'Posts in this topic' }
+        ]
+      },
+      { 
+        name: 'Category',
+        description: 'Discourse category for organizing topics',
+        properties: [
+          { name: 'id', type: 'integer', description: 'Unique identifier' },
+          { name: 'name', type: 'string', description: 'Category name' },
+          { name: 'slug', type: 'string', description: 'URL-friendly name' }
+        ],
+        relationships: [
+          { name: 'topics', type: 'has_many', target: 'Topic', description: 'Topics in this category' }
+        ]
+      }
+    ];
+    
+    // Generate model documentation
+    for (const model of models) {
+      const modelDoc = this.generateModelDocument(model, 'discourse');
+      fs.writeFileSync(path.join(modelsDir, `${model.name.toLowerCase()}.md`), modelDoc);
+    }
+    
+    // Generate API documentation
+    const apisDir = path.join(outputDir, 'apis');
+    fsExtra.ensureDirSync(apisDir);  // Changed from fs.ensureDirSync
+    
+    const apis = [
+      {
+        name: 'Topics API',
+        description: 'API endpoints for managing Discourse topics',
+        endpoints: [
+          { path: '/t/:slug/:topic_id.json', method: 'GET', description: 'Get a topic' },
+          { path: '/topics/latest.json', method: 'GET', description: 'List latest topics' }
+        ]
+      }
+    ];
+    
+    // Generate API documentation
+    for (const api of apis) {
+      const apiDoc = this.generateApiDocument(api, 'discourse');
+      fs.writeFileSync(path.join(apisDir, `${api.name.toLowerCase().replace(/\s+/g, '_')}.md`), apiDoc);
+    }
+  }
+
+  /**
+   * Generate model documentation
+   * @param {Object} model - Model definition
+   * @param {string} system - System name
+   * @returns {string} Markdown documentation
+   */
+  generateModelDocument(model, system) {
+    let markdown = `# ${model.name} Model\n\n`;
+    
+    markdown += `## Overview\n\n`;
+    markdown += `${model.description}\n\n`;
+    markdown += `System: ${system}\n\n`;
+    
+    markdown += `## Properties\n\n`;
+    markdown += `| Name | Type | Description |\n`;
+    markdown += `|------|------|-------------|\n`;
+    
+    for (const prop of model.properties) {
+      markdown += `| ${prop.name} | ${prop.type} | ${prop.description} |\n`;
+    }
+    
+    markdown += `\n## Relationships\n\n`;
+    markdown += `| Name | Type | Target | Description |\n`;
+    markdown += `|------|------|--------|-------------|\n`;
+    
+    for (const rel of model.relationships) {
+      markdown += `| ${rel.name} | ${rel.type} | ${rel.target} | ${rel.description} |\n`;
+    }
+    
+    return markdown;
+  }
+
+  /**
+   * Generate API documentation
+   * @param {Object} api - API definition
+   * @param {string} system - System name
+   * @returns {string} Markdown documentation
+   */
+  generateApiDocument(api, system) {
+    let markdown = `# ${api.name}\n\n`;
+    
+    markdown += `## Overview\n\n`;
+    markdown += `${api.description}\n\n`;
+    markdown += `System: ${system}\n\n`;
+    
+    markdown += `## Endpoints\n\n`;
+    
+    for (const endpoint of api.endpoints) {
+      markdown += `### ${endpoint.method} ${endpoint.path}\n\n`;
+      markdown += `${endpoint.description}\n\n`;
+    }
+    
+    return markdown;
+  }
+
+  /**
+   * Generate system behavior documents
+   * @param {string} system - System name
+   * @param {string} outputDir - Output directory
+   */
+  async generateSystemBehaviorDocuments(system, outputDir) {
+    console.log(`Generating behavior documents for ${system}...`);
+    
+    // Create behavior directory
+    const behaviorDir = path.join(outputDir, system, 'behavior');
+    fsExtra.ensureDirSync(behaviorDir); // Changed from fs.ensureDirSync
+    
+    // Example behaviors based on system
+    const behaviors = system === 'canvas' 
+      ? [
+          { name: 'Course Creation', description: 'Process of creating a new course' },
+          { name: 'Discussion Topic Creation', description: 'How discussion topics are created and managed' }
+        ]
+      : [
+          { name: 'Topic Creation', description: 'Process of creating a new topic' },
+          { name: 'Category Management', description: 'How categories are organized and managed' }
+        ];
+    
+    // Generate behavior documents
+    for (const behavior of behaviors) {
+      const doc = this.generateBehaviorDocument(behavior, system);
+      fs.writeFileSync(
+        path.join(behaviorDir, `${behavior.name.toLowerCase().replace(/\s+/g, '_')}.md`), 
+        doc
+      );
+    }
+  }
+
+  /**
+   * Generate behavior document
+   * @param {Object} behavior - Behavior definition
+   * @param {string} system - System name
+   * @returns {string} Markdown documentation
+   */
+  generateBehaviorDocument(behavior, system) {
+    let markdown = `# ${behavior.name}\n\n`;
+    
+    markdown += `## Overview\n\n`;
+    markdown += `${behavior.description}\n\n`;
+    markdown += `System: ${system}\n\n`;
+    
+    markdown += `## Process Flow\n\n`;
+    markdown += `This is a placeholder for the detailed process flow of ${behavior.name} in ${system}.\n\n`;
+    
+    return markdown;
+  }
+
+  /**
+   * Generate system architecture patterns
+   * @param {string} system - System name
+   * @param {string} outputDir - Output directory
+   */
+  async generateSystemArchitecturePatterns(system, outputDir) {
+    console.log(`Generating architecture patterns for ${system}...`);
+    
+    // Create architecture directory
+    const archDir = path.join(outputDir, system, 'architecture');
+    fsExtra.ensureDirSync(archDir);
+    
+    // Example patterns based on system
+    const patterns = system === 'canvas' 
+      ? [
+          { 
+            name: 'MVC Pattern', 
+            description: 'Canvas uses the Model-View-Controller pattern for organizing code',
+            benefits: ['Separation of concerns', 'Testability', 'Code organization'],
+            implementations: [
+              { name: 'Course Controller', description: 'Handles course-related requests', location: 'app/controllers/courses_controller.rb' }
+            ]
+          }
+        ]
+      : [
+          { 
+            name: 'Plugin Architecture', 
+            description: 'Discourse uses a plugin architecture for extensibility',
+            benefits: ['Modularity', 'Extensibility', 'Community contributions'],
+            implementations: [
+              { name: 'Plugin System', description: 'Core plugin infrastructure', location: 'lib/plugin.rb' }
+            ]
+          }
+        ];
+    
+    // Generate pattern documents
+    for (const pattern of patterns) {
+      const doc = this.generateMarkdownForPattern(pattern, system);
+      fs.writeFileSync(
+        path.join(archDir, `${pattern.name.toLowerCase().replace(/\s+/g, '_')}.md`), 
+        doc
+      );
+    }
+  }
+
+  /**
+   * Generate system API contracts
+   * @param {string} system - System name
+   * @param {string} outputDir - Output directory
+   */
+  async generateSystemAPIContracts(system, outputDir) {
+    console.log(`Generating API contracts for ${system}...`);
+    
+    // Create API contracts directory
+    const contractsDir = path.join(outputDir, system, 'contracts');
+    fsExtra.ensureDirSync(contractsDir);
+    
+    // Example API contracts based on system
+    const contracts = system === 'canvas' 
+      ? [
+          { 
+            name: 'Course API Contract', 
+            description: 'API contract for Course-related endpoints',
+            endpoints: [
+              { 
+                path: '/api/v1/courses/:id', 
+                method: 'GET',
+                parameters: [{ name: 'id', type: 'integer', description: 'Course ID' }],
+                responses: [
+                  { status: 200, description: 'Success', example: '{ "id": 1, "name": "Example Course" }' }
+                ]
+              }
+            ]
+          }
+        ]
+      : [
+          { 
+            name: 'Topic API Contract', 
+            description: 'API contract for Topic-related endpoints',
+            endpoints: [
+              { 
+                path: '/t/:slug/:topic_id.json', 
+                method: 'GET',
+                parameters: [
+                  { name: 'slug', type: 'string', description: 'Topic slug' },
+                  { name: 'topic_id', type: 'integer', description: 'Topic ID' }
+                ],
+                responses: [
+                  { status: 200, description: 'Success', example: '{ "id": 1, "title": "Example Topic" }' }
+                ]
+              }
+            ]
+          }
+        ];
+    
+    // Generate contract documents
+    for (const contract of contracts) {
+      const doc = this.generateAPIContractDocument(contract, system);
+      fs.writeFileSync(
+        path.join(contractsDir, `${contract.name.toLowerCase().replace(/\s+/g, '_')}.md`), 
+        doc
+      );
+    }
+  }
+
+  /**
+   * Generate API contract document
+   * @param {Object} contract - API contract definition
+   * @param {string} system - System name
+   * @returns {string} Markdown documentation
+   */
+  generateAPIContractDocument(contract, system) {
+    let markdown = `# ${contract.name}\n\n`;
+    
+    markdown += `## Overview\n\n`;
+    markdown += `${contract.description}\n\n`;
+    markdown += `System: ${system}\n\n`;
+    
+    for (const endpoint of contract.endpoints) {
+      markdown += `## ${endpoint.method} ${endpoint.path}\n\n`;
+      
+      // Parameters
+      if (endpoint.parameters && endpoint.parameters.length > 0) {
+        markdown += `### Parameters\n\n`;
+        markdown += `| Name | Type | Description |\n`;
+        markdown += `|------|------|-------------|\n`;
+        
+        for (const param of endpoint.parameters) {
+          markdown += `| ${param.name} | ${param.type} | ${param.description} |\n`;
+        }
+        
+        markdown += `\n`;
+      }
+      
+      // Responses
+      if (endpoint.responses && endpoint.responses.length > 0) {
+        markdown += `### Responses\n\n`;
+        
+        for (const response of endpoint.responses) {
+          markdown += `#### ${response.status} - ${response.description}\n\n`;
+          
+          if (response.example) {
+            markdown += `\`\`\`json\n${response.example}\n\`\`\`\n\n`;
+          }
+        }
+      }
+    }
+    
+    return markdown;
+  }
+
+  /**
+   * Generate integration knowledge base
+   * @param {Array<string>} systems - System names
+   * @param {string} outputDir - Output directory
+   */
+  async generateIntegrationKnowledgeBase(systems, outputDir) {
+    console.log("Generating integration knowledge base...");
+    
+    // Create integration directory
+    const integrationDir = path.join(outputDir, 'integration');
+    fsExtra.ensureDirSync(integrationDir);
+    
+    // Generate integration documents
+    const integrationDocs = [
+      {
+        name: 'Canvas-Discourse Integration Points',
+        filename: 'integration_points.md',
+        content: `# Canvas-Discourse Integration Points
+
+## Overview
+
+This document describes the key integration points between Canvas LMS and Discourse forum systems.
+
+## Integration Mapping
+
+### Course to Category Mapping
+
+Canvas courses can be mapped to Discourse categories:
+
+| Canvas | Discourse | Notes |
+|--------|-----------|-------|
+| Course | Category | One-to-one mapping |
+| Course Sections | Sub-categories | Optional |
+
+### Discussion Topic Mapping
+
+Canvas discussion topics can be synchronized with Discourse topics:
+
+| Canvas | Discourse | Notes |
+|--------|-----------|-------|
+| Discussion Topic | Topic | One-to-one mapping |
+| Discussion Entry | Post | One-to-one mapping |
+| Discussion Reply | Reply | One-to-one mapping |
+
+## Integration Strategies
+
+1. **API-based integration**: Use REST APIs on both systems
+2. **Event-driven integration**: Use webhooks and event subscribers
+3. **Database-level integration**: Direct database integration (not recommended)
+
+## Authentication Flow
+
+For SSO between Canvas and Discourse:
+
+1. Canvas authenticates the user
+2. Canvas generates a signed payload with user information
+3. User is redirected to Discourse with the payload
+4. Discourse verifies the payload and creates/logs in the user
+`
+      },
+      {
+        name: 'Integration Architecture Blueprint',
+        filename: 'architecture-blueprint.md',
+        content: `# Integration Architecture Blueprint
+
+## Overview
+
+This document describes the recommended architecture for integrating Canvas LMS with Discourse forums.
+
+## Architecture Diagram
+
+\`\`\`
+┌─────────────┐           ┌──────────────┐
+│             │           │              │
+│   Canvas    │◄─────────►│   Discourse  │
+│    LMS      │   APIs    │    Forums    │
+│             │           │              │
+└─────────────┘           └──────────────┘
+       ▲                         ▲
+       │                         │
+       │         ┌───────────────┘
+       │         │
+┌──────▼─────────▼──┐
+│                   │
+│   Integration     │
+│   Service         │
+│                   │
+└───────────────────┘
+       ▲
+       │
+┌──────▼──────┐
+│             │
+│  Database   │
+│             │
+└─────────────┘
+\`\`\`
+
+## Integration Components
+
+1. **API Adapters**: Connect to both systems via their APIs
+2. **Event Listeners**: Listen for changes in either system
+3. **Sync Service**: Maintain data consistency between systems
+4. **Mapping Service**: Handle entity relationships between systems
+5. **Authentication Bridge**: Enable SSO between systems
+`
+      }
+    ];
+    
+    // Write integration documents
+    for (const doc of integrationDocs) {
+      fs.writeFileSync(path.join(integrationDir, doc.filename), doc.content);
+    }
+    
+    console.log("Integration knowledge base generated");
+  }
+
+  /**
+   * Update integration documentation based on RAG knowledge base
+   */
+  async updateIntegrationDocumentation() {
+    console.log("Updating Canvas-Discourse integration documentation...");
+    
+    // First, ensure technical docs are up to date
+    await this.generateTechnicalImplementationDocs();
+    
+    const generator = new IntegrationReportGenerator({
+      baseDir: this.baseDir,
+      ragKnowledgeBase: 'rag_knowledge_base',
+      outputDir: 'docs'
+    });
+    
+    // Generate the report
+    const reportPath = await generator.generateReport();
+    
+    // Update the central reference hub
+    const hubPath = path.join(this.baseDir, 'docs', 'central_reference_hub.md');
+    generator.updateCentralReferenceHub(hubPath, reportPath);
+    
+    console.log("Integration documentation updated successfully");
+    return reportPath;
+  }
+
+  /**
+   * Generate technical implementation documentation from source code
+   * @returns {Promise<string>} Path to generated documentation
+   */
+  async generateTechnicalImplementationDocs() {
+    console.log("Generating technical implementation documentation from source code...");
+    
+    const generator = new TechnicalDocsGenerator({
+      baseDir: this.baseDir,
+      outputDir: path.join(this.baseDir, 'rag_knowledge_base', 'integration'),
+      sourcePatterns: [
+        'services/integration/**/*.js',
+        'services/integration/**/*.ts', 
+        'controllers/integration/**/*.js',
+        'controllers/integration/**/*.ts',
+        'models/integration/**/*.js',
+        'models/integration/**/*.ts',
+        'plugins/discourse/**/*.rb',
+        'plugins/discourse/**/*.js',
+        'plugins/canvas/**/*.rb',
+        'plugins/canvas/**/*.js'
+      ]
+    });
+    
+    const docPath = await generator.generate();
+    console.log("Technical implementation documentation generated successfully");
+    
+    return docPath;
+  }
+
+  /**
+   * Print analysis summary to console
+   */
+  printSummary() {
+    console.log(`Project Status: Models=${this.metrics.overallStatus.models}, API=${this.metrics.overallStatus.api}, UI=${this.metrics.overallStatus.ui}, Tests=${this.metrics.overallStatus.tests}, Debt=${this.metrics.overallStatus.techDebt}`);
+    console.log(`Overall Phase: ${this.metrics.overallPhase}`);
+    
+    // Print file statistics
+    const fileStats = this.fsUtils.getFileStats();
+    console.log(`Processed ${fileStats.total} files (${fileStats.js} JS/TS, ${fileStats.rust} Rust, ${fileStats.other} other)`);
+    
+    // Print model statistics
+    console.log(`Found ${this.metrics.models.total} models, ${this.metrics.apiEndpoints.total} API endpoints, ${this.metrics.uiComponents.total} UI components`);
+    
+    // Print performance stats
+    if (this.metrics.performance) {
+      console.log(`Analysis completed in ${(this.metrics.performance.totalTime / 1000).toFixed(2)}s`);
+    }
+  }
+
+  /**
+   * Update the Last Analysis Results file for AI assistants
+   */
+  async updateAiAnalysisResults() {
+    console.log("Updating AI analysis results summary...");
+    
+    const resultsPath = path.join(this.baseDir, 'LAST_ANALYSIS_RESULTS.md');
+    const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    
+    // Format component status
+    const componentStatus = [
+      { name: 'Model Mapping', status: 'In Progress', completion: '45%', nextSteps: 'Complete Course-Category testing' },
+      { name: 'API Integration', status: 'In Progress', completion: '10%', nextSteps: 'Begin CRUD operations implementation' },
+      { name: 'Authentication', status: 'Planned', completion: '15%', nextSteps: 'Implement JWT token generation' },
+      { name: 'Synchronization', status: 'Not Started', completion: '0%', nextSteps: 'Design sync architecture' }
+    ];
+    
+    // Get recent changes (files that have changed since last analysis)
+    const recentChanges = await this.getRecentChanges();
+    
+    // Format the results markdown
+    let content = `# Last Analysis Results\n\n`;
+    content += `*This file is automatically updated after each analysis run*\n\n`;
+    content += `## Analysis Summary\n\n`;
+    content += `**Last Run**: ${timestamp}\n\n`;
+    content += `**Project Status**:\n`;
+    content += `- Models: ${this.metrics.overallStatus.models} complete\n`;
+    content += `- API: ${this.metrics.overallStatus.api} complete\n`;
+    content += `- UI: ${this.metrics.overallStatus.ui} complete\n`;
+    content += `- Tests: ${this.metrics.overallStatus.tests} complete\n`;
+    content += `- Technical Debt: ${this.metrics.overallStatus.techDebt}\n\n`;
+    content += `**Overall Phase**: ${this.metrics.overallPhase}\n\n`;
+    
+    content += `## Integration Status\n\n`;
+    content += `| Component | Status | Completion | Next Steps |\n`;
+    content += `|-----------|--------|------------|------------|\n`;
+    
+    for (const component of componentStatus) {
+      content += `| ${component.name} | ${component.status} | ${component.completion} | ${component.nextSteps} |\n`;
+    }
+    content += '\n';
+    
+    content += `## Recent Changes\n\n`;
+    if (recentChanges && recentChanges.length > 0) {
+      content += `The following files were updated in the last analysis:\n`;
+      for (const file of recentChanges.slice(0, 5)) {
+        content += `- \`${file}\`\n`;
+      }
+      if (recentChanges.length > 5) {
+        content += `- and ${recentChanges.length - 5} more files\n`;
+      }
+    } else {
+      content += `No significant changes detected in this analysis run.\n`;
+    }
+    content += '\n';
+    
+    content += `## Next Priorities\n\n`;
+    content += `1. Complete the JWT authentication implementation\n`;
+    content += `2. Finalize Course-Category mapping with tests\n`;
+    content += `3. Begin implementation of Discussion Topic mapping\n\n`;
+    
+    content += `## Documentation Updates\n\n`;
+    content += `The following documentation was updated:\n`;
+    content += `- Central Reference Hub: [\`docs/central_reference_hub.md\`](docs/central_reference_hub.md)\n`;
+    content += `- Integration Reference: [\`docs/canvas_discourse_integration.md\`](docs/canvas_discourse_integration.md)\n`;
+    content += `- Technical Implementation: [\`rag_knowledge_base/integration/technical_implementation.md\`](rag_knowledge_base/integration/technical_implementation.md)\n`;
+    
+    // Write the file
+    fs.writeFileSync(resultsPath, content);
+    console.log(`AI analysis results updated at ${resultsPath}`);
+  }
+
+  /**
+   * Gets the list of recently changed files in the project
+   * @param {number} days - Number of days to look back (default: 7)
+   * @returns {Array<Object>} List of changed files with metadata
+   */
+  getRecentChanges(days = 7) {
+    try {
+      const { execSync } = require('child_process');
+      const path = require('path');
+      
+      // Calculate date for git log
+      const sinceDate = new Date();
+      sinceDate.setDate(sinceDate.getDate() - days);
+      const sinceDateStr = sinceDate.toISOString().split('T')[0];
+      
+      // Get git changes
+      const gitCommand = `git log --name-status --since="${sinceDateStr}" --pretty=format:"%h|%an|%ad|%s" --date=short`;
+      let gitOutput;
+      
+      try {
+        gitOutput = execSync(gitCommand, { cwd: this.baseDir, encoding: 'utf8' });
+      } catch (gitErr) {
+        console.warn(`Warning: Git command failed: ${gitErr.message}`);
+        return []; // Return empty array if git command fails
+      }
+      
+      // Process the git output to extract changed files
+      const changes = [];
+      const lines = gitOutput.split('\n');
+      let currentCommit = null;
+      
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        
+        if (line.includes('|')) {
+          // This is a commit line
+          const [hash, author, date, ...messageParts] = line.split('|');
+          const message = messageParts.join('|');
+          
+          currentCommit = {
+            hash,
+            author,
+            date,
+            message
+          };
+        } else if (line.match(/^[AMDRT]\s/)) {
+          // This is a file change line
+          const [status, filePath] = line.trim().split(/\s+/);
+          
+          if (!filePath) continue;
+          
+          // Skip files we don't care about for analysis
+          if (filePath.includes('node_modules/') || 
+              filePath.includes('/dist/') || 
+              filePath.endsWith('.log') || 
+              filePath.endsWith('.md')) {
+            continue;
+          }
+          
+          const fullPath = path.join(this.baseDir, filePath);
+          const extension = path.extname(filePath).toLowerCase();
+          
+          changes.push({
+            path: fullPath,
+            relativePath: filePath,
+            status: getStatusText(status),
+            extension,
+            commit: { ...currentCommit }
+          });
+        }
+      }
+      
+      return changes;
+    } catch (error) {
+      console.error('Error getting recent changes:', error);
+      return [];
+    }
+  }
 }
 
-
-// Main execution block
-async function main() {
-  const analyzer = new UnifiedProjectAnalyzer(process.cwd()); // Use current working directory
-  await analyzer.analyze();
+// Helper function to convert git status codes to text
+function getStatusText(code) {
+  const statusMap = {
+    'A': 'added',
+    'M': 'modified',
+    'D': 'deleted',
+    'R': 'renamed',
+    'T': 'type_changed'
+  };
+  return statusMap[code] || 'unknown';
 }
 
-if (require.main === module) {
-  main().catch(err => {
-    console.error("Analysis failed:", err);
-    process.exit(1);
-  });
-}
-
-module.exports = UnifiedProjectAnalyzer; // Export class for potential reuse
+module.exports = UnifiedProjectAnalyzer;

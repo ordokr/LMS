@@ -10,6 +10,10 @@ use axum::{
     Extension,
 };
 use serde::{Serialize, Deserialize};
+use uuid::Uuid;
+use tauri::{State as TauriState, command};
+use crate::models::integration::{CourseCategory, CourseCategoryCreate, CourseCategoryUpdate};
+use crate::db::course_category_repository::CourseCategoryRepository;
 
 #[derive(Debug, Deserialize)]
 pub struct ActivityQuery {
@@ -264,4 +268,104 @@ fn slugify(text: &str) -> String {
         })
         .collect::<String>()
         .replace("--", "-")
+}
+
+#[command]
+pub async fn create_course_category_mapping(
+    mapping: CourseCategoryCreate, 
+    repo: State<'_, CourseCategoryRepository>
+) -> Result<CourseCategory, String> {
+    repo.create(mapping)
+        .await
+        .map_err(|e| format!("Failed to create mapping: {}", e))
+}
+
+#[command]
+pub async fn get_course_category_mapping(
+    id: String, 
+    repo: State<'_, CourseCategoryRepository>
+) -> Result<Option<CourseCategory>, String> {
+    let uuid = Uuid::parse_str(&id)
+        .map_err(|e| format!("Invalid UUID: {}", e))?;
+    
+    repo.find_by_id(uuid)
+        .await
+        .map_err(|e| format!("Failed to get mapping: {}", e))
+}
+
+#[command]
+pub async fn get_course_category_mapping_by_canvas_course(
+    canvas_course_id: String,
+    repo: State<'_, CourseCategoryRepository>
+) -> Result<Option<CourseCategory>, String> {
+    repo.find_by_canvas_course_id(&canvas_course_id)
+        .await
+        .map_err(|e| format!("Failed to get mapping: {}", e))
+}
+
+#[command]
+pub async fn get_all_course_category_mappings(
+    repo: State<'_, CourseCategoryRepository>
+) -> Result<Vec<CourseCategory>, String> {
+    repo.find_all()
+        .await
+        .map_err(|e| format!("Failed to get mappings: {}", e))
+}
+
+#[command]
+pub async fn update_course_category_mapping(
+    id: String,
+    update_data: CourseCategoryUpdate,
+    repo: State<'_, CourseCategoryRepository>
+) -> Result<Option<CourseCategory>, String> {
+    let uuid = Uuid::parse_str(&id)
+        .map_err(|e| format!("Invalid UUID: {}", e))?;
+    
+    repo.update(uuid, update_data)
+        .await
+        .map_err(|e| format!("Failed to update mapping: {}", e))
+}
+
+#[command]
+pub async fn delete_course_category_mapping(
+    id: String,
+    repo: State<'_, CourseCategoryRepository>
+) -> Result<bool, String> {
+    let uuid = Uuid::parse_str(&id)
+        .map_err(|e| format!("Invalid UUID: {}", e))?;
+    
+    repo.delete(uuid)
+        .await
+        .map_err(|e| format!("Failed to delete mapping: {}", e))
+}
+
+#[command]
+pub async fn sync_course_category(
+    id: String,
+    repo: State<'_, CourseCategoryRepository>
+) -> Result<CourseCategory, String> {
+    let uuid = Uuid::parse_str(&id)
+        .map_err(|e| format!("Invalid UUID: {}", e))?;
+    
+    // Get the mapping
+    let mapping = repo.find_by_id(uuid)
+        .await
+        .map_err(|e| format!("Failed to get mapping: {}", e))?
+        .ok_or_else(|| "Mapping not found".to_string())?;
+    
+    // Perform synchronization logic here
+    // This would involve calling both Canvas and Discourse APIs
+    // to ensure the course content is synced with the Discourse category
+    
+    // For now, we'll just update the last_synced_at timestamp
+    let now = chrono::Utc::now();
+    let update = CourseCategoryUpdate {
+        sync_enabled: None,  // Don't change this
+        last_synced_at: Some(now),
+    };
+    
+    repo.update(uuid, update)
+        .await
+        .map_err(|e| format!("Failed to update sync timestamp: {}", e))?
+        .ok_or_else(|| "Mapping not found after sync".to_string())
 }
