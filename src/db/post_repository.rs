@@ -1,6 +1,10 @@
 use sqlx::PgPool;
 use uuid::Uuid;
-use crate::models::post::Post;
+// Old import
+// use crate::models::forum::post::Post;
+
+// New import
+use crate::models::forum::post::Post;
 
 pub struct PostRepository {
     pool: PgPool,

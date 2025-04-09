@@ -1,4 +1,36 @@
-# Canvas-Discourse LMS Integration
+# Canvas-Discourse LMS Integration Project
+
+## Overview
+
+This project integrates and adapts functionality from Canvas LMS and Discourse forum into a unified desktop application built with Tauri (Rust) and Leptos.
+
+## Documentation
+
+All project documentation is automatically generated and maintained in the `docs` directory:
+
+- **Central Reference Hub**: [docs/central_reference_hub.md](docs/central_reference_hub.md)
+- **Technical Documentation**: [docs/technical](docs/technical)
+- **Port Documentation**: [docs/port](docs/port)
+- **Integration Knowledge Base**: [rag_knowledge_base/integration](rag_knowledge_base/integration)
+
+## Analysis & Visualization Tools
+
+The project includes comprehensive tools for analyzing, documenting, and visualizing the integration:
+
+- **Master Orchestration**: `analyze.rs` - Unified Rust analysis tool
+- **Conflict Detection**: `port-conflict-analyzer.js` - Identifies conflicts between source and target code
+- **Technical Documentation**: `technical-docs-generator.js` - Generates documentation from code
+- **Summary Report**: `summary-report-generator.js` - Provides an executive summary
+- **Visual Dashboard**: `visual-dashboard-generator.js` - Creates an interactive HTML dashboard
+
+## Getting Started
+
+1. Clone the repository
+2. Install dependencies:
+
+```bash
+npm install
+```
 
 ## 👋 Welcome to the Project!
 
@@ -99,3 +131,68 @@ Project Lead - Tim Vail
 Project Repository: https://github.com/ordo/lms
 
 EduConnect - Connecting learners everywhere, with or without internet.
+
+# LMS Application
+
+## Testing
+
+This project includes comprehensive testing to ensure reliability and correctness.
+
+### Running Tests
+
+To run the backend tests:
+
+```bash
+npm run test
+```
+
+To run tests in watch mode during development:
+
+npm run test:watch
+
+To generate test coverage report:
+
+npm run test:coverage
+
+Test Structure
+Unit Tests: Test individual components and functions
+Integration Tests: Test interactions between multiple components
+End-to-End Tests: Test complete workflows
+Frontend Tests
+Frontend tests use Leptos testing utilities and wasm-bindgen-test. To run these tests:
+
+cd src
+wasm-pack test --chrome
+
+Test Coverage
+We aim to maintain at least 80% test coverage for all core functionality. Coverage reports are generated for each PR and can be viewed in the PR comments.
+
+# LMS Integration Platform
+
+## Testing Status
+
+The project now has comprehensive test coverage for core components, with all tests passing:
+
+- **Auth Services**: 100% coverage for JWT service and auth middleware
+- **Models**: Full test coverage for Notification model and ~89% for User model
+- **Services**: ~79% coverage for notification and integration services
+- **Overall Coverage**: ~24% (improved from 15%)
+
+To run tests:
+```bash
+# Run all tests
+npm test
+
+# Run with detection for open handles (for debugging)
+npm run test:debug
+```
+
+## Project Status
+
+As highlighted in our assessment:
+- Models: ~91% complete (core models at ~60% implementation)
+- UI Components: ~90% complete
+- API Endpoints: ~12% complete (key focus area for development)
+
+Priority areas for development include completing API endpoints and increasing test coverage for remaining components.
+

@@ -32,6 +32,10 @@ pub enum AppError {
     
     #[error("External service error: {0}")]
     ExternalServiceError(String),
+
+    #[error("Internal server error: {0}")]
+    InternalError(String),
+    BadRequest(String),
 }
 
 #[derive(Serialize, Deserialize)]

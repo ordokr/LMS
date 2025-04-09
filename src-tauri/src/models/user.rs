@@ -1,60 +1,78 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct User {
-    pub id: Option<i64>,
-    pub username: String,
+    pub id: String,
     pub email: String,
-    #[serde(skip_serializing)]
-    pub password_hash: Option<String>,
-    pub display_name: Option<String>,
-    pub avatar_url: Option<String>,
-    pub bio: Option<String>,
+    pub first_name: String,
+    pub last_name: String,
     pub role: UserRole,
-    pub created_at: Option<String>,
-    pub last_login: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
+#[sqlx(rename_all = "lowercase")]
 pub enum UserRole {
     Student,
     Teacher,
     Admin,
 }
 
-impl Default for UserRole {
-    fn default() -> Self {
-        UserRole::Student
+impl ToString for UserRole {
+    fn to_string(&self) -> String {
+        match self {
+            UserRole::Student => "student".to_string(),
+            UserRole::Teacher => "teacher".to_string(),
+            UserRole::Admin => "admin".to_string(),
+        }
     }
 }
 
-impl User {
-    pub fn new(username: String, email: String, password_hash: String) -> Self {
-        let now = Utc::now();
-        Self {
-            id: None,
-            username,
-            email,
-            display_name: None,
-            password_hash: Some(password_hash),
-            avatar_url: None,
-            bio: None,
-            role: UserRole::default(),
-            created_at: Some(now.to_rfc3339()),
-            last_login: None,
-        }
-    }
-    
-    pub fn is_active(&self) -> bool {
-        !self.is_deleted && 
-        !self.is_suspended || 
-        self.suspended_until
-            .map(|date| date < Utc::now())
-            .unwrap_or(false)
-    }
-    
-    pub fn display_name(&self) -> &str {
-        self.display_name.as_deref().unwrap_or(&self.username)
-    }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserProfile {
+    pub user_id: String,
+    pub first_name: String,
+    pub last_name: String,
+    pub email: String,
+    pub bio: String,
+    pub avatar_url: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserProfileUpdate {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bio: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avatar_url: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuthRequest {
+    pub email: String,
+    pub password: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuthResponse {
+    pub user: User,
+    pub token: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RegisterRequest {
+    pub email: String,
+    pub password: String,
+    pub first_name: String,
+    pub last_name: String,
+    pub role: Option<UserRole>,
 }

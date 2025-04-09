@@ -32,7 +32,18 @@ pub mod shared {
 }
 
 pub mod utils {
+    pub mod file_system;
     // Any utility modules
+}
+
+pub mod analyzers {
+    pub mod project_structure;
+    pub mod ast_analyzer;
+    // Add other analyzer modules as needed
+}
+
+pub mod ai {
+    pub mod gemini_analyzer;
 }
 
 // Re-export important types for easier access

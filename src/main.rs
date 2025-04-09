@@ -1,356 +1,158 @@
-mod app;
-mod components;
-mod lms;
-mod forum;
-mod utils;
-mod config;
+mod auth;
+mod api;
+mod repository;
+mod services;
 mod models;
-mod services {
-    pub mod course_category_mapper;
-    pub mod discussion_topic_integration;
-    pub mod assignment_topic_mapper;
-    pub mod topic_service;
-}
-mod db {
-    pub mod user_repository;
-    pub mod course_repository;
-    pub mod category_repository;
-    pub mod topic_repository;
-    pub mod post_repository;
-    pub mod assignment_repository;
-}
-mod auth {
-    pub mod jwt;
-    pub mod middleware;
-    pub mod routes;
-}
+mod app_state;
+mod clients;
+mod jobs;
+mod monitoring;
+mod error;
+mod middleware;
 
-use app::App;
-use leptos::*;
-use_stylesheet!("styles/group_management.css");
-use_stylesheet!("styles/integration.css");
-use_stylesheet!("styles/integration_dashboard.css");
+use app_state::AppState;
+use api::integration::integration_routes;
+use api::topic_mapping::topic_mapping_routes;
+use api::monitoring::monitoring_routes;
+use api::webhooks::webhook_routes;
+use jobs::sync_scheduler::init_sync_scheduler;
+use middleware::tracing::correlation_id_middleware;
+use monitoring::api_health_check::ApiHealthCheck;
 
-use crate::config::Config;
-use crate::models::lms::Course;
-use crate::services::api::ApiClient;
-use log::{info, error};
-use clap::Parser;
-use std::process;
-use std::sync::Arc;
-use axum::{Router, routing::post, middleware, Server};
+use axum::{
+    Router,
+    middleware,
+    routing::get,
+    response::Html,
+};
+use sqlx::postgres::PgPoolOptions;
 use std::net::SocketAddr;
-
-use crate::auth::routes::auth_routes;
-
-/// LMS Application
-#[derive(Parser, Debug)]
-#[clap(
-    name = "lms",
-    version = "0.1.0",
-    author = "Tim",
-    about = "LMS integration tool"
-)]
-struct Args {
-    /// List available courses
-    #[clap(long)]
-    list_courses: bool,
-    
-    /// Get a specific course by ID
-    #[clap(long)]
-    course_id: Option<i64>,
-    
-    /// List forum topics
-    #[clap(long)]
-    list_topics: bool,
-    
-    /// Verbose output
-    #[clap(short, long)]
-    verbose: bool,
-}
+use std::sync::Arc;
+use tower_http::cors::{CorsLayer, Any};
+use tower_http::trace::TraceLayer;
+use log::{info, warn};
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Ensure JWT_SECRET is set in the environment
-    // Initialize the logger
-    env_logger::init();
+async fn main() {
+    // Initialize logger with more structured format
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+        .format_timestamp_millis()
+        .init();
     
-    // Parse command line arguments
-    let args = Args::parse();
-    
-    // Load configuration
-    let config = match Config::load() {
-        Ok(cfg) => cfg,
-        Err(err) => {
-            error!("Failed to load configuration: {}", err);
-            process::exit(1);
-        }
-    };
-    
-    // Create API client
-    let api_client = ApiClient::new(config);
-    
-    // Execute commands based on arguments
-    if args.list_courses {
-        match Course::find_published(&api_client).await {
-            Ok(courses) => {
-                println!("Found {} published courses:", courses.len());
-                for course in courses {
-                    println!(" - [{}] {}", course.id, course.name.unwrap_or_else(|| "No name".to_string()));
-                }
-            },
-            Err(err) => {
-                error!("Failed to fetch courses: {}", err);
-                process::exit(1);
-            }
-        }
-    } else if let Some(id) = args.course_id {
-        match api_client.get_course(id).await {
-            Ok(course) => {
-                println!("Course details for ID {}:", id);
-                println!("  Name: {}", course.name.unwrap_or_else(|| "No name".to_string()));
-                println!("  Code: {}", course.course_code.unwrap_or_else(|| "No code".to_string()));
-                println!("  Status: {}", course.workflow_state.unwrap_or_else(|| "Unknown".to_string()));
-                
-                // If verbose, fetch and print assignments
-                if args.verbose {
-                    match course.assignments(&api_client).await {
-                        Ok(assignments) => {
-                            println!("  Assignments ({}):", assignments.len());
-                            for assignment in assignments {
-                                println!("    - {}", assignment.name.unwrap_or_else(|| "Unnamed".to_string()));
-                            }
-                        },
-                        Err(err) => {
-                            error!("Failed to fetch assignments: {}", err);
-                        }
-                    }
-                }
-            },
-            Err(err) => {
-                error!("Failed to fetch course with ID {}: {}", id, err);
-                process::exit(1);
-            }
-        }
-    } else if args.list_topics {
-        match api_client.get_topics().await {
-            Ok(topics) => {
-                println!("Found {} topics:", topics.len());
-                for topic in topics {
-                    println!(" - [{}] {}", topic.id, topic.title.unwrap_or_else(|| "No title".to_string()));
-                }
-            },
-            Err(err) => {
-                error!("Failed to fetch topics: {}", err);
-                process::exit(1);
-            }
-        }
-    } else {
-        println!("No command specified. Run with --help for usage information.");
-    }
-
     // Load environment variables
     dotenv::dotenv().ok();
+    info!("Starting Canvas-Discourse Integration Service");
     
-    // Initialize database
-    let database = Arc::new(Database::new().await?);
+    // Set up database connection
+    let database_url = std::env::var("DATABASE_URL")
+        .expect("DATABASE_URL must be set");
     
-    // Create application state
-    let state = Arc::new(AppState {
-        db: database,
-        // Initialize other state
-    });
+    let pool = PgPoolOptions::new()
+        .max_connections(10)
+        .connect(&database_url)
+        .await
+        .expect("Failed to create pool");
     
-    // Create router with authentication routes
+    info!("Database connection established");
+    
+    // Run migrations
+    info!("Running database migrations...");
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .expect("Failed to run migrations");
+    info!("Migrations completed successfully");
+    
+    // Create app state
+    let app_state = AppState::new(pool.clone());
+    
+    // Initialize health checks
+    let canvas_health_url = std::env::var("CANVAS_HEALTH_URL")
+        .unwrap_or_else(|_| "https://canvas.example.com/api/v1/health_check".to_string());
+    let discourse_health_url = std::env::var("DISCOURSE_HEALTH_URL")
+        .unwrap_or_else(|_| "https://discourse.example.com/about.json".to_string());
+    
+    let health_check = ApiHealthCheck::new(
+        &canvas_health_url,
+        &discourse_health_url,
+        app_state.sync_monitor.clone(),
+        5 // timeout in seconds
+    );
+    
+    // Run initial health check
+    info!("Running initial health check...");
+    match health_check.run_all_health_checks(&pool).await {
+        Ok(healthy) => {
+            info!("Initial health check complete. System is {}", 
+                  if healthy { "healthy" } else { "unhealthy" });
+        },
+        Err(e) => {
+            warn!("Error during initial health check: {}", e);
+        }
+    }
+    
+    // Start health check scheduler
+    let health_check_interval = std::env::var("HEALTH_CHECK_INTERVAL_SECONDS")
+        .unwrap_or_else(|_| "300".to_string()) // Default: 5 minutes
+        .parse::<u64>()
+        .unwrap_or(300);
+    
+    if health_check_interval > 0 {
+        info!("Starting health check scheduler...");
+        health_check.start_health_check_scheduler(pool.clone(), health_check_interval).await;
+    }
+    
+    // Initialize sync scheduler if enabled
+    if std::env::var("ENABLE_SYNC_SCHEDULER").unwrap_or_else(|_| "false".to_string()) == "true" {
+        info!("Initializing sync scheduler...");
+        let _scheduler = init_sync_scheduler(&app_state).await;
+    }
+    
+    // Configure CORS
+    let cors = CorsLayer::new()
+        .allow_methods(Any)
+        .allow_headers(Any)
+        .allow_origin(Any); // In production, restrict to specific origins
+    
+    // Root handler for quick confirmation service is running
+    async fn root_handler() -> Html<&'static str> {
+        Html("
+            <html>
+                <head><title>Canvas-Discourse Integration</title></head>
+                <body>
+                    <h1>Canvas-Discourse Integration Service</h1>
+                    <p>API service is running.</p>
+                    <p><a href='/health'>Check system health</a></p>
+                    <p><a href='/dashboard'>View monitoring dashboard</a></p>
+                </body>
+            </html>
+        ")
+    }
+    
+    // Set up router with all routes
     let app = Router::new()
-        .merge(auth_routes(state.clone()))
-        .merge(mapping_routes(state.clone()))
-        .merge(discussion_routes(state.clone()))
-        // Add other routes
-        .with_state(state);
+        .route("/", get(root_handler))
+        .merge(integration_routes())
+        .merge(topic_mapping_routes())
+        .merge(webhook_routes())
+        .merge(monitoring_routes())
+        // Apply middleware
+        .layer(middleware::from_fn(correlation_id_middleware))
+        .layer(TraceLayer::new_for_http())
+        .layer(cors)
+        .with_state(app_state);
     
     // Start server
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    println!("Server running on {}", addr);
+    let port = std::env::var("PORT")
+        .unwrap_or_else(|_| "3000".to_string())
+        .parse::<u16>()
+        .unwrap_or(3000);
     
-    Server::bind(&addr)
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    info!("Server listening on {}", addr);
+    
+    axum::Server::bind(&addr)
         .serve(app.into_make_service())
-        .await?;
-    
-    Ok(())
-}
-
-#[derive(Clone)]
-pub struct AppState {
-    pub pool: PgPool,
-    pub db: user_repository::UserRepository,
-    pub course_repo: course_repository::CourseRepository,
-    pub category_repo: category_repository::CategoryRepository,
-    pub topic_repo: topic_repository::TopicRepository,
-    pub post_repo: post_repository::PostRepository,
-    pub assignment_repo: assignment_repository::AssignmentRepository,
-}
-
-async fn setup_routes(app_state: Arc<AppState>) -> Router {
-    // Auth routes
-    let auth_routes = Router::new()
-        .route("/login", post(controllers::auth_controller::login))
-        .route("/register", post(controllers::auth_controller::register));
-        
-    // Protected routes with auth middleware
-    let protected_routes = Router::new()
-        // Add your protected routes here
-        .route_layer(middleware::from_fn_with_state(
-            app_state.clone(),
-            auth::middleware::auth_middleware,
-        ));
-        
-    // Course routes
-    let course_routes = Router::new()
-        .route("/", post(controllers::course_controller::create_course)
-            .route_layer(middleware::from_fn_with_state(
-                app_state.clone(),
-                auth::middleware::require_role("instructor".to_string()),
-            ))
-        )
-        .route("/", get(controllers::course_controller::list_courses))
-        .route("/:id", get(controllers::course_controller::get_course))
-        .route("/:id/assignments", get(controllers::assignment_controller::get_assignments_by_course));
-        
-    // Topic routes
-    let topic_routes = Router::new()
-        .route("/", post(controllers::topic_controller::create_topic)
-            .route_layer(middleware::from_fn_with_state(
-                app_state.clone(),
-                auth::middleware::auth_middleware,
-            ))
-        )
-        .route("/", get(controllers::topic_controller::get_topics))
-        .route("/:topic_id", get(controllers::topic_controller::get_topic))
-        .route("/:topic_id", patch(controllers::topic_controller::update_topic)
-            .route_layer(middleware::from_fn_with_state(
-                app_state.clone(),
-                auth::middleware::auth_middleware,
-            ))
-        )
-        .route("/:topic_id", delete(controllers::topic_controller::delete_topic)
-            .route_layer(middleware::from_fn_with_state(
-                app_state.clone(),
-                auth::middleware::auth_middleware,
-            ))
-        )
-        .route("/:id/posts", get(controllers::topic_controller::get_topic_with_posts));
-        
-    // Post routes
-    let post_routes = Router::new()
-        .route("/:topic_id/posts", post(controllers::post_controller::create_post)
-            .route_layer(middleware::from_fn_with_state(
-                app_state.clone(),
-                auth::middleware::auth_middleware,
-            ))
-        )
-        .route("/:topic_id/posts", get(controllers::post_controller::get_posts_by_topic))
-        .route("/:topic_id/posts/:post_id", patch(controllers::post_controller::update_post)
-            .route_layer(middleware::from_fn_with_state(
-                app_state.clone(),
-                auth::middleware::auth_middleware,
-            ))
-        )
-        .route("/:topic_id/posts/:post_id", delete(controllers::post_controller::delete_post)
-            .route_layer(middleware::from_fn_with_state(
-                app_state.clone(),
-                auth::middleware::auth_middleware,
-            ))
-        )
-        .route("/posts/:post_id/replies", get(controllers::post_controller::get_replies));
-    
-    // Canvas integration routes
-    let canvas_routes = Router::new()
-        .route("/webhook", post(controllers::canvas_integration_controller::canvas_webhook))
-        .route("/discussions/import", post(controllers::canvas_integration_controller::import_canvas_discussion)
-            .route_layer(middleware::from_fn_with_state(
-                app_state.clone(),
-                auth::middleware::require_role("instructor".to_string()),
-            ))
-        )
-        .route("/replies/import", post(controllers::canvas_integration_controller::import_canvas_reply)
-            .route_layer(middleware::from_fn_with_state(
-                app_state.clone(),
-                auth::middleware::auth_middleware,
-            ))
-        );
-        
-    // Assignment routes
-    let assignment_routes = Router::new()
-        .route("/", post(controllers::assignment_controller::create_assignment)
-            .route_layer(middleware::from_fn_with_state(
-                app_state.clone(),
-                auth::middleware::require_role("instructor".to_string()),
-            ))
-        )
-        .route("/:id", get(controllers::assignment_controller::get_assignment))
-        .route("/:id/topic", get(controllers::assignment_controller::get_assignment_with_topic))
-        .route("/:id/topic", post(controllers::assignment_controller::create_topic_from_assignment)
-            .route_layer(middleware::from_fn_with_state(
-                app_state.clone(),
-                auth::middleware::auth_middleware,
-            ))
-        )
-        .route("/:id/topic/map", post(controllers::assignment_controller::map_topic_to_assignment)
-            .route_layer(middleware::from_fn_with_state(
-                app_state.clone(),
-                auth::middleware::require_role("instructor".to_string()),
-            ))
-        )
-        .route("/:id/topic", delete(controllers::assignment_controller::unmap_topic_from_assignment)
-            .route_layer(middleware::from_fn_with_state(
-                app_state.clone(),
-                auth::middleware::require_role("instructor".to_string()),
-            ))
-        )
-        .route("/:id/topic", delete(controllers::assignment_controller::unlink_assignment_topic)
-            .route_layer(middleware::from_fn_with_state(
-                app_state.clone(),
-                auth::middleware::require_role("instructor".to_string()),
-            ))
-        );
-        
-    // Additional category routes for topics
-    let category_routes = Router::new()
-        .route("/", post(controllers::category_controller::create_category)
-            .route_layer(middleware::from_fn_with_state(
-                app_state.clone(),
-                auth::middleware::require_role("instructor".to_string()),
-            ))
-        )
-        .route("/", get(controllers::category_controller::list_categories))
-        .route("/:id", get(controllers::category_controller::get_category))
-        .route("/:id", patch(controllers::category_controller::update_category)
-            .route_layer(middleware::from_fn_with_state(
-                app_state.clone(),
-                auth::middleware::require_role("instructor".to_string()),
-            ))
-        )
-        .route("/:id", delete(controllers::category_controller::delete_category)
-            .route_layer(middleware::from_fn_with_state(
-                app_state.clone(),
-                auth::middleware::require_role("instructor".to_string()),
-            ))
-        )
-        .route("/:id/topics", get(controllers::topic_controller::get_topics_by_category));
-        
-    // Combine routes
-    Router::new()
-        .merge(auth_routes)
-        .nest("/courses", course_routes)
-        .nest("/categories", category_routes)
-        .nest("/topics", topic_routes)
-        .nest("/topics", post_routes) // Sharing the same base path as topic_routes
-        .nest("/canvas", canvas_routes)
-        .nest("/assignments", assignment_routes)
-        .merge(protected_routes)
-        .nest("/courses/:id/assignments", Router::new()
-            .route("/", get(controllers::assignment_controller::list_course_assignments))
-            .route("/discussions", get(controllers::assignment_controller::list_course_discussion_assignments))
-        )
+        .await
+        .expect("Failed to start server");
 }

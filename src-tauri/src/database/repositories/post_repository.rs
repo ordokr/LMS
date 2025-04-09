@@ -1,4 +1,4 @@
-use crate::models::Post;
+use crate::models::forum::post::Post;
 use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection, Result, Row};
 

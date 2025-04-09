@@ -273,7 +273,7 @@ impl OfflineSyncService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::post::Post;
+    use crate::models::forum::post::Post;
     use mockall::predicate::*;
     use mockall::mock;
     

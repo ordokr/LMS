@@ -4,6 +4,42 @@ use uuid::Uuid;
 use crate::api::{canvas::CanvasClient, discourse::DiscourseClient};
 use crate::db::Database;
 use crate::error::Error;
+use sqlx::FromRow;
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct CourseCategoryMapping {
+    pub id: i64,
+    pub course_id: i64,
+    pub category_id: i64,
+    pub sync_enabled: bool,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub last_synced_at: Option<DateTime<Utc>>,
+    pub sync_topics: bool,
+    pub sync_users: bool,
+}
+
+impl CourseCategoryMapping {
+    pub fn new(course_id: i64, category_id: i64) -> Self {
+        let now = Utc::now();
+        Self {
+            id: 0, // Will be set by database
+            course_id,
+            category_id,
+            sync_enabled: true,
+            created_at: now,
+            updated_at: now,
+            last_synced_at: None,
+            sync_topics: true,
+            sync_users: true,
+        }
+    }
+    
+    pub fn update_sync_time(&mut self) {
+        self.last_synced_at = Some(Utc::now());
+        self.updated_at = Utc::now();
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CourseCategory {
@@ -137,6 +173,54 @@ impl SyncSummary {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiscussionTopicMapping {
+    pub id: String,
+    pub canvas_topic_id: String,
+    pub discourse_topic_id: String,
+    pub title: String,
+    pub last_sync: DateTime<Utc>,
+    pub sync_enabled: bool,
+}
+
+impl DiscussionTopicMapping {
+    pub fn new(canvas_topic_id: &str, discourse_topic_id: &str, title: &str) -> Self {
+        Self {
+            id: Uuid::new_v4().to_string(),
+            canvas_topic_id: canvas_topic_id.to_string(),
+            discourse_topic_id: discourse_topic_id.to_string(),
+            title: title.to_string(),
+            last_sync: Utc::now(),
+            sync_enabled: true,
+        }
+    }
+
+    pub async fn sync(
+        &mut self,
+        canvas_client: &CanvasClient,
+        discourse_client: &DiscourseClient,
+    ) -> Result<String, Error> {
+        if !self.sync_enabled {
+            return Ok("Sync disabled for this topic".to_string());
+        }
+
+        // Fetch topic data from Canvas
+        let canvas_topic = canvas_client.get_topic(&self.canvas_topic_id).await?;
+
+        // Update Discourse topic with Canvas data
+        discourse_client.update_topic(
+            &self.discourse_topic_id,
+            &canvas_topic.title,
+            &canvas_topic.content,
+        ).await?;
+
+        // Update last sync timestamp
+        self.last_sync = Utc::now();
+
+        Ok(format!("Synced topic '{}' from Canvas to Discourse", canvas_topic.title))
+    }
+}
+
 // Tests for Course-Category mapping
 #[cfg(test)]
 mod tests {
@@ -226,5 +310,46 @@ mod tests {
         
         // Verify last_sync was updated
         assert!(mapping.last_sync > Utc::now() - chrono::Duration::seconds(10));
+    }
+
+    #[tokio::test]
+    async fn test_sync_discussion_topic_from_canvas_to_discourse() {
+        // Create test data
+        let mut topic_mapping = DiscussionTopicMapping::new(
+            "canvas_topic_123",
+            "discourse_topic_456",
+            "Test Topic",
+        );
+
+        // Create mock APIs
+        let mut mock_canvas = MockCanvasClient::new();
+        let mut mock_discourse = MockDiscourseClient::new();
+
+        // Set up Canvas mock to return updated topic
+        mock_canvas
+            .expect_get_topic()
+            .with(eq("canvas_topic_123"))
+            .returning(|_| {
+                Ok(TopicData {
+                    id: "canvas_topic_123".to_string(),
+                    title: "Updated Topic Title".to_string(),
+                    content: "Updated content".to_string(),
+                })
+            });
+
+        // Discourse API should be updated with Canvas data
+        mock_discourse
+            .expect_update_topic()
+            .with(eq("discourse_topic_456"), eq("Updated Topic Title"), eq("Updated content"))
+            .returning(|_, _, _| Ok(()));
+
+        // Execute sync
+        let result = topic_mapping.sync(&mock_canvas, &mock_discourse).await;
+
+        // Verify sync succeeded
+        assert!(result.is_ok());
+
+        // Verify last_sync was updated
+        assert!(topic_mapping.last_sync > Utc::now() - chrono::Duration::seconds(10));
     }
 }

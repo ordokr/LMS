@@ -1,2 +1,8 @@
 @import 'forum_integration.css';
 /* Other imports... */
+
+/* Import user profile styles */
+@import './user_profile.css';
+
+/* Add these imports to your main.css file */
+@import './notification_center.css';

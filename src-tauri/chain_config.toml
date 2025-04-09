@@ -1,0 +1,22 @@
+[consensus]
+# Skip multi-peer verification locally
+validation_threshold = 1 
+
+# 5 minute anchor periods for batching
+block_interval = 300 
+
+# Maximum number of peer connections
+max_peers = 5
+
+# Throttle gossip messages to reduce network traffic
+gossip_interval = 10000  # ms
+
+[storage]
+# Compact CRDT history after 14 days
+compact_history = true
+history_retention_days = 14
+
+[performance]
+# Memory usage limits
+max_cache_size_mb = 50
+max_pending_txs = 1000

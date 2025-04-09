@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "identifier": "com.lms.app",
   "build": {
-    "beforeDevCommand": "trunk serve",
-    "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "trunk build",
-    "frontendDist": "../dist"
+    "beforeBuildCommand": "cargo leptos build --release",
+    "beforeDevCommand": "cargo leptos watch",
+    "devPath": "http://localhost:3000",
+    "distDir": "../dist"
   },
   "app": {
     "withGlobalTauri": true,
@@ -33,30 +33,27 @@
       "icons/icon.ico"
     ]
   },
-  "build": {
-    "beforeBuildCommand": "trunk build",
-    "beforeDevCommand": "trunk serve",
-    "devPath": "http://localhost:8080",
-    "distDir": "../dist"
-  },
   "package": {
-    "productName": "LMS Platform",
-    "version": "0.1.0"
+    "productName": "EduConnect Forum",
+    "version": "1.0.0"
   },
   "tauri": {
     "allowlist": {
       "all": false,
       "fs": {
-        "all": true,
-        "scope": ["$APPDATA/*", "$APPDATA/courses/*", "$APPDATA/uploads/*"]
+        "all": false,
+        "readFile": true,
+        "writeFile": true,
+        "readDir": true,
+        "createDir": true,
+        "exists": true
       },
       "dialog": {
         "all": true
       },
       "http": {
         "all": true,
-        "request": true,
-        "scope": ["https://**", "http://**"]
+        "request": true
       },
       "shell": {
         "all": false,
@@ -70,6 +67,7 @@
       "deb": {
         "depends": []
       },
+      "externalBin": [],
       "icon": [
         "icons/32x32.png",
         "icons/128x128.png",
@@ -77,8 +75,8 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "identifier": "com.lms.dev",
-      "longDescription": "An offline-first Learning Management System with integrated forum capabilities",
+      "identifier": "com.educonnect.forum",
+      "longDescription": "A high-performance forum system for education platforms",
       "macOS": {
         "entitlements": null,
         "exceptionDomain": "",
@@ -86,13 +84,20 @@
         "providerShortName": null,
         "signingIdentity": null
       },
-      "resources": [],
-      "shortDescription": "LMS Platform",
+      "resources": ["resources"],
+      "shortDescription": "Education forum system",
       "targets": "all",
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
-        "timestampUrl": ""
+        "timestampUrl": "",
+        "webviewInstallMode": {
+          "silent": true,
+          "type": "embedBootstrapper"
+        },
+        "wix": {
+          "language": ["en-US"]
+        }
       }
     },
     "security": {
@@ -104,10 +109,11 @@
     "windows": [
       {
         "fullscreen": false,
-        "height": 768,
+        "height": 800,
         "resizable": true,
-        "title": "LMS Platform",
-        "width": 1024
+        "title": "EduConnect Forum",
+        "width": 1200,
+        "fileDropEnabled": false
       }
     ]
   }

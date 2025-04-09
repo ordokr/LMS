@@ -1,10 +1,12 @@
 use sqlx::{Pool, Sqlite, SqlitePool};
 use uuid::Uuid;
 
-use crate::core::errors::AppError;
-use crate::shared::models::forum::{ForumCategory, ForumPost, ForumTopic};
-use crate::shared::models::{Category, Topic, Post};
+// Fixed unresolved imports
+use crate::shared::models::{forum::{ForumCategory, ForumPost, ForumTopic}, Category, Topic, Post};
 use crate::api::forum::AppError;
+
+// Added instructions for `sqlx` query macros
+// Ensure `DATABASE_URL` is set or run `cargo sqlx prepare` to update the query cache.
 
 // Repository for forum categories
 pub struct ForumCategoryRepository {
@@ -233,177 +235,13 @@ fn create_slug(text: &str) -> String {
     }
 }
 
-// Forum Category Repository
-pub struct ForumCategoryRepository<'a> {
-    db: &'a SqlitePool
-}
-
-impl<'a> ForumCategoryRepository<'a> {
-    pub fn new(db: &'a SqlitePool) -> Self {
-        Self { db }
-    }
-    
-    pub async fn get_all(&self) -> Result<Vec<Category>, AppError> {
-        let categories = sqlx::query_as!(
-            Category,
-            "SELECT * FROM categories WHERE deleted_at IS NULL ORDER BY name"
-        )
-        .fetch_all(self.db)
-        .await
-        .map_err(|e| AppError::InternalError(e.to_string()))?;
-        
-        Ok(categories)
-    }
-    
-    pub async fn get_by_course_id(&self, course_id: i64) -> Result<Vec<Category>, AppError> {
-        let categories = sqlx::query_as!(
-            Category,
-            "SELECT c.* FROM categories c 
-             JOIN course_categories cc ON c.id = cc.category_id 
-             WHERE cc.course_id = ? AND c.deleted_at IS NULL",
-            course_id
-        )
-        .fetch_all(self.db)
-        .await
-        .map_err(|e| AppError::InternalError(e.to_string()))?;
-        
-        Ok(categories)
-    }
-}
-
-// Forum Topic Repository
-pub struct ForumTopicRepository<'a> {
-    db: &'a SqlitePool
-}
-
-impl<'a> ForumTopicRepository<'a> {
-    pub fn new(db: &'a SqlitePool) -> Self {
-        Self { db }
-    }
-    
-    pub async fn get_all(&self) -> Result<Vec<Topic>, AppError> {
-        let topics = sqlx::query_as!(
-            Topic,
-            "SELECT * FROM topics WHERE deleted_at IS NULL ORDER BY created_at DESC"
-        )
-        .fetch_all(self.db)
-        .await
-        .map_err(|e| AppError::InternalError(e.to_string()))?;
-        
-        Ok(topics)
-    }
-    
-    pub async fn get_by_id(&self, id: i64) -> Result<Topic, AppError> {
-        let topic = sqlx::query_as!(
-            Topic,
-            "SELECT * FROM topics WHERE id = ? AND deleted_at IS NULL",
-            id
-        )
-        .fetch_optional(self.db)
-        .await
-        .map_err(|e| AppError::InternalError(e.to_string()))?
-        .ok_or_else(|| AppError::NotFound(format!("Topic with id {} not found", id)))?;
-        
-        Ok(topic)
-    }
-    
-    pub async fn create(&self, title: String, content: String, category_id: i64, tags: Option<Vec<String>>) -> Result<Topic, AppError> {
-        let mut tx = self.db.begin().await
-            .map_err(|e| AppError::InternalError(e.to_string()))?;
-        
-        let topic_id = sqlx::query!(
-            "INSERT INTO topics (title, content, category_id, created_at, updated_at)
-             VALUES (?, ?, ?, datetime('now'), datetime('now'))
-             RETURNING id",
-            title,
-            content,
-            category_id
-        )
-        .fetch_one(&mut tx)
-        .await
-        .map_err(|e| AppError::InternalError(e.to_string()))?
-        .id;
-        
-        // Handle tags if provided
-        if let Some(tag_list) = tags {
-            for tag in tag_list {
-                // Get or create tag
-                let tag_id = sqlx::query!(
-                    "INSERT INTO tags (name) VALUES (?) 
-                     ON CONFLICT(name) DO UPDATE SET name = name
-                     RETURNING id",
-                    tag
-                )
-                .fetch_one(&mut tx)
-                .await
-                .map_err(|e| AppError::InternalError(e.to_string()))?
-                .id;
-                
-                // Associate tag with topic
-                sqlx::query!(
-                    "INSERT INTO topic_tags (topic_id, tag_id)
-                     VALUES (?, ?)",
-                    topic_id,
-                    tag_id
-                )
-                .execute(&mut tx)
-                .await
-                .map_err(|e| AppError::InternalError(e.to_string()))?;
-            }
-        }
-        
-        tx.commit().await
-            .map_err(|e| AppError::InternalError(e.to_string()))?;
-        
-        self.get_by_id(topic_id).await
-    }
-    
-    pub async fn update(&self, id: i64, title: String, content: String) -> Result<Topic, AppError> {
-        let rows_affected = sqlx::query!(
-            "UPDATE topics SET title = ?, content = ?, updated_at = datetime('now')
-             WHERE id = ? AND deleted_at IS NULL",
-            title,
-            content,
-            id
-        )
-        .execute(self.db)
-        .await
-        .map_err(|e| AppError::InternalError(e.to_string()))?
-        .rows_affected();
-        
-        if rows_affected == 0 {
-            return Err(AppError::NotFound(format!("Topic with id {} not found", id)));
-        }
-        
-        self.get_by_id(id).await
-    }
-    
-    pub async fn delete(&self, id: i64) -> Result<(), AppError> {
-        let rows_affected = sqlx::query!(
-            "UPDATE topics SET deleted_at = datetime('now')
-             WHERE id = ? AND deleted_at IS NULL",
-            id
-        )
-        .execute(self.db)
-        .await
-        .map_err(|e| AppError::InternalError(e.to_string()))?
-        .rows_affected();
-        
-        if rows_affected == 0 {
-            return Err(AppError::NotFound(format!("Topic with id {} not found", id)));
-        }
-        
-        Ok(())
-    }
-}
-
 // Forum Post Repository
-pub struct ForumPostRepository<'a> {
-    db: &'a SqlitePool
+pub struct ForumPostRepository {
+    db: SqlitePool
 }
 
-impl<'a> ForumPostRepository<'a> {
-    pub fn new(db: &'a SqlitePool) -> Self {
+impl ForumPostRepository {
+    pub fn new(db: SqlitePool) -> Self {
         Self { db }
     }
     
@@ -415,7 +253,7 @@ impl<'a> ForumPostRepository<'a> {
              ORDER BY created_at",
             topic_id
         )
-        .fetch_all(self.db)
+        .fetch_all(&self.db)
         .await
         .map_err(|e| AppError::InternalError(e.to_string()))?;
         
@@ -425,7 +263,7 @@ impl<'a> ForumPostRepository<'a> {
     pub async fn create(&self, content: String, topic_id: i64, parent_id: Option<i64>) -> Result<Post, AppError> {
         // Verify topic exists
         sqlx::query!("SELECT id FROM topics WHERE id = ? AND deleted_at IS NULL", topic_id)
-            .fetch_optional(self.db)
+            .fetch_optional(&self.db)
             .await
             .map_err(|e| AppError::InternalError(e.to_string()))?
             .ok_or_else(|| AppError::BadRequest(format!("Topic with id {} not found", topic_id)))?;
@@ -433,7 +271,7 @@ impl<'a> ForumPostRepository<'a> {
         // If parent_id is provided, verify parent post exists
         if let Some(parent) = parent_id {
             sqlx::query!("SELECT id FROM posts WHERE id = ? AND deleted_at IS NULL", parent)
-                .fetch_optional(self.db)
+                .fetch_optional(&self.db)
                 .await
                 .map_err(|e| AppError::InternalError(e.to_string()))?
                 .ok_or_else(|| AppError::BadRequest(format!("Parent post with id {} not found", parent)))?;
@@ -447,7 +285,7 @@ impl<'a> ForumPostRepository<'a> {
             topic_id,
             parent_id
         )
-        .fetch_one(self.db)
+        .fetch_one(&self.db)
         .await
         .map_err(|e| AppError::InternalError(e.to_string()))?
         .id;
@@ -457,7 +295,7 @@ impl<'a> ForumPostRepository<'a> {
             "SELECT * FROM posts WHERE id = ?",
             post_id
         )
-        .fetch_one(self.db)
+        .fetch_one(&self.db)
         .await
         .map_err(|e| AppError::InternalError(e.to_string()))?;
         

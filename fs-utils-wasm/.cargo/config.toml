@@ -1,0 +1,7 @@
+[build]
+# Disable workspace inheritance for this crate
+target-dir = "target"
+
+[workspace]
+# Treat this directory as its own workspace
+resolver = "2"

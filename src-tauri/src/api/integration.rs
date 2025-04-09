@@ -14,6 +14,9 @@ use uuid::Uuid;
 use tauri::{State as TauriState, command};
 use crate::models::integration::{CourseCategory, CourseCategoryCreate, CourseCategoryUpdate};
 use crate::db::course_category_repository::CourseCategoryRepository;
+use crate::models::integration::{CourseCategoryMapping, CourseCategoryCreate};
+use std::sync::Arc;
+use tracing::{info, warn, error, instrument};
 
 #[derive(Debug, Deserialize)]
 pub struct ActivityQuery {
@@ -368,4 +371,238 @@ pub async fn sync_course_category(
         .await
         .map_err(|e| format!("Failed to update sync timestamp: {}", e))?
         .ok_or_else(|| "Mapping not found after sync".to_string())
+}
+
+/// Creates a new mapping between a Canvas course and a Discourse category
+///
+/// # Arguments
+/// * `mapping_create` - The mapping information to create
+///
+/// # Returns
+/// * `CourseCategoryMapping` - The created mapping with ID
+#[tauri::command]
+#[instrument(skip(repo), err)]
+pub async fn create_course_category_mapping(
+    mapping_create: CourseCategoryCreate,
+    repo: State<'_, Arc<dyn CourseCategoryRepository + Send + Sync>>
+) -> Result<CourseCategoryMapping, String> {
+    info!(
+        event = "api_call", 
+        endpoint = "create_course_category_mapping", 
+        course_id = %mapping_create.course_id,
+        category_id = %mapping_create.category_id
+    );
+    
+    // Check if mapping already exists
+    let existing = repo.find_by_course_and_category(
+        &mapping_create.course_id, 
+        &mapping_create.category_id
+    ).await;
+    
+    if let Ok(Some(_)) = existing {
+        warn!(
+            event = "api_duplicate", 
+            endpoint = "create_course_category_mapping",
+            course_id = %mapping_create.course_id, 
+            category_id = %mapping_create.category_id
+        );
+        return Err("Mapping already exists for this course and category".to_string());
+    }
+    
+    // Generate new mapping with UUID
+    let mapping = CourseCategoryMapping {
+        id: Uuid::new_v4().to_string(),
+        course_id: mapping_create.course_id,
+        category_id: mapping_create.category_id,
+        sync_topics: mapping_create.sync_topics.unwrap_or(true),
+        sync_assignments: mapping_create.sync_assignments.unwrap_or(false),
+        created_at: chrono::Utc::now().to_rfc3339(),
+        updated_at: chrono::Utc::now().to_rfc3339(),
+    };
+    
+    // Insert mapping
+    match repo.create_mapping(mapping.clone()).await {
+        Ok(_) => {
+            info!(
+                event = "api_success", 
+                endpoint = "create_course_category_mapping",
+                mapping_id = %mapping.id
+            );
+            Ok(mapping)
+        },
+        Err(e) => {
+            error!(
+                event = "api_error", 
+                endpoint = "create_course_category_mapping", 
+                error = %e
+            );
+            Err(format!("Failed to create mapping: {}", e))
+        }
+    }
+}
+
+/// Retrieves a course-category mapping by ID
+///
+/// # Arguments
+/// * `mapping_id` - The ID of the mapping to retrieve
+///
+/// # Returns
+/// * `CourseCategoryMapping` - The retrieved mapping
+#[tauri::command]
+#[instrument(skip(repo), err)]
+pub async fn get_course_category_mapping(
+    mapping_id: String,
+    repo: State<'_, Arc<dyn CourseCategoryRepository + Send + Sync>>
+) -> Result<CourseCategoryMapping, String> {
+    info!(
+        event = "api_call", 
+        endpoint = "get_course_category_mapping", 
+        mapping_id = %mapping_id
+    );
+    
+    match repo.find_by_id(&mapping_id).await {
+        Ok(Some(mapping)) => {
+            info!(
+                event = "api_success", 
+                endpoint = "get_course_category_mapping", 
+                mapping_id = %mapping_id
+            );
+            Ok(mapping)
+        },
+        Ok(None) => {
+            warn!(
+                event = "api_not_found", 
+                endpoint = "get_course_category_mapping", 
+                mapping_id = %mapping_id
+            );
+            Err(format!("Mapping not found with ID: {}", mapping_id))
+        },
+        Err(e) => {
+            error!(
+                event = "api_error", 
+                endpoint = "get_course_category_mapping", 
+                error = %e
+            );
+            Err(format!("Database error: {}", e))
+        }
+    }
+}
+
+/// Syncs content between a Canvas course and Discourse category
+///
+/// # Arguments
+/// * `mapping_id` - The ID of the mapping to sync
+///
+/// # Returns
+/// * `SyncResult` - Results of the synchronization
+#[tauri::command]
+#[instrument(skip(repo, sync_service), err)]
+pub async fn sync_course_category(
+    mapping_id: String,
+    repo: State<'_, Arc<dyn CourseCategoryRepository + Send + Sync>>,
+    sync_service: State<'_, crate::services::sync::SyncService>
+) -> Result<crate::models::sync::SyncResult, String> {
+    info!(
+        event = "api_call", 
+        endpoint = "sync_course_category", 
+        mapping_id = %mapping_id
+    );
+    
+    // Perform synchronization using the new bidirectional sync service
+    match sync_service.sync_course_category(&mapping_id).await {
+        Ok(result) => {
+            info!(
+                event = "api_success", 
+                endpoint = "sync_course_category", 
+                mapping_id = %mapping_id,
+                topics_synced = result.topics_synced,
+                posts_synced = result.posts_synced
+            );
+            Ok(result)
+        },
+        Err(e) => {
+            error!(
+                event = "api_error", 
+                endpoint = "sync_course_category", 
+                mapping_id = %mapping_id,
+                error = %e
+            );
+            Err(format!("Sync failed: {}", e))
+        }
+    }
+}
+
+/// Updates the sync direction for a course-category mapping
+///
+/// # Arguments
+/// * `mapping_id` - The ID of the mapping to update
+/// * `direction` - The new sync direction ("CanvasToDiscourse", "DiscourseToCanvas", or "Bidirectional")
+///
+/// # Returns
+/// * `CourseCategory` - The updated mapping
+#[tauri::command]
+#[instrument(skip(repo), err)]
+pub async fn update_course_category_sync_direction(
+    mapping_id: String,
+    direction: String,
+    repo: State<'_, Arc<dyn CourseCategoryRepository + Send + Sync>>
+) -> Result<CourseCategory, String> {
+    info!(
+        event = "api_call", 
+        endpoint = "update_course_category_sync_direction", 
+        mapping_id = %mapping_id,
+        direction = %direction
+    );
+    
+    // Parse UUID
+    let uuid = Uuid::parse_str(&mapping_id)
+        .map_err(|e| {
+            error!("Invalid UUID: {}", e);
+            format!("Invalid UUID: {}", e)
+        })?;
+    
+    // Parse direction
+    let sync_direction = match direction.as_str() {
+        "CanvasToDiscourse" => crate::models::integration::SyncDirection::CanvasToDiscourse,
+        "DiscourseToCanvas" => crate::models::integration::SyncDirection::DiscourseToCanvas,
+        "Bidirectional" => crate::models::integration::SyncDirection::Bidirectional,
+        _ => {
+            error!("Invalid sync direction: {}", direction);
+            return Err(format!("Invalid sync direction: {}. Must be 'CanvasToDiscourse', 'DiscourseToCanvas', or 'Bidirectional'", direction));
+        }
+    };
+    
+    // Update the mapping
+    let update = crate::models::integration::CourseCategoryUpdate {
+        sync_enabled: None,
+        sync_direction: Some(sync_direction),
+        last_synced_at: None,
+    };
+    
+    match repo.update(uuid, update).await {
+        Ok(Some(updated)) => {
+            info!(
+                event = "api_success", 
+                endpoint = "update_course_category_sync_direction", 
+                mapping_id = %mapping_id
+            );
+            Ok(updated)
+        },
+        Ok(None) => {
+            warn!(
+                event = "api_not_found", 
+                endpoint = "update_course_category_sync_direction", 
+                mapping_id = %mapping_id
+            );
+            Err(format!("Mapping not found with ID: {}", mapping_id))
+        },
+        Err(e) => {
+            error!(
+                event = "api_error", 
+                endpoint = "update_course_category_sync_direction", 
+                error = %e
+            );
+            Err(format!("Failed to update mapping: {}", e))
+        }
+    }
 }

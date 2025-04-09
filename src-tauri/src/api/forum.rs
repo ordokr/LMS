@@ -8,9 +8,9 @@ const AstAnalyzer = require('./astAnalyzer'); // Import the new AstAnalyzer modu
 const ProjectPredictor = require('./projectPredictor'); // Import the new ProjectPredictor module
 use serde::{Deserialize, Serialize};
 use axum::{
+    extract::{Path, Query, State},
     routing::{get, post, put, delete},
-    Router,
-    extract::State,
+    Json, Router,
 };
 use std::sync::Arc;
 use crate::AppState;
@@ -20,6 +20,11 @@ use crate::database::repositories::{
     ForumPostRepository
 };
 use crate::shared::models::{Category, Topic, Post, Tag, ForumStats};
+use crate::cache::forum_cache::ForumCache;
+use crate::repositories::forum::{
+    Category, NewCategory, Topic, NewTopic, PaginationParams,
+    DbError
+};
 /** chrono::{DateTime, Utc};
  * Unified Project Analyzer
  * Consolidates all analyzer functionality into a single tool
@@ -201,7 +206,7 @@ class UnifiedProjectAnalyzer {ror};
         payload.parent_id,
     // Update project status
     this.updateProjectStatus();),
-        payload.text_color.as_deref(),
+        payload.text_color.as.deref(),
     // Generate central reference hub (new)
     await this.generateCentralReferenceHub();
     Ok(Json(category))
@@ -246,7 +251,7 @@ et updated = repo.update(
   /**
    * Generate detailed section for reports
    */        &slug,
-  generateDetailedSection() {ad.description.as_deref(),
+  generateDetailedSection() {ad.description.as.deref(),
     let details = "## Implementation Details\n\n";
 
     // Models
@@ -1129,110 +1134,172 @@ pub struct PostRequest {
 // Category handlers
 async fn get_categories(
     State(state): State<Arc<AppState>>,
-) -> Result<impl axum::response::IntoResponse, AppError> {
-    let repo = ForumCategoryRepository::new(&state.db);
-    let categories = repo.get_all().await?;
-    Ok(axum::Json(categories))
+    Query(params): Query<PaginationParams>,
+) -> Result<Json<Vec<Category>>, AppError> {
+    let repo = ForumCategoryRepository::new(state.pool.clone());
+    let categories = repo.get_all(params.page, params.per_page).await?;
+    
+    // Cache all returned categories
+    for category in &categories {
+        state.cache.insert_category(category.clone()).await;
+    }
+    
+    Ok(Json(categories))
 }
 
-async fn get_categories_by_course(
+async fn get_category(
     State(state): State<Arc<AppState>>,
-    axum::extract::Path(course_id): axum::extract::Path<i64>
-) -> Result<impl axum::response::IntoResponse, AppError> {
-    let repo = ForumCategoryRepository::new(&state.db);
-    let categories = repo.get_by_course_id(course_id).await?;
-    Ok(axum::Json(categories))
+    Path(id): Path<i64>,
+) -> Result<Json<Category>, AppError> {
+    // Try cache first
+    if let Some(category) = state.cache.get_category(id).await {
+        return Ok(Json(category));
+    }
+    
+    // Cache miss - get from database
+    let repo = ForumCategoryRepository::new(state.pool.clone());
+    let category = repo.get_by_id(id).await?;
+    
+    // Cache for future requests
+    state.cache.insert_category(category.clone()).await;
+    
+    Ok(Json(category))
+}
+
+async fn create_category(
+    State(state): State<Arc<AppState>>,
+    Json(new_category): Json<NewCategory>,
+) -> Result<Json<Category>, AppError> {
+    let repo = ForumCategoryRepository::new(state.pool.clone());
+    let category = repo.create(new_category).await?;
+    
+    // Cache the new category
+    state.cache.insert_category(category.clone()).await;
+    
+    Ok(Json(category))
 }
 
 // Topic handlers
 async fn get_topics(
     State(state): State<Arc<AppState>>,
-) -> Result<impl axum::response::IntoResponse, AppError> {
-    let repo = ForumTopicRepository::new(&state.db);
-    let topics = repo.get_all().await?;
-    Ok(axum::Json(topics))
+    Query(params): Query<PaginationParams>,
+) -> Result<Json<Vec<Topic>>, AppError> {
+    let repo = ForumTopicRepository::new(state.pool.clone());
+    let topics = repo.get_all(params.page, params.per_page).await?;
+    
+    // Cache all returned topics
+    for topic in &topics {
+        state.cache.insert_topic(topic.clone()).await;
+    }
+    
+    Ok(Json(topics))
 }
 
-async fn create_topic(
+#[derive(Deserialize)]
+struct TopicsByCategoryParams {
+    category_id: i64,
+    #[serde(flatten)]
+    pagination: PaginationParams,
+}
+
+async fn get_topics_by_category(
     State(state): State<Arc<AppState>>,
-    axum::Json(topic_req): axum::Json<TopicRequest>
-) -> Result<impl axum::response::IntoResponse, AppError> {
-    let repo = ForumTopicRepository::new(&state.db);
-    let topic = repo.create(topic_req.title, topic_req.content, topic_req.category_id, topic_req.tags).await?;
-    Ok(axum::Json(topic))
+    Query(params): Query<TopicsByCategoryParams>,
+) -> Result<Json<Vec<Topic>>, AppError> {
+    let repo = ForumTopicRepository::new(state.pool.clone());
+    let topics = repo.get_by_category(
+        params.category_id, 
+        params.pagination.page, 
+        params.pagination.per_page
+    ).await?;
+    
+    // Cache all returned topics
+    for topic in &topics {
+        state.cache.insert_topic(topic.clone()).await;
+    }
+    
+    // Cache the list of topic IDs for this category
+    let topic_ids = topics.iter().map(|t| t.id).collect::<Vec<_>>();
+    state.cache.set_topic_ids_for_category(params.category_id, topic_ids).await;
+    
+    Ok(Json(topics))
 }
 
 async fn get_topic(
     State(state): State<Arc<AppState>>,
-    axum::extract::Path(id): axum::extract::Path<i64>
-) -> Result<impl axum::response::IntoResponse, AppError> {
-    let repo = ForumTopicRepository::new(&state.db);
+    Path(id): Path<i64>,
+) -> Result<Json<Topic>, AppError> {
+    // Try cache first
+    if let Some(topic) = state.cache.get_topic(id).await {
+        return Ok(Json(topic));
+    }
+    
+    // Cache miss - get from database
+    let repo = ForumTopicRepository::new(state.pool.clone());
     let topic = repo.get_by_id(id).await?;
-    Ok(axum::Json(topic))
+    
+    // Cache for future requests
+    state.cache.insert_topic(topic.clone()).await;
+    
+    Ok(Json(topic))
 }
 
-async fn update_topic(
+async fn create_topic(
     State(state): State<Arc<AppState>>,
-    axum::extract::Path(id): axum::extract::Path<i64>,
-    axum::Json(topic_req): axum::Json<TopicRequest>
-) -> Result<impl axum::response::IntoResponse, AppError> {
-    let repo = ForumTopicRepository::new(&state.db);
-    let topic = repo.update(id, topic_req.title, topic_req.content).await?;
-    Ok(axum::Json(topic))
-}
-
-async fn delete_topic(
-    State(state): State<Arc<AppState>>,
-    axum::extract::Path(id): axum::extract::Path<i64>
-) -> Result<impl axum::response::IntoResponse, AppError> {
-    let repo = ForumTopicRepository::new(&state.db);
-    repo.delete(id).await?;
-    Ok(axum::Json(()))
-}
-
-// Post handlers
-async fn get_posts_by_topic(
-    State(state): State<Arc<AppState>>,
-    axum::extract::Path(topic_id): axum::extract::Path<i64>
-) -> Result<impl axum::response::IntoResponse, AppError> {
-    let repo = ForumPostRepository::new(&state.db);
-    let posts = repo.get_by_topic_id(topic_id).await?;
-    Ok(axum::Json(posts))
-}
-
-async fn create_post(
-    State(state): State<Arc<AppState>>,
-    axum::extract::Path(topic_id): axum::extract::Path<i64>,
-    axum::Json(post_req): axum::Json<PostRequest>
-) -> Result<impl axum::response::IntoResponse, AppError> {
-    let repo = ForumPostRepository::new(&state.db);
-    let post = repo.create(post_req.content, topic_id, post_req.parent_id).await?;
-    Ok(axum::Json(post))
+    Json(new_topic): Json<NewTopic>,
+) -> Result<Json<Topic>, AppError> {
+    let repo = ForumTopicRepository::new(state.pool.clone());
+    let topic = repo.create(new_topic).await?;
+    
+    // Cache the new topic
+    state.cache.insert_topic(topic.clone()).await;
+    
+    // Invalidate category's topic list to force refresh
+    state.cache.invalidate_topic_ids_for_category(topic.category_id).await;
+    
+    Ok(Json(topic))
 }
 
 // Error handling
-#[derive(Debug, Serialize)]
+#[derive(Debug, thiserror::Error)]
 pub enum AppError {
-    BadRequest(String),
-    Unauthorized(String),
-    Forbidden(String),
-    NotFound(String),
-    InternalError(String)
+    #[error("Database error: {0}")]
+    DbError(#[from] DbError),
+    #[error("Validation error: {0}")]
+    Validation(String),
+    #[error("Not found")]
+    NotFound,
 }
 
-// Configure forum API routes
-pub fn forum_routes() -> Router<Arc<AppState>> {
+// Implement conversion to HTTP response
+impl axum::response::IntoResponse for AppError {
+    fn into_response(self) -> axum::response::Response {
+        let (status, error_message) = match self {
+            AppError::DbError(DbError::NotFound) => 
+                (axum::http::StatusCode::NOT_FOUND, "Resource not found".to_string()),
+            AppError::NotFound => 
+                (axum::http::StatusCode::NOT_FOUND, "Resource not found".to_string()),
+            AppError::Validation(msg) => 
+                (axum::http::StatusCode::BAD_REQUEST, msg),
+            _ => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()),
+        };
+
+        let body = Json(serde_json::json!({
+            "error": error_message,
+        }));
+
+        (status, body).into_response()
+    }
+}
+
+// Create router with all forum routes
+pub fn forum_router() -> Router<Arc<AppState>> {
     Router::new()
         // Category routes
-        .route("/categories", get(get_categories))
-        .route("/courses/:id/categories", get(get_categories_by_course))
-        
+        .route("/categories", get(get_categories).post(create_category))
+        .route("/categories/:id", get(get_category))
         // Topic routes
-        .route("/topics", get(get_topics))
-        .route("/topics", post(create_topic))
+        .route("/topics", get(get_topics).post(create_topic))
+        .route("/topics/by-category", get(get_topics_by_category))
         .route("/topics/:id", get(get_topic))
-        .route("/topics/:id", put(update_topic))
-        .route("/topics/:id", delete(delete_topic))
-        .route("/topics/:id/posts", get(get_posts_by_topic))
-        .route("/topics/:id/posts", post(create_post))
 }

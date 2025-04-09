@@ -1,0 +1,6 @@
+[build]
+rustflags = [
+    "-Ctarget-cpu=native",
+    "-Cllvm-args=-unroll-threshold=4", 
+    "-Zmir-opt-level=4"
+]

@@ -1,4 +1,6 @@
 const { createLogger } = require('../utils/logger');
+const jwt = require('jsonwebtoken');
+const SECRET_KEY = process.env.JWT_SECRET || 'your-secret-key';
 
 /**
  * Service for handling authentication between Canvas and Discourse
@@ -62,4 +64,27 @@ class UserAuthService {
   }
 }
 
-module.exports = { UserAuthService };
+/**
+ * Generate a JWT token with the provided payload.
+ * @param {Object} payload - The payload to encode.
+ * @returns {string} JWT token.
+ */
+function generateJwt(payload) {
+  return jwt.sign(payload, SECRET_KEY, { expiresIn: '1h' });
+}
+
+/**
+ * Verify a given JWT token.
+ * @param {string} token - The token to verify.
+ * @returns {Object} The decoded payload.
+ * @throws {Error} If token is invalid.
+ */
+function verifyJwt(token) {
+  try {
+    return jwt.verify(token, SECRET_KEY);
+  } catch (error) {
+    throw new Error('Invalid token');
+  }
+}
+
+module.exports = { UserAuthService, generateJwt, verifyJwt };

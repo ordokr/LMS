@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebAssembly Browser Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #results {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>WebAssembly Browser Test</h1>
+    <p>This page tests the WebAssembly module for file system utilities in a browser environment.</p>
+    
+    <button id="testButton">Run WebAssembly Test</button>
+    
+    <div id="results">Test results will appear here...</div>
+
+    <script>
+        // Helper function to log to the results div
+        function log(message, isError = false) {
+            const resultsDiv = document.getElementById('results');
+            const line = document.createElement('div');
+            line.textContent = message;
+            if (isError) line.className = 'error';
+            resultsDiv.appendChild(line);
+        }
+        
+        // Test function
+        async function testWebAssembly() {
+            // Clear previous results
+            document.getElementById('results').innerHTML = '';
+            
+            try {
+                log('Testing WebAssembly in browser environment...');
+                
+                // Check if WebAssembly is supported
+                if (typeof WebAssembly !== 'object') {
+                    log('❌ WebAssembly is not supported in this browser!', true);
+                    return;
+                }
+                
+                log('✅ WebAssembly is supported in this browser');
+                
+                // Try to load the WebAssembly module
+                log('\nAttempting to load the WebAssembly module...');
+                try {
+                    const wasmModule = await import('./wasm/fs-utils/fs_utils_wasm_standalone.js');
+                    log('✅ Successfully imported WebAssembly JS module');
+                    
+                    // Check what's exported
+                    log(`\nModule exports: ${Object.keys(wasmModule).join(', ')}`);
+                    
+                    if (wasmModule.FileSystemUtils) {
+                        log('✅ FileSystemUtils class found in the module');
+                        
+                        // Create an instance
+                        log('\nCreating FileSystemUtils instance...');
+                        const fsUtils = new wasmModule.FileSystemUtils('.');
+                        log('✅ Successfully created instance');
+                        
+                        // Check what methods are available
+                        const methods = Object.getOwnPropertyNames(
+                            Object.getPrototypeOf(fsUtils)
+                        ).filter(m => m !== 'constructor');
+                        
+                        log(`\nAvailable methods: ${methods.join(', ')}`);
+                        
+                        // Call a simple method
+                        if (methods.includes('get_dir_category')) {
+                            log('\nTesting get_dir_category method:');
+                            const category = fsUtils.get_dir_category('src/models');
+                            log(`Category for 'src/models': ${category}`);
+                        } else {
+                            log('❌ get_dir_category method not found', true);
+                        }
+                    } else {
+                        log('❌ FileSystemUtils class not found in the module', true);
+                    }
+                } catch (error) {
+                    log(`❌ Error loading WebAssembly module: ${error.message}`, true);
+                    if (error.stack) {
+                        log(`Stack trace: ${error.stack}`, true);
+                    }
+                }
+            } catch (error) {
+                log(`❌ Unexpected error: ${error.message}`, true);
+            }
+        }
+        
+        // Attach click event to the button
+        document.getElementById('testButton').addEventListener('click', testWebAssembly);
+    </script>
+</body>
+</html>

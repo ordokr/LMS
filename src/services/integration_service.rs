@@ -7,6 +7,10 @@ use crate::sync::{SyncManager, SyncOperation};
 use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use anyhow::{Result, anyhow};
+use crate::repository::course_category_repository::CourseCategoryRepository;
+use crate::models::mapping::CourseCategoryMapping;
+use crate::auth::jwt_service::JwtService;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CrossReference {
@@ -58,16 +62,20 @@ pub struct IntegrationService {
     course_service: CourseService,
     forum_service: ForumService,
     sync_manager: Option<Arc<SyncManager>>, // Optional to maintain backward compatibility
+    course_category_repo: CourseCategoryRepository,
+    jwt_service: JwtService,
 }
 
 impl IntegrationService {
     pub fn new(course_service: CourseService, forum_service: ForumService, 
-               sync_manager: Option<Arc<SyncManager>>) -> Self {
+               sync_manager: Option<Arc<SyncManager>>, course_category_repo: CourseCategoryRepository, jwt_service: JwtService) -> Self {
         Self {
             client: ApiClient::new(),
             course_service,
             forum_service,
             sync_manager,
+            course_category_repo,
+            jwt_service,
         }
     }
     
@@ -281,6 +289,68 @@ impl IntegrationService {
                 .map_err(|e| e.to_string())
         }
     }
+
+    pub async fn create_course_category_mapping(
+        &self, 
+        course_id: i64, 
+        category_id: i64
+    ) -> Result<CourseCategoryMapping> {
+        // Check if mappings already exist for this course or category
+        if let Ok(existing) = self.course_category_repo.get_by_course_id(course_id).await {
+            return Err(anyhow!("Course ID {} is already mapped to category ID {}", course_id, existing.category_id));
+        }
+        
+        if let Ok(existing) = self.course_category_repo.get_by_category_id(category_id).await {
+            return Err(anyhow!("Category ID {} is already mapped to course ID {}", category_id, existing.course_id));
+        }
+        
+        // Create the new mapping
+        self.course_category_repo.create(course_id, category_id).await
+    }
+    
+    pub async fn get_mapping_by_course(&self, course_id: i64) -> Result<CourseCategoryMapping> {
+        self.course_category_repo.get_by_course_id(course_id).await
+    }
+    
+    pub async fn get_mapping_by_category(&self, category_id: i64) -> Result<CourseCategoryMapping> {
+        self.course_category_repo.get_by_category_id(category_id).await
+    }
+    
+    pub async fn list_all_mappings(&self) -> Result<Vec<CourseCategoryMapping>> {
+        self.course_category_repo.list_all().await
+    }
+    
+    pub async fn update_mapping(
+        &self,
+        id: i64,
+        sync_enabled: bool,
+        sync_topics: bool,
+        sync_users: bool
+    ) -> Result<CourseCategoryMapping> {
+        self.course_category_repo.update(id, sync_enabled, sync_topics, sync_users).await
+    }
+    
+    pub async fn delete_mapping(&self, id: i64) -> Result<()> {
+        self.course_category_repo.delete(id).await
+    }
+    
+    pub async fn record_sync(&self, mapping_id: i64) -> Result<CourseCategoryMapping> {
+        self.course_category_repo.update_sync_time(mapping_id).await
+    }
+    
+    pub fn generate_sso_token(
+        &self, 
+        user_id: &str, 
+        role: &str,
+        canvas_id: &str,
+        discourse_id: Option<&str>
+    ) -> Result<String> {
+        self.jwt_service.generate_token(user_id, role, canvas_id, discourse_id)
+    }
+    
+    pub fn validate_sso_token(&self, token: &str) -> Result<crate::auth::jwt_service::Claims> {
+        self.jwt_service.validate_token(token)
+    }
 }
 
 /// Module providing course-forum integration components
@@ -418,4 +488,49 @@ fn slugify(text: &str) -> String {
         })
         .collect::<String>()
         .replace("--", "-")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sqlx::postgres::PgPoolOptions;
+    
+    async fn setup_test_db() -> Pool<Postgres> {
+        let database_url = std::env::var("TEST_DATABASE_URL")
+            .expect("TEST_DATABASE_URL must be set for integration tests");
+        
+        PgPoolOptions::new()
+            .max_connections(5)
+            .connect(&database_url)
+            .await
+            .expect("Failed to connect to test database")
+    }
+    
+    #[sqlx::test]
+    async fn test_create_and_get_mapping(pool: Pool<Postgres>) {
+        let repo = CourseCategoryRepository::new(pool.clone());
+        let jwt_service = JwtService::new(b"test_secret");
+        let service = IntegrationService::new(repo, jwt_service);
+        
+        // Create a new mapping
+        let course_id = 123;
+        let category_id = 456;
+        
+        let mapping = service.create_course_category_mapping(course_id, category_id).await.unwrap();
+        
+        assert_eq!(mapping.course_id, course_id);
+        assert_eq!(mapping.category_id, category_id);
+        assert!(mapping.sync_enabled);
+        
+        // Get the mapping by course ID
+        let retrieved = service.get_mapping_by_course(course_id).await.unwrap();
+        assert_eq!(retrieved.id, mapping.id);
+        
+        // Get the mapping by category ID
+        let retrieved = service.get_mapping_by_category(category_id).await.unwrap();
+        assert_eq!(retrieved.id, mapping.id);
+        
+        // Clean up
+        service.delete_mapping(mapping.id).await.unwrap();
+    }
 }

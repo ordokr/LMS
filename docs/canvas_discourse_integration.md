@@ -1,6 +1,6 @@
 # Canvas-Discourse Integration Reference
 
-_Generated on: 2025-04-06_
+_Generated on: 2025-04-09_
 
 ## Overview
 

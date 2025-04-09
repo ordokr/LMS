@@ -1,6 +1,7 @@
 use leptos::*;
 use crate::state::auth::use_auth_state; // Make sure to import your auth state
 use crate::components::forum::notifications::NotificationCenter;
+use crate::components::notifications::NotificationCenter;
 
 #[component]
 pub fn Header(cx: Scope) -> impl IntoView {
@@ -58,6 +59,10 @@ pub fn Header(cx: Scope) -> impl IntoView {
                         // ... login/register buttons
                     }
                 }}
+            </div>
+            <div class="user-navigation">
+                <NotificationCenter />
+                // ... existing user dropdown or login button
             </div>
         </header>
     }

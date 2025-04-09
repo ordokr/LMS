@@ -1,0 +1,45 @@
+{
+  "paths": {
+    "sourceCode": "C:\\Users\\Tim\\Desktop\\port",
+    "targetCode": "C:\\Users\\Tim\\Desktop\\LMS\\src-tauri",
+    "docs": "C:\\Users\\Tim\\Desktop\\LMS\\docs",
+    "technicalDocs": "C:\\Users\\Tim\\Desktop\\LMS\\docs\\technical",
+    "portDocs": "C:\\Users\\Tim\\Desktop\\LMS\\docs\\port",
+    "ragDocs": "C:\\Users\\Tim\\Desktop\\LMS\\rag_knowledge_base",
+    "analysis": "C:\\Users\\Tim\\Desktop\\LMS\\analysis_summary"
+  },
+  "port": {
+    "canvas": {
+      "completion": {
+        "models": 81,
+        "controllers": 65,
+        "services": 70,
+        "ui": 88,
+        "tests": 45
+      },
+      "priority": {
+        "high": ["Course", "Assignment", "Gradebook", "Discussion", "File"],
+        "medium": ["User", "Notification", "Calendar", "Rubric"],
+        "low": ["Analytics", "LTI", "ExternalTools"]
+      }
+    },
+    "discourse": {
+      "completion": {
+        "models": 76,
+        "controllers": 70,
+        "services": 62,
+        "ui": 75,
+        "tests": 40
+      },
+      "priority": {
+        "high": ["Category", "Topic", "Post", "User", "Notification"],
+        "medium": ["TrustLevel", "Tag", "Group", "Search"],
+        "low": ["Plugin", "Admin", "Customization"]
+      }
+    }
+  },
+  "analysis": {
+    "conflictSeverityLevels": ["High", "Medium", "Low"],
+    "scheduleFrequency": "weekly"
+  }
+}

@@ -1,6 +1,6 @@
 use sqlx::PgPool;
 use uuid::Uuid;
-use crate::models::topic::Topic;
+use crate::models::forum::topic::Topic;
 
 pub struct TopicRepository {
     pool: PgPool,
@@ -160,6 +160,20 @@ impl TopicRepository {
             "#,
             topic_id,
             user_id
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    pub async fn delete_topic(&self, id: &Uuid) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+            DELETE FROM topics
+            WHERE id = $1
+            "#,
+            id
         )
         .execute(&self.pool)
         .await?;

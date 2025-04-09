@@ -1,21 +1,33 @@
 {
-  "name": "lms",
+  "name": "lms-integration",
   "version": "1.0.0",
-  "description": "This template should help get you started developing with Tauri and Leptos.",
-  "main": "status-updater.js",
+  "description": "Canvas-Discourse LMS Integration",
+  "main": "index.js",
   "directories": {
     "doc": "docs",
     "test": "tests"
   },
   "scripts": {
+    "analyze": "cargo run --bin analyze full",
+    "quick-analyze": "cargo run --bin analyze quick",
+    "update-rag": "cargo run --bin analyze update-rag",
+    "ai-insights": "cargo run --bin analyze generate-insights",
+    "check-conflicts": "node port-conflict-analyzer.js",
+    "summary": "node summary-report-generator.js",
+    "dashboard": "node visual-dashboard-generator.js && start dashboard.html",
+    "start": "cargo run --bin analyze full && echo \"To start the application, use: npm run dev\"",
+    "dev": "npm run tauri dev",
+    "build": "npm run tauri build",
+    "tauri": "tauri",
     "test": "jest",
-    "test:unit": "jest --testPathPattern=tests/unit",
-    "test:integration": "mocha tests/integration/**/*.test.js",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:unit": "jest test/models test/services",
+    "test:integration": "jest test/integration",
+    "test:debug": "jest --detectOpenHandles --forceExit",
     "lint": "eslint . --ext .js,.ts --ignore-path .eslintignore",
     "lint:fix": "eslint . --ext .js,.ts --fix --ignore-path .eslintignore",
-    "build": "node scripts/build.js",
     "docs": "node scripts/update-central-reference.js",
-    "dashboard": "node scripts/generate-stakeholder-dashboard.js",
     "ci": "npm run lint && npm run test:unit && npm run test:integration && npm run build",
     "monitor:start": "node src/monitoring/start.js"
   },
@@ -36,19 +48,30 @@
     "@qdrant/js-client-rest": "^1.13.0",
     "@tensorflow-models/universal-sentence-encoder": "^1.3.3",
     "@tensorflow/tfjs-node": "^4.22.0",
+    "axios": "^1.8.4",
+    "body-parser": "^2.2.0",
     "commander": "^13.1.0",
+    "cors": "^2.8.5",
+    "crypto": "^1.0.1",
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
     "fs-extra": "^11.3.0",
-    "glob": "^11.0.1"
+    "glob": "^11.0.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.13.2",
+    "morgan": "^1.10.0"
   },
   "devDependencies": {
     "@babel/core": "^7.26.10",
     "@babel/parser": "^7.27.0",
     "@babel/preset-env": "^7.26.9",
     "@babel/traverse": "^7.27.0",
+    "@tauri-apps/cli": "^1.5.0",
     "babel-jest": "^29.7.0",
     "chai": "^4.3.8",
     "eslint": "^8.56.0",
     "jest": "^29.7.0",
-    "mocha": "^10.2.0"
+    "mocha": "^10.2.0",
+    "supertest": "^7.1.0"
   }
 }

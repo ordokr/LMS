@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Canvas-Discourse Sync Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <h1>Canvas-Discourse Integration</h1>
+      <h2>Synchronization Dashboard</h2>
+      <div class="connection-status">
+        <span id="connection-indicator"></span>
+        <span id="connection-text">Connecting...</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="dashboard-container">
+    <div class="sidebar">
+      <div class="status-card">
+        <h3>System Status</h3>
+        <div class="status-indicator" id="system-status-indicator">
+          <span class="status-dot"></span>
+          <span class="status-text">Checking...</span>
+        </div>
+        <div class="status-detail">
+          <p>Last updated: <span id="last-updated">-</span></p>
+        </div>
+      </div>
+      
+      <div class="menu">
+        <ul>
+          <li class="active" data-section="overview">Overview</li>
+          <li data-section="transactions">Transactions</li>
+          <li data-section="entities">Entities</li>
+          <li data-section="tools">Tools</li>
+        </ul>
+      </div>
+      
+      <div class="metrics-summary">
+        <div class="metric-item">
+          <span class="metric-label">Total Syncs</span>
+          <span class="metric-value" id="total-syncs">-</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label">Error Rate</span>
+          <span class="metric-value" id="error-rate">-</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label">Avg Latency</span>
+          <span class="metric-value" id="avg-latency">-</span>
+        </div>
+      </div>
+    </div>
+    
+    <main class="content">
+      <section id="overview" class="active">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <h3>Queue Status</h3>
+            <canvas id="queue-chart"></canvas>
+            <div class="queue-metrics">
+              <div class="queue-metric">
+                <strong>Critical:</strong> <span id="critical-queue">0</span>
+              </div>
+              <div class="queue-metric">
+                <strong>High:</strong> <span id="high-queue">0</span>
+              </div>
+              <div class="queue-metric">
+                <strong>Background:</strong> <span id="background-queue">0</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <h3>Latency (ms)</h3>
+            <canvas id="latency-chart"></canvas>
+          </div>
+          
+          <div class="stat-card">
+            <h3>Sync Completion</h3>
+            <div class="entity-completion">
+              <div class="entity-type">
+                <span>Users</span>
+                <div class="progress-bar">
+                  <div class="progress" id="users-progress" style="width: 0%"></div>
+                </div>
+                <span id="users-percent">0%</span>
+              </div>
+              <div class="entity-type">
+                <span>Courses</span>
+                <div class="progress-bar">
+                  <div class="progress" id="courses-progress" style="width: 0%"></div>
+                </div>
+                <span id="courses-percent">0%</span>
+              </div>
+              <div class="entity-type">
+                <span>Assignments</span>
+                <div class="progress-bar">
+                  <div class="progress" id="assignments-progress" style="width: 0%"></div>
+                </div>
+                <span id="assignments-percent">0%</span>
+              </div>
+              <div class="entity-type">
+                <span>Discussions</span>
+                <div class="progress-bar">
+                  <div class="progress" id="discussions-progress" style="width: 0%"></div>
+                </div>
+                <span id="discussions-percent">0%</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <h3>Recent Activity</h3>
+            <div class="recent-activity" id="recent-activity">
+              <p>Loading activity data...</p>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      <section id="transactions">
+        <div class="section-header">
+          <h2>Transaction History</h2>
+          <div class="section-actions">
+            <select id="transaction-filter">
+              <option value="all">All Transactions</option>
+              <option value="error">Errors Only</option>
+              <option value="success">Successful Only</option>
+            </select>
+            <button id="refresh-transactions">Refresh</button>
+          </div>
+        </div>
+        
+        <div class="transactions-table-container">
+          <table class="transactions-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Type</th>
+                <th>Entity</th>
+                <th>Started</th>
+                <th>Duration</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="transactions-table-body">
+              <tr>
+                <td colspan="7" class="loading-data">Loading transaction data...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        
+        <div class="pagination">
+          <button id="prev-page" disabled>&laquo; Previous</button>
+          <span id="page-info">Page 1</span>
+          <button id="next-page">Next &raquo;</button>
+        </div>
+      </section>
+      
+      <section id="entities">
+        <div class="section-header">
+          <h2>Entity Mapping</h2>
+          <div class="section-actions">
+            <select id="entity-type-filter">
+              <option value="users">Users</option>
+              <option value="courses">Courses</option>
+              <option value="assignments">Assignments</option>
+              <option value="discussions">Discussions</option>
+            </select>
+            <input type="text" id="entity-search" placeholder="Search entities...">
+            <button id="refresh-entities">Refresh</button>
+          </div>
+        </div>
+        
+        <div class="entities-table-container">
+          <table class="entities-table">
+            <thead>
+              <tr>
+                <th>Canvas ID</th>
+                <th>Canvas Name</th>
+                <th>Discourse ID</th>
+                <th>Discourse Name</th>
+                <th>Last Synced</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="entities-table-body">
+              <tr>
+                <td colspan="7" class="loading-data">Loading entity data...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      
+      <section id="tools">
+        <div class="section-header">
+          <h2>Synchronization Tools</h2>
+        </div>
+        
+        <div class="tools-grid">
+          <div class="tool-card">
+            <h3>Trigger Manual Sync</h3>
+            <form id="manual-sync-form">
+              <div class="form-group">
+                <label for="entity-type">Entity Type</label>
+                <select id="entity-type" required>
+                  <option value="">-- Select Type --</option>
+                  <option value="user">User</option>
+                  <option value="course">Course</option>
+                  <option value="assignment">Assignment</option>
+                  <option value="discussion">Discussion</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="entity-id">Entity ID</label>
+                <input type="text" id="entity-id" placeholder="Enter ID" required>
+              </div>
+              <div class="form-group">
+                <label for="sync-priority">Priority</label>
+                <select id="sync-priority">
+                  <option value="critical">Critical</option>
+                  <option value="high" selected>High</option>
+                  <option value="background">Background</option>
+                </select>
+              </div>
+              <button type="submit" class="primary-button">Trigger Sync</button>
+            </form>
+            <div id="sync-result" class="form-result"></div>
+          </div>
+          
+          <div class="tool-card">
+            <h3>System Actions</h3>
+            <div class="action-buttons">
+              <button id="verify-all-integrity" class="warning-button">Verify Data Integrity</button>
+              <button id="clear-queue" class="danger-button">Clear Message Queues</button>
+              <button id="restart-sync-service" class="danger-button">Restart Sync Service</button>
+            </div>
+            <div id="action-result" class="form-result"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

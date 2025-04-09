@@ -646,4 +646,53 @@ class TechnicalDocsGenerator {
   }
 }
 
+// Add this function to your existing technical-docs-generator.js file
+
+async function generateBlockchainDocumentation() {
+  const blockchainContent = `
+# Blockchain Technical Implementation
+
+## Architecture Overview
+
+The LMS blockchain implementation uses a hybrid architecture that combines:
+
+- **Memory-Centric Design**: Zero-copy deserialization and stack allocation for hot paths
+- **Hybrid Consensus**: Automerge CRDT for local state with anchored verification
+- **Differential Anchoring**: Hash-based state diffs for efficient storage
+- **Context-Aware Batching**: Priority-based transaction processing
+- **Resource Governor**: Memory and CPU usage limits
+
+## Implementation Components
+
+The blockchain system is implemented across multiple Rust modules:
+
+- \`blockchain/core.rs\`: Main blockchain implementation
+- \`blockchain/storage.rs\`: SQLite-based persistence layer
+- \`blockchain/batching.rs\`: Transaction batching
+- \`blockchain/sync.rs\`: Synchronization management
+- \`blockchain/metrics.rs\`: Performance monitoring
+- \`blockchain/governor.rs\`: Resource constraints
+
+## Integration Points
+
+The blockchain system integrates with the LMS through:
+
+1. **Achievement Recording**: Academic achievements are recorded as blockchain entities
+2. **Certificate Verification**: Certificates can be verified through blockchain proof
+3. **Student Record Integrity**: Student records are anchored to the blockchain
+  `;
+  
+  const outPath = path.join(__dirname, '..', 'rag_knowledge_base', 'integration', 'blockchain_technical.md');
+  fs.writeFileSync(outPath, blockchainContent);
+  
+  console.log('Blockchain technical documentation generated');
+  return outPath;
+}
+
+// Add this to your export object or main function
+module.exports = {
+  // ...existing exports
+  generateBlockchainDocumentation
+};
+
 module.exports = TechnicalDocsGenerator;

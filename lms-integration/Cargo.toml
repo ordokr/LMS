@@ -1,0 +1,34 @@
+[package]
+name = "lms-integration"
+version = "0.1.0"
+edition = "2021"
+description = "LMS integration module for the blockchain-wasm project"
+
+[dependencies]
+# Core dependencies
+tokio = { version = "1", features = ["full"] }
+futures = "0.3.30"
+
+# HTTP client and API
+reqwest = { version = "0.11", features = ["json"] }
+axum = "0.7"
+
+# Serialization/Deserialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0.76"
+
+# Logging
+log = "0.4"
+env_logger = "0.11.8"
+
+# Utilities
+chrono = { version = "0.4", features = ["serde"] }
+dotenv = "0.15.0"
+config = "0.15.11"
+
+# For shared types with the main project
+blockchain-wasm = { path = ".." }

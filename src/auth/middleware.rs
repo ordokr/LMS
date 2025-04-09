@@ -24,8 +24,8 @@ pub async fn auth_middleware<B>(
         _ => return Err(StatusCode::UNAUTHORIZED),
     };
 
-    // Validate the token
-    match jwt::validate_token(token) {
+    // Validate the token using the JWT service
+    match state.jwt_service.validate_token(token) {
         Ok(claims) => {
             // Check if user exists in database
             match state.db.check_user_exists(&claims.sub).await {
@@ -39,6 +39,7 @@ pub async fn auth_middleware<B>(
 
 // Role-based authorization middleware
 pub async fn require_role<B>(
+    State(state): State<Arc<AppState>>,
     role: String,
     req: Request<B>,
     next: Next<B>,
@@ -53,8 +54,8 @@ pub async fn require_role<B>(
         _ => return Err(StatusCode::UNAUTHORIZED),
     };
 
-    match jwt::get_user_role_from_token(token) {
-        Some(user_role) if user_role == role => Ok(next.run(req).await),
+    match state.jwt_service.validate_token(token) {
+        Ok(claims) if claims.role == role => Ok(next.run(req).await),
         _ => Err(StatusCode::FORBIDDEN),
     }
 }

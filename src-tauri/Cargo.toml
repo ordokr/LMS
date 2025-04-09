@@ -1,9 +1,9 @@
 [package]
-name = "lms-tauri"
-version = "0.0.0"
+name = "lms-core"
+version = "0.1.0"
 description = "Learning Management System with integrated forum"
-authors = ["Your Name"]
-edition = "2021"
+authors = ["Tim Vail"]
+edition = "2021"  # or "2024" if your Cargo version supports it
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -18,23 +18,91 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "1.4.0", features = [] }
 
 [dependencies]
-axum = { version = "0.6", features = ["headers", "http2", "macros"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-tauri = { version = "1.4.0", features = ["dialog-all", "fs-all", "http-all", "shell-open"] }
-tokio = { version = "1", features = ["full"] }
-sqlx = { version = "0.7", features = ["runtime-tokio", "tls-rustls", "sqlite", "migrate", "json", "time", "macros"] }
-time = "0.3"
-tower = "0.4"
-tower-http = { version = "0.4", features = ["cors", "fs", "trace"] }
+# Core blockchain dependencies with pinned versions
+redb = { version = "=1.3.0", default-features = false, features = ["logging"] }
+libp2p = { version = "=0.53.2", default-features = false, features = ["tcp", "noise", "gossipsub"] }
+ed25519-dalek = "=2.0.0"
+automerge = { version = "=0.5.1", default-features = false }
+
+# Zero-copy serialization
+postcard = "1.0"
+bincode = "=1.3.3"
+
+# Async runtime with minimal features
+tokio = { version = "1", features = ["full"], default-features = false }
+
+# Database and serialization
+sqlx = { version = "0.8.3", features = ["runtime-tokio-rustls", "sqlite", "chrono", "macros"], default-features = false }
+serde = { version = "1.0", features = ["derive"], default-features = false }
+
+# Memory optimization
+arrayvec = "0.7.6"
+parking_lot = "0.12.3"
+once_cell = "1.21.3"
+
+# Diff-based anchoring
+diff-struct = "0.5"
+blake3 = "1.8.1"
+
+# Telemetry
+tracing = "0.1.41"
+tracing-subscriber = "0.3.19"
+hdrhistogram = "7.5.4"
+
+# Error handling
+thiserror = "2.0.12"
+
+# Cryptography
+rand = "0.8"
+
+# Other utilities
+hex = "=0.4.3"
+uuid = { version = "1.16.0", features = ["v4", "serde"] }
+chrono = { version = "0.4.40", features = ["serde"], default-features = false }
+serde_json = "1.0.140"
+moka = { version = "0.12", features = ["future"] }
+meilisearch-sdk = "0.24.1"
+reqwest = { version = "0.11", features = ["json", "stream"] }
+ctrlc = "3.2"
+bcrypt = "0.12.0"
+regex = "1.10.4"
+jsonwebtoken = "9.3.1"
+
+# Added missing dependencies
+axum = { version = "0.7", features = ["tokio"] }
+tauri = { version = "1.4" }
+argon2 = "0.5.2"
+
+# Analyzer dependencies
+chrono = { version = "0.4", features = ["serde"] }
+regex = "1.10"
+walkdir = "2.4"
+futures-util = "0.3"
+async-trait = "0.1"
+clap = { version = "4.4", features = ["derive"] }
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-uuid = { version = "1.0", features = ["serde", "v4"] }
-jsonwebtoken = "8.0"
-bcrypt = "0.15"
-thiserror = "1.0"
-anyhow = "1.0"
+tracing-subscriber = "0.3"
+syn = { version = "2.0", features = ["full", "parsing"] }
+proc-macro2 = "1.0"
+quote = "1.0"
+reqwest = { version = "0.11", features = ["json"] }
+futures = "0.3"
+
+[dev-dependencies]
+criterion = "0.5"
+proptest = "1.3"
+mockall = "0.13.1"
+test-case = "3.2"
 
 [features]
-# This feature enables closer integration with tauri, but requires tauri presence
-custom-protocol = ["tauri/custom-protocol"]
+default = []
+# Remove criterion from bench feature since it can't be optional
+bench = []
+type-sizes = []
+blockchain-full = ["libp2p/identify", "libp2p/kad"]
+
+[[bench]]
+name = "blockchain_bench"
+harness = false
+# This line makes cargo only build the benchmark when the bench feature is enabled
+required-features = ["bench"]

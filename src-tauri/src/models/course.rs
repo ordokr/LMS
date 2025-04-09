@@ -1,17 +1,13 @@
 use serde::{Serialize, Deserialize};
+use chrono::{DateTime, Utc};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Course {
-    pub id: Option<i64>,
+    pub id: i64,
     pub title: String,
     pub description: Option<String>,
     pub instructor_id: i64,
-    pub code: String,
-    pub start_date: Option<String>,
-    pub end_date: Option<String>,
-    pub created_at: Option<String>,
-    pub updated_at: Option<String>,
-    pub status: CourseStatus,
+    pub created_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -60,4 +56,12 @@ pub struct Submission {
     pub submitted_at: Option<String>,
     pub grade: Option<f32>,
     pub feedback: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CourseCreate {
+    pub title: String,
+    pub description: String,
+    pub status: CourseStatus,
+    pub modules: Option<Vec<String>>, // Optional initial modules
 }

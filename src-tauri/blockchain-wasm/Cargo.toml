@@ -1,0 +1,10 @@
+[package]
+name = "blockchain-wasm"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.76.0"
+
+[dependencies]
+# Add your dependencies here
+wasm-bindgen = "0.2.89"
+# Other dependencies as needed

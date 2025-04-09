@@ -1,0 +1,32 @@
+{
+  "models": [
+    {
+      "canvasModelPath": "src/models/unifiedModels/Course.js",
+      "outputPath": "lms-integration/src/models/canvas/course.rs"
+    },
+    {
+      "canvasModelPath": "src/models/unifiedModels/Assignment.js",
+      "outputPath": "lms-integration/src/models/canvas/assignment.rs"
+    },
+    {
+      "canvasModelPath": "src/models/unifiedModels/User.js",
+      "outputPath": "lms-integration/src/models/canvas/user.rs"
+    },
+    {
+      "canvasModelPath": "src/models/unifiedModels/Discussion.js",
+      "outputPath": "lms-integration/src/models/canvas/discussion.rs"
+    },
+    {
+      "canvasModelPath": "src/models/unifiedModels/Notification.js",
+      "outputPath": "lms-integration/src/models/canvas/notification.rs"
+    },
+    {
+      "canvasModelPath": "src/models/unified/BaseModel.js",
+      "outputPath": "lms-integration/src/models/canvas/base_model.rs"
+    },
+    {
+      "canvasModelPath": "src/models/unified/UserModel.js",
+      "outputPath": "lms-integration/src/models/canvas/user_model.rs"
+    }
+  ]
+}

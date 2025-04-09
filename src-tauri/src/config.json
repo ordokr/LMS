@@ -1,0 +1,49 @@
+{
+  "app": {
+    "name": "Canvas-Discourse LMS Integration",
+    "version": "1.0.0"
+  },
+  "database": {
+    "url": "DATABASE_URL_PLACEHOLDER"
+  },
+  "auth": {
+    "jwt": {
+      "secret": "YOUR_SECRET_KEY_CHANGE_THIS_IN_PRODUCTION",
+      "issuer": "lms-integration",
+      "audience": "lms-client",
+      "access_token_expiration_seconds": 900,
+      "refresh_token_expiration_seconds": 86400,
+      "refresh_token_enabled": true
+    },
+    "password": {
+      "min_length": 8,
+      "require_special_chars": true,
+      "require_numbers": true,
+      "require_uppercase": true
+    }
+  },
+  "cors": {
+    "allowed_origins": ["http://localhost:5173"],
+    "allowed_methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    "allowed_headers": ["Content-Type", "Authorization"],
+    "max_age_seconds": 86400
+  },
+  "canvas": {
+    "api_url": "CANVAS_API_URL_PLACEHOLDER",
+    "api_key": "CANVAS_API_KEY_PLACEHOLDER"
+  },
+  "discourse": {
+    "api_url": "DISCOURSE_API_URL_PLACEHOLDER",
+    "api_key": "DISCOURSE_API_KEY_PLACEHOLDER"
+  },
+  "integration": {
+    "sync_interval_seconds": 300,
+    "sync_batch_size": 100
+  },
+  "logging": {
+    "level": "info",
+    "file": "logs/lms-integration.log",
+    "max_file_size_mb": 10,
+    "max_files": 5
+  }
+}

@@ -1,0 +1,106 @@
+-- filepath: c:\Users\Tim\Desktop\LMS\haskell-integration\lms-haskell-integration.cabal
+cabal-version:      2.4
+name:               lms-haskell-integration
+version:            0.1.0.0
+synopsis:           Haskell integration for LMS platform
+description:        Performance-focused Haskell components for Rust/Tauri/Leptos educational platform.
+homepage:           https://github.com/yourusername/lms
+license:            MIT
+license-file:       LICENSE
+author:             Your Name
+maintainer:         your.email@example.com
+copyright:          2025 Your Name
+category:           Education
+extra-source-files:
+    README.md
+    CHANGELOG.md
+    cbits/*.h
+
+common warnings
+    ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -O2 -fllvm -optlo-O3
+
+library
+    import:           warnings
+    exposed-modules:  
+        Sync.CRDT
+        Blockchain.Verification
+        Query.Optimizer
+        Parser.CompletionRules
+        Parser.QueryLanguage
+    other-modules:    
+        Parser.CompletionRulesLexer
+        Parser.CompletionRulesParser
+        Parser.QueryLexer
+        Parser.QueryParser
+    build-depends:    
+        base ^>=4.16.0.0,
+        bytestring ^>=0.11.3.0,
+        vector ^>=0.13.0.0,
+        containers ^>=0.6.5.1,
+        parallel ^>=3.2.2.0,
+        template-haskell ^>=2.18.0.0,
+        array ^>=0.5.4.0,
+        text ^>=2.0.1,
+        mtl ^>=2.2.2
+    hs-source-dirs:   src
+    default-language: Haskell2010
+    build-tools:      alex:alex, happy:happy
+    c-sources:        
+        cbits/sync_bridge.c
+        cbits/blockchain_bridge.c
+        cbits/query_bridge.c
+    include-dirs:     cbits
+
+executable lms-haskell-analyzer
+    import:           warnings
+    main-is:          Main.hs
+    build-depends:
+        base ^>=4.16.0.0,
+        lms-haskell-integration,
+        bytestring,
+        vector,
+        aeson ^>=2.1.0.0,
+        optparse-applicative ^>=0.17.0.0,
+        filepath ^>=1.4.2.1,
+        directory ^>=1.3.6.2
+    hs-source-dirs:   app
+    default-language: Haskell2010
+    ghc-options:      -threaded -rtsopts -with-rtsopts=-N
+
+test-suite lms-haskell-tests
+    import:           warnings
+    type:             exitcode-stdio-1.0
+    main-is:          Spec.hs
+    other-modules:
+        Sync.CRDTSpec
+        Blockchain.VerificationSpec
+        Query.OptimizerSpec
+        Parser.CompletionRulesSpec
+    build-depends:
+        base ^>=4.16.0.0,
+        lms-haskell-integration,
+        hspec ^>=2.10.0,
+        QuickCheck ^>=2.14.2,
+        bytestring,
+        vector
+    hs-source-dirs:   test
+    default-language: Haskell2010
+    ghc-options:      -threaded -rtsopts -with-rtsopts=-N
+
+benchmark lms-haskell-bench
+    import:           warnings
+    type:             exitcode-stdio-1.0
+    main-is:          Bench.hs
+    other-modules:
+        Sync.CRDTBench
+        Query.OptimizerBench
+    build-depends:
+        base ^>=4.16.0.0,
+        lms-haskell-integration,
+        criterion ^>=1.6.0.0,
+        bytestring,
+        vector,
+        random ^>=1.2.1.1
+    hs-source-dirs:   bench
+    default-language: Haskell2010
+    ghc-options:      -threaded -rtsopts -with-rtsopts=-N

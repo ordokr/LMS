@@ -1,0 +1,122 @@
+/* User-facing performance feedback widget */
+.performance-feedback {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 300px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  z-index: 1000;
+  animation: slide-in 0.3s ease-out;
+}
+
+@keyframes slide-in {
+  0% { transform: translateY(100%); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+.feedback-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 15px;
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.feedback-score {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: white;
+  margin-right: 12px;
+  flex-shrink: 0;
+  background-color: var(--score-color, #3B82F6);
+}
+
+.feedback-score:has([score < 50]) {
+  --score-color: #EF4444;
+}
+
+.feedback-score:has([score < 70]) {
+  --score-color: #F59E0B;
+}
+
+.feedback-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #111827;
+  flex-grow: 1;
+}
+
+.feedback-dismiss {
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+
+.feedback-dismiss:hover {
+  background-color: #f3f4f6;
+  color: #1f2937;
+}
+
+.feedback-body {
+  padding: 15px;
+  color: #4b5563;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.feedback-actions {
+  display: flex;
+  padding: 10px 15px 15px;
+  gap: 8px;
+}
+
+.feedback-action {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  background-color: #3B82F6;
+  color: white;
+  transition: background-color 0.2s;
+}
+
+.feedback-action:hover {
+  background-color: #2563EB;
+}
+
+.feedback-action.secondary {
+  background-color: #f3f4f6;
+  color: #4b5563;
+}
+
+.feedback-action.secondary:hover {
+  background-color: #e5e7eb;
+  color: #1f2937;
+}
+
+@media (max-width: 768px) {
+  .performance-feedback {
+    width: calc(100% - 40px);
+    max-width: 400px;
+  }
+}

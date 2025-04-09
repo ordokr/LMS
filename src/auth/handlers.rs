@@ -19,9 +19,12 @@ pub struct LoginRequest {
 #[derive(Debug, Serialize)]
 pub struct LoginResponse {
     pub token: String,
+    pub refresh_token: String,
+    pub expires_at: usize,
     pub user_id: String,
     pub role: String,
     pub canvas_id: String,
+    pub discourse_id: Option<String>,
 }
 
 pub async fn login(
@@ -31,21 +34,36 @@ pub async fn login(
     // Authenticate user against database
     match state.db.authenticate_user(&payload.username, &payload.password).await {
         Some(user) => {
-            // Generate JWT token
-            match jwt::generate_token(&user.id, &user.role, &user.canvas_id) {
-                Ok(token) => {
+            // Generate both access token and refresh token            match state.jwt_service.generate_auth_tokens(
+                &user.id, 
+                &user.role, 
+                &user.canvas_id,
+                user.discourse_id.as_deref(),
+                Some(&user.email),
+                Some(&user.name)
+            ) {
+                Ok((token, refresh_token)) => {
+                    // Calculate token expiration (24 hours from now)
+                    let expires_at = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .expect("Time went backwards")
+                        .as_secs() as usize + 24 * 3600;
+                    
                     let response = LoginResponse {
                         token,
+                        refresh_token,
+                        expires_at,
                         user_id: user.id,
                         role: user.role,
                         canvas_id: user.canvas_id,
+                        discourse_id: user.discourse_id,
                     };
                     
                     (StatusCode::OK, Json(response))
                 },
                 Err(_) => {
                     (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({
-                        "error": "Failed to generate token"
+                        "error": "Failed to generate authentication tokens"
                     })))
                 }
             }
@@ -78,9 +96,15 @@ pub async fn refresh_token(
                     "error": "User not found"
                 })));
             }
-            
-            // Generate a new token
-            match jwt::generate_token(&claims.sub, &claims.role, &claims.canvas_id) {
+              // Generate a new token
+            match jwt::generate_token(
+                &claims.sub,
+                &claims.role,
+                &claims.canvas_id,
+                claims.discourse_id.as_deref(),
+                claims.email.as_deref(),
+                claims.name.as_deref()
+            ) {
                 Ok(new_token) => {
                     (StatusCode::OK, Json(serde_json::json!({
                         "token": new_token

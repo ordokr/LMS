@@ -1,5 +1,6 @@
 pub mod schema;
 pub mod repositories;
+pub mod forum;
 
 use sqlx::{sqlite::{SqliteConnectOptions, SqlitePoolOptions}, Pool, Sqlite, SqlitePool};
 use std::{path::Path, str::FromStr};
@@ -32,7 +33,6 @@ pub async fn init_db(db_path: &str) -> Result<Pool<Sqlite>, sqlx::Error> {
 
 // Declare the submodules
 mod course;      // Missing: Need to create this file
-mod forum;       // Missing: Need to create this file
 
 // Public exports
 pub use repositories::{
