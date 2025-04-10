@@ -7,6 +7,10 @@ use tokio::fs;
 use crate::analyzers::unified_analyzer::{UnifiedProjectAnalyzer, AnalysisResult};
 use crate::utils::file_system::FileSystemUtils;
 use crate::ai::gemini_analyzer::GeminiAnalyzer;
+use crate::analyzers::docs_updater::DocsUpdater;
+use crate::analyzers::js_migration_analyzer::JsMigrationAnalyzer;
+use crate::analyzers::dashboard_generator::DashboardGenerator;
+use crate::analyzers::tech_debt_analyzer::TechDebtAnalyzer;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnalysisCommand {
@@ -15,6 +19,9 @@ pub struct AnalysisCommand {
     pub output_dir: PathBuf,
     pub update_rag_knowledge_base: bool,
     pub generate_ai_insights: bool,
+    pub analyze_js_files: bool,
+    pub generate_dashboard: bool,
+    pub analyze_tech_debt: bool,
 }
 
 impl Default for AnalysisCommand {
@@ -30,6 +37,9 @@ impl Default for AnalysisCommand {
             output_dir: PathBuf::from("docs"),
             update_rag_knowledge_base: true,
             generate_ai_insights: true,
+            analyze_js_files: true,
+            generate_dashboard: false,
+            analyze_tech_debt: false,
         }
     }
 }
@@ -68,21 +78,47 @@ impl AnalysisRunner {
         // Save the analysis result to a JSON file
         self.save_analysis_result(&result).await?;
         
-        // Generate the central reference hub markdown
-        analyzer.generate_central_reference_hub().await?;
+        // Create docs updater
+        let docs_updater = DocsUpdater::new(self.base_dir.clone());
+        
+        // Update the central reference hub
+        docs_updater.update_central_reference_hub(&result)?;
         
         // Update the RAG knowledge base if requested
         if command.update_rag_knowledge_base {
-            self.update_rag_knowledge_base(&result).await?;
+            docs_updater.update_rag_knowledge_base(&result)?;
+            
+            // Generate AI-specific documentation for agents
+            docs_updater.generate_last_analysis_results(&result)?;
+        }
+        
+        // Generate dashboard
+        if command.generate_dashboard {
+            let dashboard_generator = DashboardGenerator::new(self.base_dir.clone());
+            dashboard_generator.generate_dashboard(&result)?;
+        }
+        
+        // Analyze technical debt
+        if command.analyze_tech_debt {
+            let tech_debt_analyzer = TechDebtAnalyzer::new(self.base_dir.clone());
+            let report = tech_debt_analyzer.generate_report()?;
+            
+            // Save the tech debt report
+            let report_path = self.base_dir.join("docs").join("technical_debt_report.md");
+            fs::write(&report_path, report).await?;
+            
+            println!("Technical debt report generated: {:?}", report_path);
+        }
+        
+        // Generate JS to Rust migration plan if requested
+        if command.analyze_js_files {
+            self.analyze_js_files().await?;
         }
         
         // Generate AI insights if requested
         if command.generate_ai_insights && self.gemini.is_some() {
             self.generate_ai_insights(&result).await?;
         }
-        
-        // Update the LAST_ANALYSIS_RESULTS.md file
-        self.update_last_analysis_results(&result).await?;
         
         println!("Project analysis completed successfully.");
         
@@ -203,79 +239,66 @@ impl AnalysisRunner {
         Ok(())
     }
     
-    async fn update_last_analysis_results(&self, result: &AnalysisResult) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        println!("Updating LAST_ANALYSIS_RESULTS.md...");
+    async fn analyze_js_files(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        println!("Analyzing JavaScript files for Rust migration...");
         
-        // Create a summary of the analysis result
-        let mut content = format!(
-            "# Last Analysis Results\n\n_Generated on: {}_\n\n",
-            Utc::now().format("%Y-%m-%d")
-        );
+        // Create the JS migration analyzer
+        let mut js_analyzer = JsMigrationAnalyzer::new(self.base_dir.clone());
         
-        // Add overall status
-        content.push_str("## Overall Status\n\n");
-        content.push_str(&format!("- **Phase**: {}\n", result.project_status.phase));
-        content.push_str(&format!("- **Completion**: {:.1}%\n", result.project_status.completion_percentage));
-        content.push_str(&format!("- **Last Active Area**: {}\n", result.project_status.last_active_area));
+        // Generate migration plan
+        let migration_plan = js_analyzer.generate_migration_plan()?;
         
-        if let Some(date) = &result.project_status.estimated_completion_date {
-            content.push_str(&format!("- **Estimated Completion**: {}\n", date.format("%Y-%m-%d")));
+        // Write the migration plan to a file
+        let plan_path = self.base_dir.join("docs").join("js_to_rust_migration_plan.md");
+        fs::create_dir_all(plan_path.parent().unwrap()).await?;
+        fs::write(&plan_path, migration_plan).await?;
+        
+        // Find high priority files and generate templates
+        let js_files = js_analyzer.discover_js_files();
+        
+        // Create a templates directory
+        let templates_dir = self.base_dir.join("tools").join("rust_templates");
+        fs::create_dir_all(&templates_dir).await?;
+        
+        // Process up to 5 high priority files
+        let mut processed = 0;
+        for js_path in js_files.iter().take(10) {
+            match js_analyzer.analyze_js_file(js_path) {
+                Ok(analysis) => {
+                    // Skip files that aren't high priority or already completed
+                    if analysis.port_priority < 8 || !matches!(analysis.port_status, crate::analyzers::js_migration_analyzer::PortStatus::NotStarted) {
+                        continue;
+                    }
+                    
+                    // Generate Rust template
+                    match js_analyzer.generate_rust_template(js_path) {
+                        Ok(template) => {
+                            // Create filename for the template
+                            let file_name = js_path.file_stem().unwrap_or_default().to_string_lossy();
+                            let template_path = templates_dir.join(format!("{}.rs", file_name));
+                            
+                            // Write the template
+                            fs::write(&template_path, template).await?;
+                            println!("Generated Rust template for {}: {:?}", file_name, template_path);
+                            
+                            processed += 1;
+                            if processed >= 5 {
+                                break;
+                            }
+                        },
+                        Err(e) => {
+                            println!("Error generating template for {}: {}", js_path.display(), e);
+                        }
+                    }
+                },
+                Err(e) => {
+                    println!("Error analyzing {}: {}", js_path.display(), e);
+                }
+            }
         }
         
-        content.push_str("\n");
-        
-        // Add implementation summary
-        content.push_str("## Implementation Summary\n\n");
-        content.push_str(&format!("- **Models**: {}/{} implemented ({:.1}%)\n", 
-            result.models.implemented, 
-            result.models.total,
-            if result.models.total > 0 {
-                (result.models.implemented as f32 / result.models.total as f32) * 100.0
-            } else {
-                0.0
-            }
-        ));
-        
-        content.push_str(&format!("- **API Endpoints**: {}/{} implemented ({:.1}%)\n", 
-            result.api_endpoints.implemented, 
-            result.api_endpoints.total,
-            if result.api_endpoints.total > 0 {
-                (result.api_endpoints.implemented as f32 / result.api_endpoints.total as f32) * 100.0
-            } else {
-                0.0
-            }
-        ));
-        
-        content.push_str(&format!("- **UI Components**: {}/{} implemented ({:.1}%)\n", 
-            result.ui_components.implemented, 
-            result.ui_components.total,
-            if result.ui_components.total > 0 {
-                (result.ui_components.implemented as f32 / result.ui_components.total as f32) * 100.0
-            } else {
-                0.0
-            }
-        ));
-        
-        content.push_str(&format!("- **Test Coverage**: {:.1}%\n", result.tests.coverage));
-        
-        content.push_str("\n");
-        
-        // Add recommendation summary
-        content.push_str("## Recommendations\n\n");
-        
-        for recommendation in &result.recommendations {
-            content.push_str(&format!("- **{}**: {} (Priority: {})\n", 
-                recommendation.area, 
-                recommendation.description,
-                recommendation.priority
-            ));
-        }
-        
-        // Write the file
-        let output_path = self.base_dir.join("LAST_ANALYSIS_RESULTS.md");
-        fs::write(&output_path, content).await?;
-        
-        println!("LAST_ANALYSIS_RESULTS.md updated.");
+        println!("JavaScript migration analysis completed. Plan written to {:?}", plan_path);
+        println!("Generated {} Rust templates in {:?}", processed, templates_dir);
         
         Ok(())
     }

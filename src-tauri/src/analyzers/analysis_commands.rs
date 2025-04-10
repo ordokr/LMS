@@ -15,6 +15,9 @@ pub struct AnalysisRequest {
     pub output_dir: Option<String>,
     pub update_rag_knowledge_base: Option<bool>,
     pub generate_ai_insights: Option<bool>,
+    pub analyze_js_files: Option<bool>,
+    pub generate_dashboard: Option<bool>,
+    pub analyze_tech_debt: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -73,6 +76,18 @@ pub async fn analyze_project(
         command.generate_ai_insights = generate_insights;
     }
     
+    if let Some(analyze_js) = request.analyze_js_files {
+        command.analyze_js_files = analyze_js;
+    }
+    
+    if let Some(generate_dashboard) = request.generate_dashboard {
+        command.generate_dashboard = generate_dashboard;
+    }
+    
+    if let Some(analyze_tech_debt) = request.analyze_tech_debt {
+        command.analyze_tech_debt = analyze_tech_debt;
+    }
+    
     // Create file system utils
     let fs_utils = Arc::new(FileSystemUtils::new(&current_dir));
     
@@ -121,6 +136,9 @@ pub async fn quick_analyze_project() -> Result<AnalysisResponse, String> {
         output_dir: None,
         update_rag_knowledge_base: Some(false),
         generate_ai_insights: Some(false),
+        analyze_js_files: Some(false),
+        generate_dashboard: Some(false),
+        analyze_tech_debt: Some(false),
     };
     
     // Run the analysis
@@ -137,6 +155,9 @@ pub async fn update_rag_knowledge_base() -> Result<AnalysisResponse, String> {
         output_dir: None,
         update_rag_knowledge_base: Some(true),
         generate_ai_insights: Some(false),
+        analyze_js_files: Some(false),
+        generate_dashboard: Some(false),
+        analyze_tech_debt: Some(false),
     };
     
     // Run the analysis
@@ -153,6 +174,85 @@ pub async fn generate_ai_insights() -> Result<AnalysisResponse, String> {
         output_dir: None,
         update_rag_knowledge_base: Some(false),
         generate_ai_insights: Some(true),
+        analyze_js_files: Some(false),
+        generate_dashboard: Some(false),
+        analyze_tech_debt: Some(false),
+    };
+    
+    // Run the analysis
+    analyze_project(request).await
+}
+
+// Tauri command for analyzing JavaScript files and generating Rust templates
+#[command]
+pub async fn analyze_js_files() -> Result<AnalysisResponse, String> {
+    // Create a specialized analysis request for JavaScript analysis
+    let request = AnalysisRequest {
+        target_dirs: None,
+        exclude_patterns: None,
+        output_dir: None,
+        update_rag_knowledge_base: Some(false),
+        generate_ai_insights: Some(false),
+        analyze_js_files: Some(true),
+        generate_dashboard: Some(false),
+        analyze_tech_debt: Some(false),
+    };
+    
+    // Run the analysis
+    analyze_project(request).await
+}
+
+// Tauri command for generating the visual dashboard
+#[command]
+pub async fn generate_dashboard() -> Result<AnalysisResponse, String> {
+    // Create a specialized analysis request for dashboard generation
+    let request = AnalysisRequest {
+        target_dirs: None,
+        exclude_patterns: None,
+        output_dir: None,
+        update_rag_knowledge_base: Some(false),
+        generate_ai_insights: Some(false),
+        analyze_js_files: Some(false),
+        generate_dashboard: Some(true),
+        analyze_tech_debt: Some(false),
+    };
+    
+    // Run the analysis
+    analyze_project(request).await
+}
+
+// Tauri command for analyzing technical debt
+#[command]
+pub async fn analyze_tech_debt() -> Result<AnalysisResponse, String> {
+    // Create a specialized analysis request for technical debt analysis
+    let request = AnalysisRequest {
+        target_dirs: None,
+        exclude_patterns: None,
+        output_dir: None,
+        update_rag_knowledge_base: Some(false),
+        generate_ai_insights: Some(false),
+        analyze_js_files: Some(false),
+        generate_dashboard: Some(false),
+        analyze_tech_debt: Some(true),
+    };
+    
+    // Run the analysis
+    analyze_project(request).await
+}
+
+// Tauri command for comprehensive analysis with all features
+#[command]
+pub async fn comprehensive_analysis() -> Result<AnalysisResponse, String> {
+    // Create a full analysis request with all features enabled
+    let request = AnalysisRequest {
+        target_dirs: None,
+        exclude_patterns: None,
+        output_dir: None,
+        update_rag_knowledge_base: Some(true),
+        generate_ai_insights: Some(true),
+        analyze_js_files: Some(true),
+        generate_dashboard: Some(true),
+        analyze_tech_debt: Some(true),
     };
     
     // Run the analysis
@@ -166,6 +266,9 @@ pub async fn cli_analyze_project(
     output_dir: Option<String>,
     update_rag: bool,
     generate_insights: bool,
+    analyze_js: bool,
+    generate_dashboard: bool,
+    analyze_tech_debt: bool,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Create the analysis request
     let request = AnalysisRequest {
@@ -174,6 +277,9 @@ pub async fn cli_analyze_project(
         output_dir,
         update_rag_knowledge_base: Some(update_rag),
         generate_ai_insights: Some(generate_insights),
+        analyze_js_files: Some(analyze_js),
+        generate_dashboard: Some(generate_dashboard),
+        analyze_tech_debt: Some(analyze_tech_debt),
     };
     
     // Run the analysis

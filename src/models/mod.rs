@@ -1,23 +1,19 @@
-// Module declarations
-pub mod admin;
-pub mod forum;
-pub mod lms;
-pub mod notification;
-pub mod user;
-pub mod sync;
+// src/models/mod.rs
+//! Unified models for the LMS integration
 
-// Submodule declarations
-pub mod forum {
-    pub mod tag;
+mod user;
+mod notification;
+mod discussion;
+mod course;
+mod assignment;
+
+pub use user::User;
+pub use notification::Notification;
+pub use discussion::Discussion;
+pub use course::Course;
+pub use assignment::Assignment;
+
+// Re-export for convenience
+pub mod unified {
+    pub use super::*;
 }
-
-// Re-export common models for easier importing
-pub use self::forum::{Group, Site, PostActionType, Category, Topic, Post};
-pub use self::lms::{
-    Course, Module, ModuleItem, Assignment, AssignmentGroup, 
-    Enrollment, Submission, Page, CompletionRequirement
-};
-pub use self::user::{User, Badge};
-pub use self::notification::{Notification, NotificationPreference};
-pub use self::admin::{GroupMember, Setting};
-pub use self::forum::tag::Tag;

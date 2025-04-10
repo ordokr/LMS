@@ -1,0 +1,65 @@
+// src/api/discourse_api.rs
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+use chrono::Utc;
+use async_trait::async_trait;
+use std::error::Error;
+
+#[async_trait]
+pub trait DiscourseApiTrait {
+    async fn get_user_notifications(&self, discourse_user_id: &str) -> Result<Vec<Value>, Box<dyn Error>>;
+    async fn mark_notification_as_read(&self, notification_id: &str) -> Result<Value, Box<dyn Error>>;
+    async fn create_notification(&self, notification_data: Value) -> Result<Value, Box<dyn Error>>;
+}
+
+pub struct DiscourseApi {
+    // Configuration properties would go here in a real implementation
+    base_url: String,
+    api_key: String,
+}
+
+impl DiscourseApi {
+    pub fn new(base_url: &str, api_key: &str) -> Self {
+        DiscourseApi {
+            base_url: base_url.to_string(),
+            api_key: api_key.to_string(),
+        }
+    }
+}
+
+#[async_trait]
+impl DiscourseApiTrait for DiscourseApi {
+    async fn get_user_notifications(&self, discourse_user_id: &str) -> Result<Vec<Value>, Box<dyn Error>> {
+        // Stub implementation - would be replaced with actual API calls
+        let notification = json!({
+            "id": "discourse1",
+            "createdAt": Utc::now().to_rfc3339(),
+            "read": false,
+            "notificationType": "discussion",
+            // ...other fields...
+        });
+        
+        Ok(vec![notification])
+    }
+    
+    async fn mark_notification_as_read(&self, notification_id: &str) -> Result<Value, Box<dyn Error>> {
+        // Stub implementation - would be replaced with actual API calls
+        let result = json!({
+            "id": notification_id,
+            "read": true
+        });
+        
+        Ok(result)
+    }
+    
+    async fn create_notification(&self, notification_data: Value) -> Result<Value, Box<dyn Error>> {
+        // Stub implementation - would be replaced with actual API calls
+        let mut result = notification_data.clone();
+        
+        if let Value::Object(map) = &mut result {
+            map.insert("id".to_string(), json!("discourse_created_id"));
+        }
+        
+        Ok(result)
+    }
+}

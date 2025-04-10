@@ -1,0 +1,51 @@
+# Configuration for the LMS Project Analyzer
+
+[tech_stack]
+frontend = ["Leptos", "Tauri"]
+backend = ["Rust", "Haskell"]
+database = ["SQLite", "sqlx"]
+search = ["MeiliSearch"]
+ai = ["Gemini"]
+blockchain = ["Custom Rust implementation"]
+authentication = ["JWT"]
+
+[architecture]
+patterns = ["CQRS", "Event Sourcing", "Repository Pattern"]
+principles = ["Clean Architecture", "SOLID", "Offline-first"]
+diagrams = [
+    "docs/architecture/high_level.md",
+    "docs/architecture/data_flow.md",
+]
+
+[[integrations]]
+name = "Canvas Course Management"
+source_system = "Canvas"
+target_system = "LMS"
+integration_points = [
+    "Course creation",
+    "Assignment management",
+    "Grading system",
+]
+status = "In Progress"
+
+[[integrations]]
+name = "Discourse Forums"
+source_system = "Discourse"
+target_system = "LMS"
+integration_points = [
+    "Discussion threads",
+    "User profiles",
+    "Notifications",
+]
+status = "Planned"
+
+[[integrations]]
+name = "Blockchain Certification"
+source_system = "Native"
+target_system = "LMS"
+integration_points = [
+    "Certificate issuance",
+    "Achievement verification",
+    "Credential storage",
+]
+status = "In Progress"

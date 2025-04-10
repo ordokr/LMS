@@ -1,254 +1,253 @@
-use serde::{Deserialize, Serialize};
+// src/models/discussion.rs
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use uuid::Uuid;
-use crate::models::mapping::CourseCategory;
-use crate::error::Error;
 
+/// Unified Discussion model
+/// Maps between Canvas Discussion and Discourse Topic
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DiscussionMapping {
-    pub id: String,
-    pub canvas_discussion_id: String,
-    pub discourse_topic_id: String,
-    pub course_category_id: String, // Reference to parent mapping
+pub struct Discussion {
+    // Core fields
+    pub id: Option<String>,
     pub title: String,
-    pub last_sync: DateTime<Utc>,
-    pub sync_enabled: bool,
-    pub sync_posts: bool, // Whether to sync individual posts/replies
+    pub message: String,
     pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub creator_id: Option<String>,
+    
+    // Canvas-specific fields
+    pub canvas_id: Option<String>,
+    pub course_id: Option<String>,
+    pub pinned: bool,
+    pub locked: bool,
+    pub allow_rating: bool,
+    pub only_graders_can_rate: bool,
+    
+    // Discourse-specific fields
+    pub discourse_id: Option<String>,
+    pub category_id: Option<String>,
+    pub slug: String,
+    pub views: i32,
+    pub posts_count: i32,
+    pub closed: bool,
+    pub archived: bool,
+    pub tags: Vec<String>,
+    
+    // Integration fields
+    pub last_sync: Option<DateTime<Utc>>,
+    pub source_system: String,
 }
 
-impl DiscussionMapping {
+impl Discussion {
+    /// Create a new Discussion instance
     pub fn new(
-        canvas_discussion_id: &str,
-        discourse_topic_id: &str,
-        course_category_id: &str,
-        title: &str,
+        id: Option<String>,
+        title: Option<String>,
+        message: Option<String>,
+        created_at: Option<DateTime<Utc>>,
+        updated_at: Option<DateTime<Utc>>,
+        creator_id: Option<String>,
+        canvas_id: Option<String>,
+        course_id: Option<String>,
+        pinned: Option<bool>,
+        locked: Option<bool>,
+        allow_rating: Option<bool>,
+        only_graders_can_rate: Option<bool>,
+        discourse_id: Option<String>,
+        category_id: Option<String>,
+        slug: Option<String>,
+        views: Option<i32>,
+        posts_count: Option<i32>,
+        closed: Option<bool>,
+        archived: Option<bool>,
+        tags: Option<Vec<String>>,
+        last_sync: Option<DateTime<Utc>>,
+        source_system: Option<String>,
     ) -> Self {
+        let title_str = title.unwrap_or_default();
         let now = Utc::now();
-        Self {
-            id: Uuid::new_v4().to_string(),
-            canvas_discussion_id: canvas_discussion_id.to_string(),
-            discourse_topic_id: discourse_topic_id.to_string(),
-            course_category_id: course_category_id.to_string(),
-            title: title.to_string(),
-            last_sync: now,
-            sync_enabled: true,
-            sync_posts: true,
-            created_at: now,
+        
+        Discussion {
+            id,
+            title: title_str.clone(),
+            message: message.unwrap_or_default(),
+            created_at: created_at.unwrap_or(now),
+            updated_at: updated_at.unwrap_or(now),
+            creator_id,
+            canvas_id,
+            course_id,
+            pinned: pinned.unwrap_or(false),
+            locked: locked.unwrap_or(false),
+            allow_rating: allow_rating.unwrap_or(false),
+            only_graders_can_rate: only_graders_can_rate.unwrap_or(false),
+            discourse_id,
+            category_id,
+            slug: slug.unwrap_or_else(|| Self::generate_slug(&title_str)),
+            views: views.unwrap_or(0),
+            posts_count: posts_count.unwrap_or(0),
+            closed: closed.unwrap_or(false),
+            archived: archived.unwrap_or(false),
+            tags: tags.unwrap_or_default(),
+            last_sync,
+            source_system: source_system.unwrap_or_else(|| "canvas".to_string()),
         }
     }
     
-    pub async fn sync(
-        &mut self,
-        db: &Database,
-        canvas_client: &CanvasClient,
-        discourse_client: &DiscourseClient,
-    ) -> Result<DiscussionSyncSummary, Error> {
-        if !self.sync_enabled {
-            return Ok(DiscussionSyncSummary::new(
-                &self.id, 
-                "Sync disabled for this discussion mapping"
-            ));
+    /// Generate a slug from title
+    fn generate_slug(title: &str) -> String {
+        if title.is_empty() {
+            return String::new();
         }
         
-        let mut summary = DiscussionSyncSummary::new(&self.id, "Starting discussion sync");
-        
-        // Get parent course-category mapping to determine sync direction
-        let course_mapping = db.get_course_category(&self.course_category_id).await?;
-        
-        // Use the same sync direction as the parent mapping
-        match course_mapping.sync_direction {
-            SyncDirection::CanvasToDiscourse => {
-                self.sync_discussion_canvas_to_discourse(
-                    canvas_client, 
-                    discourse_client,
-                    &mut summary,
-                ).await?;
-            },
-            SyncDirection::DiscourseToCanvas => {
-                self.sync_discussion_discourse_to_canvas(
-                    canvas_client, 
-                    discourse_client,
-                    &mut summary,
-                ).await?;
-            },
-            SyncDirection::Bidirectional => {
-                // First Canvas to Discourse
-                self.sync_discussion_canvas_to_discourse(
-                    canvas_client, 
-                    discourse_client,
-                    &mut summary,
-                ).await?;
-                
-                // Then Discourse to Canvas
-                self.sync_discussion_discourse_to_canvas(
-                    canvas_client, 
-                    discourse_client,
-                    &mut summary,
-                ).await?;
-            }
-        }
-        
-        // Sync posts/replies if enabled
-        if self.sync_posts {
-            self.sync_posts(
-                canvas_client,
-                discourse_client,
-                &course_mapping.sync_direction,
-                &mut summary,
-            ).await?;
-        }
-        
-        // Update last sync time
-        self.last_sync = Utc::now();
-        
-        // Save updated mapping
-        db.save_discussion_mapping(self).await?;
-        
-        summary.complete();
-        Ok(summary)
+        title.to_lowercase()
+            .chars()
+            .map(|c| if c.is_alphanumeric() { c } else { '-' })
+            .collect::<String>()
+            .replace("--", "-")
     }
-    
-    async fn sync_discussion_canvas_to_discourse(
-        &self,
-        canvas_client: &CanvasClient,
-        discourse_client: &DiscourseClient,
-        summary: &mut DiscussionSyncSummary,
-    ) -> Result<(), Error> {
-        // Get Canvas discussion
-        let canvas_discussion = canvas_client.get_discussion(
-            &self.canvas_discussion_id
-        ).await?;
-        
-        // Update Discourse topic with Canvas data
-        discourse_client.update_topic(
-            &self.discourse_topic_id,
-            &canvas_discussion.title,
-            &canvas_discussion.message,
-        ).await?;
-        
-        summary.add_operation(format!(
-            "Updated Discourse topic '{}' with Canvas discussion data",
-            canvas_discussion.title
-        ));
-        
-        Ok(())
-    }
-    
-    async fn sync_discussion_discourse_to_canvas(
-        &self,
-        canvas_client: &CanvasClient,
-        discourse_client: &DiscourseClient,
-        summary: &mut DiscussionSyncSummary,
-    ) -> Result<(), Error> {
-        // Get Discourse topic
-        let discourse_topic = discourse_client.get_topic(
-            &self.discourse_topic_id
-        ).await?;
-        
-        // Update Canvas discussion with Discourse data
-        canvas_client.update_discussion(
-            &self.canvas_discussion_id,
-            &discourse_topic.title,
-            &discourse_topic.raw,
-        ).await?;
-        
-        summary.add_operation(format!(
-            "Updated Canvas discussion with Discourse topic '{}'",
-            discourse_topic.title
-        ));
-        
-        Ok(())
-    }
-    
-    async fn sync_posts(
-        &self,
-        canvas_client: &CanvasClient,
-        discourse_client: &DiscourseClient,
-        sync_direction: &SyncDirection,
-        summary: &mut DiscussionSyncSummary,
-    ) -> Result<(), Error> {
-        match sync_direction {
-            SyncDirection::CanvasToDiscourse => {
-                // Get Canvas discussion entries
-                let entries = canvas_client.get_discussion_entries(
-                    &self.canvas_discussion_id
-                ).await?;
-                
-                // Create map of existing posts in Discourse by external ID
-                let discourse_posts = discourse_client.get_topic_posts(
-                    &self.discourse_topic_id
-                ).await?;
-                
-                let mut posts_synced = 0;
-                
-                // Create or update Discourse posts for each Canvas entry
-                for entry in entries {
-                    let external_id = format!("canvas-entry-{}", entry.id);
-                    
-                    // Try to find existing post with this external ID
-                    if !discourse_posts.iter().any(|p| p.external_id == Some(external_id.clone())) {
-                        // Create new post
-                        discourse_client.create_post(
-                            &self.discourse_topic_id,
-                            &entry.message,
-                            Some(&external_id),
-                            entry.user_id.as_deref(),
-                        ).await?;
-                        
-                        posts_synced += 1;
-                    }
-                }
-                
-                summary.add_operation(format!(
-                    "Synced {} Canvas discussion entries to Discourse",
-                    posts_synced
-                ));
-            },
-            SyncDirection::DiscourseToCanvas => {
-                // Similar implementation for Discourse to Canvas
-                // ...
-                
-                summary.add_operation("Synced Discourse posts to Canvas".to_string());
-            },
-            SyncDirection::Bidirectional => {
-                // More complex bidirectional sync logic
-                // ...
-                
-                summary.add_operation("Performed bidirectional post sync".to_string());
-            }
-        }
-        
-        Ok(())
-    }
-}
 
-#[derive(Debug, Clone, Serialize)]
-pub struct DiscussionSyncSummary {
-    pub mapping_id: String,
-    pub start_time: DateTime<Utc>,
-    pub end_time: Option<DateTime<Utc>>,
-    pub operations: Vec<String>,
-    pub status: String,
-}
-
-impl DiscussionSyncSummary {
-    pub fn new(mapping_id: &str, initial_status: &str) -> Self {
-        Self {
-            mapping_id: mapping_id.to_string(),
-            start_time: Utc::now(),
-            end_time: None,
-            operations: Vec::new(),
-            status: initial_status.to_string(),
-        }
+    /// Create a Discussion from Canvas data
+    pub fn from_canvas(canvas_data: &serde_json::Value) -> Self {
+        let id = canvas_data["id"].as_str().map(String::from);
+        let title = canvas_data["title"].as_str().map(String::from);
+        
+        let message = canvas_data["message"].as_str()
+            .or_else(|| canvas_data["body"].as_str())
+            .map(String::from);
+            
+        let created_at = canvas_data["created_at"].as_str()
+            .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
+            .map(|dt| dt.with_timezone(&Utc));
+            
+        let updated_at = canvas_data["updated_at"].as_str()
+            .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
+            .map(|dt| dt.with_timezone(&Utc));
+            
+        let creator_id = canvas_data["user_id"].as_str().map(String::from);
+        let course_id = canvas_data["course_id"].as_str().map(String::from);
+        let pinned = canvas_data["pinned"].as_bool();
+        let locked = canvas_data["locked"].as_bool();
+        let allow_rating = canvas_data["allow_rating"].as_bool();
+        let only_graders_can_rate = canvas_data["only_graders_can_rate"].as_bool();
+        
+        Self::new(
+            None,
+            title,
+            message,
+            created_at,
+            updated_at,
+            creator_id,
+            id,
+            course_id,
+            pinned,
+            locked,
+            allow_rating,
+            only_graders_can_rate,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some("canvas".to_string()),
+        )
     }
     
-    pub fn add_operation(&mut self, operation: String) {
-        self.operations.push(operation);
+    /// Create a Discussion from Discourse data
+    pub fn from_discourse(discourse_data: &serde_json::Value) -> Self {
+        let id = discourse_data["id"].as_str().map(String::from);
+        let title = discourse_data["title"].as_str().map(String::from);
+        
+        let message = discourse_data["raw"].as_str()
+            .or_else(|| discourse_data["cooked"].as_str())
+            .map(String::from);
+            
+        let created_at = discourse_data["created_at"].as_str()
+            .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
+            .map(|dt| dt.with_timezone(&Utc));
+            
+        let updated_at = discourse_data["updated_at"].as_str()
+            .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
+            .map(|dt| dt.with_timezone(&Utc));
+            
+        let creator_id = discourse_data["creator_id"].as_str()
+            .or_else(|| discourse_data["user_id"].as_str())
+            .map(String::from);
+            
+        let category_id = discourse_data["category_id"].as_str().map(String::from);
+        let slug = discourse_data["slug"].as_str().map(String::from);
+        let views = discourse_data["views"].as_i64().map(|v| v as i32);
+        let posts_count = discourse_data["posts_count"].as_i64().map(|v| v as i32);
+        let closed = discourse_data["closed"].as_bool();
+        let archived = discourse_data["archived"].as_bool();
+        
+        let tags = discourse_data["tags"].as_array()
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            });
+        
+        Self::new(
+            None,
+            title,
+            message,
+            created_at,
+            updated_at,
+            creator_id,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            id,
+            category_id,
+            slug,
+            views,
+            posts_count,
+            closed,
+            archived,
+            tags,
+            None,
+            Some("discourse".to_string()),
+        )
     }
     
-    pub fn complete(&mut self) {
-        self.end_time = Some(Utc::now());
-        self.status = "Completed".to_string();
+    /// Convert to Canvas format
+    pub fn to_canvas(&self) -> serde_json::Value {
+        serde_json::json!({
+            "id": self.canvas_id,
+            "title": self.title,
+            "message": self.message,
+            "user_id": self.creator_id,
+            "course_id": self.course_id,
+            "pinned": self.pinned,
+            "locked": self.locked,
+            "allow_rating": self.allow_rating,
+            "only_graders_can_rate": self.only_graders_can_rate,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at
+        })
+    }
+    
+    /// Convert to Discourse format
+    pub fn to_discourse(&self) -> serde_json::Value {
+        serde_json::json!({
+            "id": self.discourse_id,
+            "title": self.title,
+            "raw": self.message,
+            "category_id": self.category_id,
+            "slug": self.slug,
+            "closed": self.closed,
+            "archived": self.archived,
+            "tags": self.tags,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at
+        })
     }
 }

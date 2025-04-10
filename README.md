@@ -17,11 +17,11 @@ All project documentation is automatically generated and maintained in the `docs
 
 The project includes comprehensive tools for analyzing, documenting, and visualizing the integration:
 
-- **Master Orchestration**: `analyze.rs` - Unified Rust analysis tool
-- **Conflict Detection**: `port-conflict-analyzer.js` - Identifies conflicts between source and target code
-- **Technical Documentation**: `technical-docs-generator.js` - Generates documentation from code
-- **Summary Report**: `summary-report-generator.js` - Provides an executive summary
-- **Visual Dashboard**: `visual-dashboard-generator.js` - Creates an interactive HTML dashboard
+- **Master Orchestration**: `tools/project-analyzer` - Unified Rust analysis tool
+- **Conflict Detection**: `conflict_analyzer.rs` - Identifies conflicts between source and target code
+- **Technical Documentation**: `docs_generator.rs` - Generates documentation from code
+- **Summary Report**: `summary_generator.rs` - Provides an executive summary
+- **Visual Dashboard**: `dashboard_generator.rs` - Creates an interactive HTML dashboard
 
 ## Getting Started
 
@@ -86,7 +86,7 @@ Offline-First Capabilities
 📱 Full functionality in offline mode
 🛠️ Technology Stack
 Backend: Tauri (Rust) with SQLite for data storage
-Frontend: Modern Web Technologies (React/TypeScript)
+Frontend: Leptos (Rust) with Tailwind CSS (Standalone CLI)
 Sync Engine: Custom-built conflict resolution system
 Packaging: Native applications for Windows, macOS, and Linux
 🏗️ Project Status

@@ -1051,626 +1051,83 @@ async fn main() {
         .unwrap();
 }
 
-// Add these commands to your existing main.rs Tauri setup
-
-mod api;
-mod core;
-mod db;
-mod models;
-
-use api::monitoring_commands::{
-    get_system_monitoring_data,
-    get_system_monitoring_history,
-    save_system_monitoring_snapshot,
-    update_system_health,
-    record_system_sync_attempt,
-    record_system_conflict,
-    record_system_conflict_resolution,
-    update_system_connection_status,
-    cleanup_system_monitoring_data,
-};
-use core::monitoring::initialize_monitoring;
-
-fn main() {
-    // Initialize monitoring system at startup
-    if let Err(e) = initialize_monitoring() {
-        eprintln!("Failed to initialize monitoring system: {}", e);
-    }
-
-    tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![
-            // Your existing commands here
-            
-            // Monitoring commands
-            get_system_monitoring_data,
-            get_system_monitoring_history,
-            save_system_monitoring_snapshot,
-            update_system_health,
-            record_system_sync_attempt,
-            record_system_conflict,
-            record_system_conflict_resolution,
-            update_system_connection_status,
-            cleanup_system_monitoring_data,
-        ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
-}
-
-mod db;
-mod repositories;
-mod api;
-mod cache;
-mod tasks;
-mod monitoring;
-mod search;
-mod metrics;
+// Add to your existing main.rs
 
 use std::sync::Arc;
-use axum::{Router, Server};
-use search::meilisearch::MeiliSearchClient;
-use search::embedded::EmbeddedMeilisearch;
-use search::setup::setup_meilisearch;
-use search::async_init::AsyncSearchInitializer;
-use api::search::search_router;
-use api::forum::{forum_router, AppState as ForumAppState};
-use log::info;
-use tokio::sync::oneshot;
+use tauri::State;
+use sqlx::sqlite::SqlitePoolOptions;
+use crate::repositories::unified::UserRepository;
+use crate::services::canvas::CanvasClient;
+use crate::services::discourse::DiscourseClient;
+use crate::services::sync::UserSyncService;
 
-const MAX_MEILISEARCH_MEMORY_MB: u64 = 256; // Limit memory usage to 256MB
+// Updated AppState struct
+pub struct AppState {
+    db_pool: sqlx::Pool<sqlx::Sqlite>,
+    user_repository: Arc<UserRepository>,
+    canvas_client: Arc<CanvasClient>,
+    discourse_client: Arc<DiscourseClient>,
+    user_sync_service: Arc<UserSyncService>,
+    is_online: std::sync::atomic::AtomicBool,
+}
 
 #[tokio::main]
 async fn main() {
-    // Initialize environment
-    env_logger::init();
-    
-    // Setup app data directory
-    let app_data_dir = tauri::api::path::app_data_dir(&tauri::Config::default())
-        .expect("Failed to get app data directory");
-    
-    // Initialize database
-    let db_path = app_data_dir.join("educonnect.db").to_string_lossy().to_string();
-    let pool = match db::setup_database(&db_path).await {
-        Ok(p) => Arc::new(p),
-        Err(e) => {
-            log::error!("Failed to initialize database: {:?}", e);
-            std::process::exit(1);
-        }
-    };
-    
-    // Initialize embedded Meilisearch without blocking startup
-    let (meili_setup_tx, meili_setup_rx) = oneshot::channel();
-    
-    tokio::spawn(async move {
-        match setup_meilisearch(&app_data_dir).await {
-            Ok(meili) => {
-                let _ = meili_setup_tx.send(Arc::new(meili));
-            },
-            Err(e) => {
-                log::error!("Failed to setup Meilisearch: {}", e);
-                let _ = meili_setup_tx.send(Arc::new(EmbeddedMeilisearch::new(
-                    std::path::PathBuf::new(), // Empty path
-                    app_data_dir.join("meilisearch_data"),
-                    7701,
-                    None,
-                    MAX_MEILISEARCH_MEMORY_MB
-                )));
-            }
-        }
-    });
-    
-    // Initialize cache systems (this doesn't need to wait for search)
-    let forum_cache = Arc::new(cache::forum_cache::ForumCache::new());
-
-    // Create forum API state
-    let forum_state = Arc::new(ForumAppState {
-        pool: pool.clone(),
-        cache: forum_cache.clone(),
-    });
-    
-    // Create placeholder search state that will be updated when search is ready
-    let default_search_client = Arc::new(MeiliSearchClient::new(
-        "http://localhost:7701",
-        None,
-        pool.clone()
-    ));
-    
-    let search_state = Arc::new(api::search::AppState {
-        search_client: default_search_client,
-    });
-    
-    // Create API router
-    let app = Router::new()
-        .nest("/api/forum", forum_router().with_state(forum_state.clone()))
-        .nest("/api/search", search_router().with_state(search_state.clone()));
-    
-    // Start server in background to allow main thread to continue initialization
-    let (server_tx, server_rx) = oneshot::channel();
-    
-    tokio::spawn(async move {
-        // Get address
-        let addr = "127.0.0.1:3000".parse().expect("Invalid server address");
-        info!("Starting server on {}", addr);
-        
-        // Create the server
-        let server = Server::bind(&addr)
-            .serve(app.into_make_service());
-            
-        // Signal that the server is ready
-        let _ = server_tx.send(());
-        
-        // Start serving
-        if let Err(e) = server.await {
-            log::error!("Server error: {}", e);
-        }
-    });
-    
-    // Wait for server to be ready
-    let _ = server_rx.await;
-    
-    // Now that the server is running, initialize search in background
-    tokio::spawn(async move {
-        // Wait for Meilisearch setup to complete
-        match meili_setup_rx.await {
-            Ok(embedded_meili) => {
-                info!("Starting Meilisearch with limited resources");
-                
-                // Create async initializer
-                let initializer = Arc::new(AsyncSearchInitializer::new(embedded_meili));
-                
-                // Start initialization in background
-                initializer.start_initialization(pool.clone()).await;
-                
-                // Wait for initialization to complete or timeout
-                let init_result = tokio::select! {
-                    _ = tokio::time::sleep(std::time::Duration::from_secs(5)) => {
-                        info!("Search initialization continuing in background");
-                        false
-                    },
-                    is_ready = initializer.is_ready() => is_ready,
-                };
-                
-                if init_result {
-                    info!("Search is ready to use");
-                    
-                    // Get the client
-                    if let Some(client) = initializer.get_client().await {
-                        // Replace search client in API state
-                        // Note: This would require modifying the search_state to use Arc<RwLock<MeiliSearchClient>>
-                    }
-                }
-            },
-            Err(_) => {
-                log::error!("Failed to setup Meilisearch");
-            }
-        }
-    });
-    
-    // Setup graceful shutdown
-    let shutdown_signal = async {
-        tokio::signal::ctrl_c().await.expect("Failed to listen for Ctrl+C");
-        info!("Shutting down gracefully");
-    };
-    
-    // Wait for shutdown signal
-    shutdown_signal.await;
-}
-
-mod db;
-mod repositories;
-mod api;
-mod cache;
-mod tasks;
-mod monitoring;
-mod search;
-
-use std::sync::Arc;
-use tauri::{
-    AppHandle, Manager, State, Window,
-    async_runtime::{self, JoinHandle}, 
-};
-use serde::{Serialize, Deserialize};
-use log::{info, error};
-use crate::search::manager::SEARCH_MANAGER;
-
-// Define application state
-struct AppState {
-    db_pool: Arc<sqlx::SqlitePool>,
-    search_handle: Arc<tokio::sync::Mutex<Option<JoinHandle<()>>>>,
-    jwt_secret: Vec<u8>,
-}
-
-// Commands for Tauri app
-#[tauri::command]
-async fn start_search(app_handle: AppHandle, state: State<'_, AppState>) -> Result<bool, String> {
-    info!("Starting search service...");
-    
-    let app_data_dir = app_handle.path_resolver().app_data_dir().unwrap();
-    
-    // Initialize search in background
-    let pool = state.db_pool.clone();
-    let (tx, rx) = tokio::sync::oneshot::channel();
-    
-    // Create a background task that won't block the UI
-    let handle = async_runtime::spawn(async move {
-        let result = SEARCH_MANAGER.initialize_if_needed(&app_data_dir, pool).await;
-        let _ = tx.send(result);
-    });
-    
-    // Store handle
-    let mut search_handle = state.search_handle.lock().await;
-    *search_handle = Some(handle);
-    
-    // Wait for result
-    match rx.await {
-        Ok(result) => Ok(result),
-        Err(_) => Err("Failed to initialize search".to_string()),
-    }
-}
-
-#[tauri::command]
-async fn get_search_status() -> Result<search::manager::SearchStatus, String> {
-    Ok(SEARCH_MANAGER.get_status().await)
-}
-
-#[tauri::command]
-async fn sync_search_data(window: Window) -> Result<usize, String> {
-    let rx = search::initialization::sync_search_data_in_background().await;
-    
-    // Wait for result but don't block UI
-    tokio::spawn(async move {
-        match rx.await {
-            Ok(Ok(count)) => {
-                let _ = window.emit("search:sync-complete", count);
-            }
-            Ok(Err(e)) | Err(e) => {
-                let _ = window.emit("search:sync-error", e.to_string());
-            }
-        }
-    });
-    
-    Ok(0) // Return immediately
-}
-
-#[derive(Serialize, Deserialize)]
-struct SearchSettings {
-    enabled: bool,
-    memory_limit_mb: usize,
-}
-
-#[tauri::command]
-async fn get_search_settings(app_handle: AppHandle) -> Result<SearchSettings, String> {
-    let app_data_dir = app_handle.path_resolver().app_data_dir().unwrap();
-    let settings_path = app_data_dir.join("search_settings.json");
-    
-    // Read settings file if it exists
-    if settings_path.exists() {
-        let contents = tokio::fs::read_to_string(&settings_path)
-            .await
-            .map_err(|e| e.to_string())?;
-            
-        serde_json::from_str::<SearchSettings>(&contents)
-            .map_err(|e| e.to_string())
-    } else {
-        // Default settings
-        Ok(SearchSettings {
-            enabled: true,
-            memory_limit_mb: 128,
-        })
-    }
-}
-
-#[tauri::command]
-async fn set_search_settings(
-    app_handle: AppHandle,
-    settings: SearchSettings,
-) -> Result<(), String> {
-    let app_data_dir = app_handle.path_resolver().app_data_dir().unwrap();
-    let settings_path = app_data_dir.join("search_settings.json");
-    
-    // Create parent directory if needed
-    if let Some(parent) = settings_path.parent() {
-        tokio::fs::create_dir_all(parent)
-            .await
-            .map_err(|e| e.to_string())?;
-    }
-    
-    // Write settings to file
-    let json = serde_json::to_string_pretty(&settings)
-        .map_err(|e| e.to_string())?;
-        
-    tokio::fs::write(&settings_path, json)
-        .await
-        .map_err(|e| e.to_string())
-}
-
-fn main() {
     // Initialize logger
     env_logger::init();
     
+    // Connect to SQLite database
+    let db_pool = SqlitePoolOptions::new()
+        .max_connections(5)
+        .connect("sqlite:data.db")
+        .await
+        .expect("Failed to connect to SQLite database");
+    
+    // Run migrations
+    sqlx::migrate!("./migrations")
+        .run(&db_pool)
+        .await
+        .expect("Failed to run migrations");
+    
+    // Initialize repositories
+    let user_repository = Arc::new(UserRepository::new(db_pool.clone()));
+    
+    // Initialize clients
+    let canvas_client = Arc::new(CanvasClient::new(
+        "https://canvas.example.com/api/v1",
+        "your_canvas_api_key",
+    ));
+    
+    let discourse_client = Arc::new(DiscourseClient::new(
+        "https://discourse.example.com",
+        "your_discourse_api_key",
+        "system",
+    ));
+    
+    // Initialize services
+    let user_sync_service = Arc::new(UserSyncService::new(
+        user_repository.clone(),
+        canvas_client.clone(),
+        discourse_client.clone(),
+    ));
+    
+    // Build Tauri application
     tauri::Builder::default()
-        .setup(|app| {
-            // Get app data directory
-            let app_data_dir = app.path_resolver().app_data_dir().unwrap();
-            let db_path = app_data_dir.join("educonnect.db").to_string_lossy().to_string();
-            
-            // Initialize database
-            let rt = async_runtime::handle();
-            let pool = rt.block_on(async {
-                match db::setup_database(&db_path).await {
-                    Ok(p) => Arc::new(p),
-                    Err(e) => {
-                        error!("Failed to initialize database: {:?}", e);
-                        panic!("Database initialization failed");
-                    }
-                }
-            });
-            
-            // Initialize JWT secret
-            let jwt_secret = generate_or_load_jwt_secret(app_data_dir);
-            
-            // Register app state
-            app.manage(AppState {
-                db_pool: pool,
-                search_handle: Arc::new(tokio::sync::Mutex::new(None)),
-                jwt_secret,
-            });
-            
-            // Setup window close handler
-            let app_handle = app.handle();
-            app.listen_global("tauri://close-requested", move |_| {
-                let app = app_handle.clone();
-                // Clean shutdown in background to avoid blocking UI
-                async_runtime::spawn(async move {
-                    info!("Application shutdown initiated, stopping search service...");
-                    
-                    // Stop search service
-                    if let Err(e) = SEARCH_MANAGER.shutdown().await {
-                        error!("Failed to stop search service: {}", e);
-                    }
-                    
-                    async_runtime::sleep(std::time::Duration::from_millis(500)).await;
-                    app.exit(0);
-                });
-            });
-            
-            Ok(())
+        .manage(AppState {
+            db_pool,
+            user_repository,
+            canvas_client,
+            discourse_client,
+            user_sync_service,
+            is_online: std::sync::atomic::AtomicBool::new(true),
         })
-        .manage(Arc::new(SqliteCourseRepository::new(pool.clone())) as Arc<dyn CourseRepository + Send + Sync>)
-        .manage(Arc::new(SqliteAssignmentRepository::new(pool.clone())) as Arc<dyn AssignmentRepository + Send + Sync>)
-        .manage(Arc::new(SqliteUserRepository::new(pool.clone())) as Arc<dyn UserRepository + Send + Sync>)
-        .manage(Arc::new(SqliteIntegrationRepository::new(pool.clone())) as Arc<dyn IntegrationRepository + Send + Sync>)
-        .manage(Arc::new(SqliteDiscussionRepository::new(pool.clone())) as Arc<dyn DiscussionRepository + Send + Sync>)
-        .manage(Arc::new(SqliteNotificationRepository::new(pool.clone())) as Arc<dyn NotificationRepository + Send + Sync>)
-        .manage(Arc::new(SqliteModuleRepository::new(pool.clone())) as Arc<dyn ModuleRepository + Send + Sync>)
         .invoke_handler(tauri::generate_handler![
-            start_search,
-            get_search_status,
-            sync_search_data,
-            get_search_settings,
-            set_search_settings,
-            api::courses::get_courses,
-            api::courses::get_course,
-            api::courses::create_course,
-            api::courses::update_course,
-            api::courses::delete_course,
-            api::auth::login_user,
-            api::auth::register_user,
-            api::auth::get_current_user,
-            api::integration::create_course_category_mapping,
-            api::integration::get_course_category_mapping,
-            api::integration::sync_course_category,
-            api::assignments::get_assignments,
-            api::assignments::get_assignment,
-            api::assignments::create_assignment,
-            api::assignments::update_assignment,
-            api::assignments::delete_assignment,
-            api::submissions::get_submissions,
-            api::submissions::get_submission,
-            api::submissions::create_submission,
-            api::submissions::update_submission,
-            api::discussions::get_discussions,
-            api::discussions::get_discussion,
-            api::discussions::create_discussion,
-            api::discussions::update_discussion,
-            api::discussions::sync_discussion,
-            api::discussions::delete_discussion,
-            api::users::get_user_profile,
-            api::users::update_user_profile,
-            api::users::get_user_preferences,
-            api::users::update_user_preferences,
-            api::users::get_user_integration_settings,
-            api::users::update_user_integration_settings,
-            api::notifications::get_notifications,
-            api::notifications::get_unread_notification_count,
-            api::notifications::create_notification,
-            api::notifications::mark_notifications_as_read,
-            api::notifications::mark_all_notifications_as_read,
-            api::notifications::delete_notification,
-            api::modules::get_modules,
-            api::modules::get_module,
-            api::modules::create_module,
-            api::modules::update_module,
-            api::modules::delete_module,
-            api::modules::reorder_modules,
-            api::modules::get_module_items,
-            api::modules::get_module_item,
-            api::modules::create_module_item,
-            api::modules::update_module_item,
-            api::modules::delete_module_item,
-            api::modules::reorder_module_items,
-        ])
-        .run(tauri::generate_context!())
-        .expect("error running tauri application");
-}
-
-// Generate or load JWT secret
-fn generate_or_load_jwt_secret(app_data_dir: std::path::PathBuf) -> Vec<u8> {
-    use std::fs;
-    use rand::RngCore;
-    
-    let secret_path = app_data_dir.join("jwt_secret.key");
-    
-    if secret_path.exists() {
-        // Load existing secret
-        match fs::read(&secret_path) {
-            Ok(secret) if !secret.is_empty() => {
-                info!("Loaded existing JWT secret");
-                return secret;
-            },
-            _ => {
-                warn!("Invalid JWT secret file, generating new one");
-            }
-        }
-    }
-    
-    // Generate new secret
-    let mut secret = [0u8; 32];
-    rand::thread_rng().fill_bytes(&mut secret);
-    
-    // Ensure directory exists
-    if let Some(parent) = secret_path.parent() {
-        let _ = fs::create_dir_all(parent);
-    }
-    
-    // Save secret
-    if let Err(e) = fs::write(&secret_path, &secret) {
-        error!("Failed to save JWT secret: {}", e);
-    } else {
-        info!("Generated and saved new JWT secret");
-    }
-    
-    secret.to_vec()
-}
-
-mod api {
-    pub mod auth;
-    pub mod courses;
-    pub mod assignments;
-    pub mod submissions;
-    pub mod users;
-    pub mod discussions;
-    pub mod integration;
-    pub mod notifications;
-    pub mod modules; // Add this line
-}
-
-// ...existing code...
-
-fn main() {
-    // ...existing code...
-    
-    let module_repo = Arc::new(db::module_repository::SqliteModuleRepository::new(pool.clone()));
-
-    // ...existing code...
-    
-    tauri::Builder::default()
-        // ...existing code...
-        .manage(module_repo)
-        // ...existing code...
-        .invoke_handler(tauri::generate_handler![
-            // ...existing commands...
-            api::modules::get_modules,
-            api::modules::get_module,
-            api::modules::create_module,
-            api::modules::update_module,
-            api::modules::delete_module,
-            api::modules::reorder_modules,
-            api::modules::get_module_items,
-            api::modules::get_module_item,
-            api::modules::create_module_item,
-            api::modules::update_module_item,
-            api::modules::delete_module_item,
-            api::modules::reorder_module_items,
-        ])
-        // ...existing code...
-}
-
-use db::DB;
-use std::sync::Arc;
-use tokio::sync::Mutex;
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize logging
-    env_logger::init();
-    
-    // Connect to database
-    let db = DB::connect("sqlite:lms.db").await?;
-    
-    // Initialize database tables
-    db.initialize_tables().await?;
-    
-    // Setup Canvas integration
-    let canvas_service = services::integration::canvas_integration::CanvasIntegrationService::new(
-        db.clone(),
-        std::env::var("CANVAS_API_URL").unwrap_or_else(|_| "https://canvas.example.com".to_string()),
-        std::env::var("CANVAS_API_TOKEN").unwrap_or_default(),
-    );
-    
-    // Setup Discourse integration
-    let discourse_service = services::integration::discourse_integration::DiscourseIntegrationService::new(
-        db.clone(),
-        std::env::var("DISCOURSE_API_URL").unwrap_or_else(|_| "https://discourse.example.com".to_string()),
-        std::env::var("DISCOURSE_API_KEY").unwrap_or_default(),
-        std::env::var("DISCOURSE_API_USERNAME").unwrap_or_else(|_| "system".to_string()),
-    );
-    
-    // Setup sync service
-    let sync_service = services::integration::sync_service::IntegrationSyncService::new(
-        db.clone(),
-        canvas_service,
-        discourse_service,
-    );
-    
-    // Add sync scheduler
-    let sync_scheduler = SyncScheduler::new(db.clone(), canvas_service.clone());
-    sync_scheduler.start().await.expect("Failed to start sync scheduler");
-    
-    // Start the web server (this would be implemented in a real app)
-    println!("LMS server initialized!");
-    
-    Ok(())
-}
-
-// Inside your main function or Tauri setup
-fn main() {
-    // Initialize database
-    let db = DB::connect("sqlite:lms.db").await.unwrap();
-    db.initialize_tables().await.unwrap();
-    
-    // Setup Canvas integration
-    let canvas_service = Arc::new(CanvasIntegrationService::new(
-        db.clone(),
-        std::env::var("CANVAS_API_URL").unwrap_or_else(|_| "https://canvas.example.com".to_string()),
-        std::env::var("CANVAS_API_TOKEN").unwrap_or_default(),
-    ));
-    
-    // Setup Discourse integration
-    let discourse_service = Arc::new(DiscourseIntegrationService::new(
-        db.clone(),
-        std::env::var("DISCOURSE_API_URL").unwrap_or_else(|_| "https://discourse.example.com".to_string()),
-        std::env::var("DISCOURSE_API_KEY").unwrap_or_default(),
-        std::env::var("DISCOURSE_API_USERNAME").unwrap_or_else(|_| "system".to_string()),
-    ));
-    
-    // Add sync scheduler
-    let sync_scheduler = SyncScheduler::new(db.clone(), canvas_service.clone());
-    sync_scheduler.start().await.expect("Failed to start sync scheduler");
-    
-    tauri::Builder::default()
-        .manage(db)
-        .manage(canvas_service)
-        .manage(discourse_service)
-        .manage(sync_scheduler)
-        .invoke_handler(tauri::generate_handler![
-            // Your existing commands
-            
-            // Integration commands
-            sync_topic,
-            sync_all_pending,
-            mark_topic_for_sync,
-            test_canvas_connectivity,
-            test_discourse_connectivity,
+            commands::unified_model_commands::get_user,
+            commands::unified_model_commands::sync_user,
+            commands::unified_model_commands::create_user,
+            commands::unified_model_commands::update_user,
+            commands::unified_model_commands::delete_user,
+            // Add more command registrations here
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
