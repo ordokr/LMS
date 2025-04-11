@@ -39,6 +39,12 @@ simple_logger = "4.3"
 # CLI utilities
 clap = { version = "4.4.11", features = ["derive"] }
 
+# Token encoding for AI
+tiktoken-rs = "0.5.8"
+
+# Regular expressions
+regex = "1.10.3"
+
 # Frontend - existing Leptos dependencies
 leptos = { version = "0.6", features = ["serde", "nightly"] }
 leptos_meta = { version = "0.6", features = ["nightly"] }
@@ -90,10 +96,13 @@ tauri-build = { version = "2.1.1", features = [] }
 
 [workspace]
 members = [
-  "src-tauri",
-  "tools/project-analyzer",
-  # Any other workspace members
+    # Remove "src" from this list as it doesn't have a Cargo.toml
+    "tools/project-analyzer"
 ]
+
+[workspace.package]
+edition = "2021"
+authors = ["LMS Team"]
 
 [profile.release]
 opt-level = 3

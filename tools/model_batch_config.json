@@ -1,32 +1,39 @@
 {
   "models": [
     {
-      "canvasModelPath": "src/models/unifiedModels/Course.js",
-      "outputPath": "lms-integration/src/models/canvas/course.rs"
+      "modelName": "Announcement",
+      "sourceSystem": "canvas",
+      "outputPath": "src/models/canvas/announcement.rs"
     },
     {
-      "canvasModelPath": "src/models/unifiedModels/Assignment.js",
-      "outputPath": "lms-integration/src/models/canvas/assignment.rs"
+      "modelName": "Module",
+      "sourceSystem": "canvas",
+      "outputPath": "src/models/canvas/module.rs"
     },
     {
-      "canvasModelPath": "src/models/unifiedModels/User.js",
-      "outputPath": "lms-integration/src/models/canvas/user.rs"
+      "modelName": "Grade",
+      "sourceSystem": "canvas", 
+      "outputPath": "src/models/canvas/grade.rs"
     },
     {
-      "canvasModelPath": "src/models/unifiedModels/Discussion.js",
-      "outputPath": "lms-integration/src/models/canvas/discussion.rs"
+      "modelName": "Group",
+      "sourceSystem": "canvas",
+      "outputPath": "src/models/canvas/group.rs"
     },
     {
-      "canvasModelPath": "src/models/unifiedModels/Notification.js",
-      "outputPath": "lms-integration/src/models/canvas/notification.rs"
+      "modelName": "Quiz",
+      "sourceSystem": "canvas",
+      "outputPath": "src/models/canvas/quiz.rs"
     },
     {
-      "canvasModelPath": "src/models/unified/BaseModel.js",
-      "outputPath": "lms-integration/src/models/canvas/base_model.rs"
+      "modelName": "Submission",
+      "sourceSystem": "canvas",
+      "outputPath": "src/models/canvas/submission.rs"
     },
     {
-      "canvasModelPath": "src/models/unified/UserModel.js",
-      "outputPath": "lms-integration/src/models/canvas/user_model.rs"
+      "modelName": "Calendar",
+      "sourceSystem": "canvas",
+      "outputPath": "src/models/canvas/calendar.rs"
     }
   ]
 }

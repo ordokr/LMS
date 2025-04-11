@@ -2,6 +2,7 @@ use wasm_bindgen::prelude::*;
 
 // Re-export modules
 pub mod utils;
+pub mod modules;
 
 // Export the wasm module from file_system_utils
 #[cfg(target_arch = "wasm32")]

@@ -1,19 +1,37 @@
-// src/models/mod.rs
-//! Unified models for the LMS integration
+// Auto-generated from index.js
+// Source: src/models/index.js
 
-mod user;
-mod notification;
-mod discussion;
-mod course;
-mod assignment;
+// Re-export the model factory
+pub mod model_factory;
+pub use model_factory::ModelFactory;
+pub use model_factory::SourceSystem;
+pub use model_factory::ModelFactoryError;
 
-pub use user::User;
-pub use notification::Notification;
-pub use discussion::Discussion;
-pub use course::Course;
-pub use assignment::Assignment;
+// Re-export the canvas models
+pub mod canvas {
+    pub mod user;
+    pub mod course;
+    pub mod discussion;
+    pub mod assignment;
+    pub mod notification;
+    pub mod file;
+    pub mod calendar;
+    pub mod rubric;
+    pub mod base_model;
+    pub mod user_model;
 
-// Re-export for convenience
-pub mod unified {
-    pub use super::*;
+    // Re-export primary models for convenience
+    pub use self::user::User;
+    pub use self::course::Course;
+    pub use self::discussion::Discussion;
+    pub use self::assignment::Assignment;
+    pub use self::notification::Notification;
+    pub use self::file::File;
+    pub use self::calendar::Calendar;
+    pub use self::rubric::Rubric;
+    pub use self::base_model::BaseModel;
+    pub use self::user_model::UserModel;
 }
+
+// Re-export for backward compatibility
+pub use canvas::{User, Course, Discussion, Assignment, Notification, File, Calendar, Rubric};

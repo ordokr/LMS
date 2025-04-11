@@ -1,8 +1,8 @@
-use crate::ProjectAnalysis;
+use crate::js_migration_analyzer::JsMigrationAnalysis;
 use std::error::Error;
 
-pub fn generate_dashboard(analysis: &ProjectAnalysis, conflicts: &[String], summary: &str) -> Result<(), Box<dyn Error>> {
-    // Placeholder implementation
-    println!("Generating dashboard...");
+pub fn generate_dashboard(_analysis: &JsMigrationAnalysis, _conflicts: &[String], _summary: &str) -> Result<(), Box<dyn Error>> {
+    // Simplified implementation for now
+    println!("Generating migration dashboard...");
     Ok(())
 }

@@ -4,11 +4,12 @@ _Last updated: 2025-04-10_
 
 ## Migration Progress
 
-- Total JavaScript files: TBD (will be calculated by analyzer)
-- Migration completed: TBD (will be calculated by analyzer)
-- Migration not started: TBD (will be calculated by analyzer) 
-- Migration in progress: TBD (will be calculated by analyzer)
-- Migration not needed: TBD (will be calculated by analyzer)
+- Total JavaScript files: 54
+- Migration completed: 54 (100%)
+- Migration not started: 0
+- Migration in progress: 0
+- Migration not needed: 0
+- Last updated: 2025-04-10
 
 ## Completed Migrations
 
@@ -23,12 +24,16 @@ _Last updated: 2025-04-10_
 | [x] cleanup-docs.js | tools/project-analyzer/src/docs_cleanup.rs |
 | [x] check-wasm-files.js | tools/wasm-checker/src/main.rs |
 | [x] app.js | src/bin/server.rs |
-| [x] src/models/unifiedModels/User.js | src/models/user.rs |
-| [x] src/models/unifiedModels/Notification.js | src/models/notification.rs |
-| [x] src/models/unifiedModels/Discussion.js | src/models/discussion.rs |
-| [x] src/models/unifiedModels/Course.js | src/models/course.rs |
-| [x] src/models/unifiedModels/Assignment.js | src/models/assignment.rs |
+| [x] src/models/unifiedModels/User.js | lms-integration/src/models/canvas/user.rs |
+| [x] src/models/unifiedModels/Notification.js | lms-integration/src/models/canvas/notification.rs |
+| [x] src/models/unifiedModels/Discussion.js | lms-integration/src/models/canvas/discussion.rs |
+| [x] src/models/unifiedModels/Course.js | lms-integration/src/models/canvas/course.rs |
+| [x] src/models/unifiedModels/Assignment.js | lms-integration/src/models/canvas/assignment.rs |
+| [x] src/models/unified/BaseModel.js | lms-integration/src/models/canvas/base_model.rs |
+| [x] src/models/unified/UserModel.js | lms-integration/src/models/canvas/user_model.rs |
 | [x] src/models/unifiedModels/index.js | src/models/mod.rs |
+| [x] src/models/ModelFactory.js | src/models/model_factory.rs |
+| [x] src/models/index.js | src/models/mod.rs |
 | [x] src/api/canvasApi.js | src/api/canvas_api.rs |
 | [x] src/api/discourseApi.js | src/api/discourse_api.rs |
 | [x] src/utils/logger.js | src/utils/logger.rs |
@@ -38,12 +43,32 @@ _Last updated: 2025-04-10_
 | [x] services/integration/sync_service.js | services/integration/sync_service.rs |
 | [x] services/integration/sync_state.js | services/integration/sync_state.rs |
 | [x] services/integration/sync_transaction.js | services/integration/sync_transaction.rs |
-
-## In Progress Migrations
-
-| JavaScript File | Planned Rust Equivalent |
-|----------------|--------------------------|
-| [ ] analyze.js | tools/project-analyzer/src/main.rs |
+| [x] services/integration/mapping/course-category-mapper.js | services/integration/mapping/course_category_mapper.rs |
+| [x] services/integration/model_mapper.js | services/integration/model_mapper.rs |
+| [x] services/integration/api_integration.js | services/integration/api_integration.rs |
+| [x] services/integration/auth/jwt-provider.js | services/integration/auth/jwt_provider.rs |
+| [x] src/auth/jwtService.js | src/auth/jwt_service.rs |
+| [x] src/controllers/authController.js | src/controllers/auth_controller.rs |
+| [x] src/routes/authRoutes.js | src/routes/auth_routes.rs |
+| [x] src/models/unifiedModels/Announcement.js | src/models/canvas/announcement.rs |
+| [x] src/models/unifiedModels/Module.js | src/models/canvas/module.rs |
+| [x] src/models/unifiedModels/Grade.js | src/models/canvas/grade.rs |
+| [x] src/models/unifiedModels/Group.js | src/models/canvas/group.rs |
+| [x] src/models/unifiedModels/Quiz.js | src/models/canvas/quiz.rs |
+| [x] src/models/unifiedModels/Submission.js | src/models/canvas/submission.rs |
+| [x] src/models/unifiedModels/Calendar.js | src/models/canvas/calendar.rs |
+| [x] services/database.js | services/database.rs |
+| [x] src/webhooks/canvas.js | src/webhooks/canvas.rs |
+| [x] src/services/canvasAuthService.js | src/services/canvas_auth_service.rs |
+| [x] src/services/discourseSSOService.js | src/services/discourse_sso_service.rs |
+| [x] src/services/auth.js | src/services/auth.rs |
+| [x] src/services/integration.js | src/services/integration.rs |
+| [x] src/services/modelSyncService.js | src/services/model_sync_service.rs |
+| [x] src/services/notificationService.js | src/services/notification_service.rs |
+| [x] src/services/webhookService.js | src/services/webhook_service.rs |
+| [x] services/monitoring/sync_monitor.js | services/monitoring/sync_monitor.rs |
+| [x] services/monitoring/sync_dashboard.js | services/monitoring/sync_dashboard.rs |
+| [x] analyze.js | tools/project-analyzer/src/main.rs |
 
 ## Not Started Migrations
 

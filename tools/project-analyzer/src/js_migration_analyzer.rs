@@ -1,378 +1,312 @@
-use std::collections::HashMap;
-use std::error::Error;
+use std::path::PathBuf;
 use std::fs;
-use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
-use serde::{Serialize, Deserialize};
+use regex::Regex;
 
-// Structure to represent a JavaScript file that needs migration
-#[derive(Debug, Serialize, Deserialize)]
+/// Status of JavaScript to Rust migration for a file
+#[derive(Debug, Clone, PartialEq)]
+pub enum MigrationStatus {
+    Completed,
+    InProgress,
+    NotStarted,
+    NotNeeded,
+}
+
+/// Information about a JavaScript file for migration
+#[derive(Debug, Clone)]
 pub struct JsFile {
     pub path: String,
     pub relative_path: String,
-    pub rust_equivalent_path: Option<String>,
     pub migration_status: MigrationStatus,
-    pub priority: u8,  // 1-10 scale, 10 being highest priority
-    pub complexity: u8, // 1-10 scale, 10 being most complex
-    pub dependencies: Vec<String>,
+    pub rust_path: Option<String>,
+    pub priority_score: u8,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub enum MigrationStatus {
-    NotStarted,
-    InProgress,
-    Completed,
-    NotNeeded,  // For JS files that don't need migration (e.g., test configs)
-}
-
-// Structure to hold the JS migration analysis
-#[derive(Debug, Serialize, Deserialize)]
+/// Analysis of JavaScript to Rust migration
+#[derive(Debug, Clone)]
 pub struct JsMigrationAnalysis {
     pub total_js_files: usize,
-    pub migrated_count: usize,
-    pub not_started_count: usize,
-    pub in_progress_count: usize,
-    pub not_needed_count: usize,
+    pub completed_migrations: usize,
+    pub in_progress_migrations: usize,
+    pub not_started_migrations: usize,
+    pub not_needed_migrations: usize,
     pub js_files: Vec<JsFile>,
     pub high_priority_files: Vec<String>,
-    pub completion_percentage: f32,
 }
 
-impl JsMigrationAnalysis {
-    pub fn new() -> Self {
-        JsMigrationAnalysis {
-            total_js_files: 0,
-            migrated_count: 0,
-            not_started_count: 0,
-            in_progress_count: 0,
-            not_needed_count: 0,
+pub struct JsMigrationAnalyzer {
+    base_dir: String,
+    js_files: Vec<PathBuf>,
+    tracking_path: Option<String>,
+}
+
+impl JsMigrationAnalyzer {
+    pub fn new(base_dir: String) -> Self {
+        JsMigrationAnalyzer {
+            base_dir,
             js_files: Vec::new(),
-            high_priority_files: Vec::new(),
-            completion_percentage: 0.0,
+            tracking_path: None,
         }
     }
-}
-
-pub fn analyze_js_migration(root_dir: &Path) -> Result<JsMigrationAnalysis, Box<dyn Error>> {
-    let mut analysis = JsMigrationAnalysis::new();
-    let mut js_files = Vec::new();
     
-    // Read the migration tracking file to get the status of known files
-    let migration_tracking = read_migration_tracking()?;
-    
-    // Find all JS files
-    for entry in WalkDir::new(root_dir)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "js"))
-    {
-        let path = entry.path();
-        let relative_path = path.strip_prefix(root_dir)
-            .unwrap_or(path)
-            .to_string_lossy()
-            .to_string();
-        
-        // Skip node_modules and similar
-        if relative_path.contains("node_modules") || 
-           relative_path.contains("coverage") ||
-           relative_path.contains("dist") {
-            continue;
-        }
-        
-        // Determine migration status from the tracking file
-        let (status, rust_path) = determine_migration_status(&relative_path, &migration_tracking);
-        
-        // Calculate priority based on file path
-        let priority = calculate_priority(&relative_path);
-        
-        // Calculate complexity based on file size and content
-        let complexity = calculate_complexity(path)?;
-        
-        // Find dependencies
-        let dependencies = find_dependencies(path)?;
-        
-        let js_file = JsFile {
-            path: path.to_string_lossy().to_string(),
-            relative_path,
-            rust_equivalent_path: rust_path,
-            migration_status: status.clone(),
-            priority,
-            complexity,
-            dependencies,
-        };
-        
-        // Update counters
-        match status {
-            MigrationStatus::Completed => analysis.migrated_count += 1,
-            MigrationStatus::NotStarted => analysis.not_started_count += 1,
-            MigrationStatus::InProgress => analysis.in_progress_count += 1,
-            MigrationStatus::NotNeeded => analysis.not_needed_count += 1,
-        }
-        
-        // Add to high priority list if priority is high
-        if priority >= 8 {
-            analysis.high_priority_files.push(js_file.relative_path.clone());
-        }
-        
-        js_files.push(js_file);
+    pub fn with_tracking(mut self, tracking_path: String) -> Self {
+        self.tracking_path = Some(tracking_path);
+        self
     }
     
-    analysis.total_js_files = js_files.len();
-    analysis.js_files = js_files;
-    
-    // Calculate completion percentage
-    if analysis.total_js_files > 0 {
-        analysis.completion_percentage = (analysis.migrated_count as f32 + analysis.not_needed_count as f32) / 
-                                         (analysis.total_js_files as f32) * 100.0;
-    }
-    
-    Ok(analysis)
-}
-
-// Read the migration tracking markdown file to determine status of known files
-fn read_migration_tracking() -> Result<HashMap<String, (MigrationStatus, Option<String>)>, Box<dyn Error>> {
-    let mut result = HashMap::new();
-    
-    // Try to read the migration tracking file
-    let tracking_path = "JavaScript to Rust Migration Tracking.md";
-    if let Ok(content) = fs::read_to_string(tracking_path) {
-        // Parse the markdown to extract completed migrations
-        for line in content.lines() {
-            if line.contains("→") && (line.contains("[x]") || line.contains("- [x]")) {
-                // This is a completed migration
-                if let Some(parts) = line.split("→").collect::<Vec<_>>().get(0..2) {
-                    let js_path = parts[0].trim().replace("- [x] ", "").replace("[x] ", "");
-                    let rust_path = parts[1].trim().replace(")", "");
-                    result.insert(js_path, (MigrationStatus::Completed, Some(rust_path)));
+    pub fn discover_js_files(&mut self) -> Vec<PathBuf> {
+        println!("Discovering JavaScript files...");
+        
+        self.js_files = WalkDir::new(&self.base_dir)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|e| {
+                if let Some(ext) = e.path().extension() {
+                    if ext == "js" {
+                        let path_str = e.path().to_string_lossy();
+                        // Exclude certain directories
+                        !path_str.contains("node_modules") &&
+                        !path_str.contains("coverage") &&
+                        !path_str.contains("build-output") &&
+                        !path_str.contains("target")
+                    } else {
+                        false
+                    }
+                } else {
+                    false
                 }
-            } else if line.contains("→") && (line.contains("[ ]") || line.contains("- [ ]")) {
-                // This is a planned but not started migration
-                if let Some(parts) = line.split("→").collect::<Vec<_>>().get(0..2) {
-                    let js_path = parts[0].trim().replace("- [ ] ", "").replace("[ ] ", "");
-                    let rust_path = parts[1].trim().replace(")", "");
-                    result.insert(js_path, (MigrationStatus::NotStarted, Some(rust_path)));
-                }
-            }
-        }
+            })
+            .map(|e| e.path().to_path_buf())
+            .collect();
+        
+        println!("Found {} JavaScript files", self.js_files.len());
+        self.js_files.clone()
     }
     
-    Ok(result)
-}
-
-// Determine the migration status of a JS file
-fn determine_migration_status(
-    relative_path: &str, 
-    tracking: &HashMap<String, (MigrationStatus, Option<String>)>
-) -> (MigrationStatus, Option<String>) {
-    // Check if the file is in the tracking list
-    for (js_path, (status, rust_path)) in tracking.iter() {
-        if relative_path.contains(js_path) {
-            return (status.clone(), rust_path.clone());
-        }
-    }
-    
-    // If not found, determine based on path
-    if relative_path.contains("test") || 
-       relative_path.contains("config") ||
-       relative_path.contains("jest") ||
-       relative_path.ends_with(".config.js") {
-        (MigrationStatus::NotNeeded, None)
-    } else {
-        (MigrationStatus::NotStarted, None)
-    }
-}
-
-// Calculate priority for migration based on file path
-fn calculate_priority(path: &str) -> u8 {
-    if path.contains("src/services") || path.contains("src/api") {
-        10 // Highest priority for core services and APIs
-    } else if path.contains("src/models") {
-        9 // High priority for data models
-    } else if path.contains("src/utils") {
-        8 // High priority for utilities
-    } else if path.contains("src/controllers") || path.contains("src/routes") {
-        7 // Medium-high priority for controllers and routes
-    } else if path.contains("src") {
-        6 // Medium priority for other source files
-    } else if path.contains("tools") || path.contains("scripts") {
-        5 // Medium-low priority for tools and scripts
-    } else if path.contains("test") {
-        3 // Low priority for tests
-    } else {
-        4 // Default medium-low priority
-    }
-}
-
-// Calculate complexity based on file size and content
-fn calculate_complexity(path: &Path) -> Result<u8, Box<dyn Error>> {
-    let content = fs::read_to_string(path)?;
-    
-    // Simple complexity heuristic based on file size and certain indicators
-    let size_factor = content.len() as f32 / 1000.0; // Size in KB
-    let import_count = content.matches("import").count() as f32;
-    let function_count = content.matches("function").count() as f32;
-    let class_count = content.matches("class").count() as f32;
-    let async_count = content.matches("async").count() as f32;
-    
-    let complexity_score = size_factor * 0.3 + 
-                           import_count * 0.1 + 
-                           function_count * 0.2 + 
-                           class_count * 0.3 + 
-                           async_count * 0.1;
-    
-    // Convert to 1-10 scale
-    let complexity = (complexity_score.min(10.0).max(1.0)).round() as u8;
-    
-    Ok(complexity)
-}
-
-// Find dependencies of a JS file
-fn find_dependencies(path: &Path) -> Result<Vec<String>, Box<dyn Error>> {
-    let content = fs::read_to_string(path)?;
-    let mut dependencies = Vec::new();
-    
-    // Simple regex-like approach to find imports
-    for line in content.lines() {
-        if line.contains("import") && line.contains("from") {
-            if let Some(from_part) = line.split("from").nth(1) {
-                let module = from_part.trim()
-                    .trim_matches(|c| c == '\'' || c == '"' || c == ';')
-                    .to_string();
+    pub fn analyze_js_files(&self) -> JsMigrationAnalysis {
+        println!("Analyzing JavaScript files...");
+        
+        let mut js_files_info = Vec::new();
+        let mut high_priority_files = Vec::new();
+        
+        for path in &self.js_files {
+            let relative_path = path.strip_prefix(&self.base_dir)
+                .unwrap_or(path)
+                .to_string_lossy()
+                .replace("\\", "/");
                 
-                // Only include local dependencies, not npm packages
-                if module.starts_with(".") {
-                    dependencies.push(module);
+            let (status, rust_path) = self.get_migration_status(&relative_path);
+            
+            // Calculate priority score (1-10)
+            let priority_score = self.calculate_priority_score(&relative_path);
+            
+            if priority_score >= 8 {
+                high_priority_files.push(relative_path.to_string());
+            }
+            
+            js_files_info.push(JsFile {
+                path: path.to_string_lossy().to_string(),
+                relative_path: relative_path.to_string(),
+                migration_status: status,
+                rust_path,
+                priority_score,
+            });
+        }
+        
+        // Count migrations by status
+        let completed_migrations = js_files_info.iter()
+            .filter(|f| f.migration_status == MigrationStatus::Completed)
+            .count();
+        
+        let in_progress_migrations = js_files_info.iter()
+            .filter(|f| f.migration_status == MigrationStatus::InProgress)
+            .count();
+        
+        let not_started_migrations = js_files_info.iter()
+            .filter(|f| f.migration_status == MigrationStatus::NotStarted)
+            .count();
+        
+        let not_needed_migrations = js_files_info.iter()
+            .filter(|f| f.migration_status == MigrationStatus::NotNeeded)
+            .count();
+        
+        JsMigrationAnalysis {
+            total_js_files: js_files_info.len(),
+            completed_migrations,
+            in_progress_migrations,
+            not_started_migrations,
+            not_needed_migrations,
+            js_files: js_files_info,
+            high_priority_files,
+        }
+    }
+    
+    fn get_migration_status(&self, js_file: &str) -> (MigrationStatus, Option<String>) {
+        // Check if the JS file matches patterns for files that don't need migration
+        let not_needed_patterns = [
+            "webpack.config.js",
+            "babel.config.js",
+            "jest.config.js",
+            ".eslintrc.js",
+            "postcss.config.js",
+        ];
+        
+        for pattern in &not_needed_patterns {
+            if js_file.ends_with(pattern) {
+                return (MigrationStatus::NotNeeded, None);
+            }
+        }
+        
+        // Check if it's a test file that doesn't need migration
+        if js_file.contains("__tests__") || js_file.contains("test") || 
+           js_file.ends_with(".test.js") || js_file.ends_with(".spec.js") {
+            return (MigrationStatus::NotNeeded, None);
+        }
+        
+        // Check tracking file if available
+        if let Some(tracking_path) = &self.tracking_path {
+            if let Ok(content) = fs::read_to_string(tracking_path) {
+                // Look for completed migrations
+                let completed_regex = Regex::new(r"\[\s*x\s*\]\s*(.*?)\s*\|\s*(.*?)\s*(\||$)").unwrap();
+                for cap in completed_regex.captures_iter(&content) {
+                    let tracked_js = cap[1].trim();
+                    let tracked_rust = cap[2].trim();
+                    
+                    if tracked_js == js_file {
+                        return (MigrationStatus::Completed, Some(tracked_rust.to_string()));
+                    }
+                }
+                
+                // Look for in-progress migrations
+                let in_progress_regex = Regex::new(r"\[\s*\s*\]\s*(.*?)\s*\|\s*(.*?)\s*(\||$)").unwrap();
+                for cap in in_progress_regex.captures_iter(&content) {
+                    let tracked_js = cap[1].trim();
+                    let tracked_rust = cap[2].trim();
+                    
+                    if tracked_js == js_file {
+                        return (MigrationStatus::InProgress, Some(tracked_rust.to_string()));
+                    }
                 }
             }
         }
+        
+        // If not found in tracking, it's not started
+        let rust_path = self.suggest_rust_path(js_file);
+        (MigrationStatus::NotStarted, Some(rust_path))
     }
     
-    Ok(dependencies)
-}
-
-// Generate the markdown report for JS migration status
-pub fn generate_js_migration_report(analysis: &JsMigrationAnalysis) -> Result<String, Box<dyn Error>> {
-    let mut report = String::new();
-    
-    report.push_str("# JavaScript to Rust Migration Analysis\n\n");
-    
-    // Add summary statistics
-    report.push_str("## Summary\n\n");
-    report.push_str(&format!("- Total JavaScript files: {}\n", analysis.total_js_files));
-    report.push_str(&format!("- Migration completed: {} files ({}%)\n", 
-                            analysis.migrated_count,
-                            analysis.completion_percentage.round()));
-    report.push_str(&format!("- Migration not started: {} files\n", analysis.not_started_count));
-    report.push_str(&format!("- Migration in progress: {} files\n", analysis.in_progress_count));
-    report.push_str(&format!("- Migration not needed: {} files\n\n", analysis.not_needed_count));
-    
-    // Add high priority files section
-    report.push_str("## High Priority Files for Migration\n\n");
-    if analysis.high_priority_files.is_empty() {
-        report.push_str("*All high priority files have been migrated!*\n\n");
-    } else {
-        for file in &analysis.high_priority_files {
-            report.push_str(&format!("- `{}`\n", file));
-        }
-        report.push_str("\n");
-    }
-    
-    // Add files by status
-    report.push_str("## Files by Migration Status\n\n");
-    
-    // Completed migrations
-    report.push_str("### Completed Migrations\n\n");
-    for file in &analysis.js_files {
-        if file.migration_status == MigrationStatus::Completed {
-            let rust_path = file.rust_equivalent_path.as_deref().unwrap_or("Unknown Rust path");
-            report.push_str(&format!("- [x] {} → {}\n", file.relative_path, rust_path));
-        }
-    }
-    report.push_str("\n");
-    
-    // In progress migrations
-    report.push_str("### In Progress Migrations\n\n");
-    for file in &analysis.js_files {
-        if file.migration_status == MigrationStatus::InProgress {
-            let rust_path = file.rust_equivalent_path.as_deref().unwrap_or("Planned Rust path");
-            report.push_str(&format!("- [ ] {} → {}\n", file.relative_path, rust_path));
-        }
-    }
-    report.push_str("\n");
-    
-    // Not started but needed migrations (limit to top 10 by priority)
-    report.push_str("### Not Started Migrations (Top 10 by Priority)\n\n");
-    let mut not_started: Vec<_> = analysis.js_files.iter()
-        .filter(|f| f.migration_status == MigrationStatus::NotStarted)
-        .collect();
-    
-    not_started.sort_by(|a, b| b.priority.cmp(&a.priority));
-    
-    for file in not_started.iter().take(10) {
-        let suggested_path = suggest_rust_path(&file.relative_path);
-        report.push_str(&format!("- [ ] {} → {}\n", file.relative_path, suggested_path));
-    }
-    
-    Ok(report)
-}
-
-// Suggest a Rust equivalent path for a JavaScript file
-fn suggest_rust_path(js_path: &str) -> String {
-    // Convert path format from JavaScript to Rust style
-    let path = js_path.replace(".js", ".rs")
-                     .replace("Service", "_service")
-                     .replace("Controller", "_controller")
-                     .replace("Middleware", "_middleware");
-    
-    // Apply Rust naming conventions (snake_case)
-    let mut rust_path = String::new();
-    let parts: Vec<&str> = path.split('/').collect();
-    
-    for (i, part) in parts.iter().enumerate() {
-        // Keep directory structure, transform only file names
-        if i < parts.len() - 1 {
-            rust_path.push_str(part);
-            rust_path.push('/');
-        } else {
-            // Convert camelCase or PascalCase to snake_case for the file name
-            let file_name = to_snake_case(part);
-            rust_path.push_str(&file_name);
-        }
-    }
-    
-    // Move to appropriate Rust structure based on file type
-    if js_path.contains("src/services") {
-        rust_path = rust_path.replace("src/services", "src-tauri/src/services");
-    } else if js_path.contains("src/api") {
-        rust_path = rust_path.replace("src/api", "src-tauri/src/api");
-    } else if js_path.contains("src/models") {
-        rust_path = rust_path.replace("src/models", "src-tauri/src/models");
-    } else if js_path.contains("src/utils") {
-        rust_path = rust_path.replace("src/utils", "src-tauri/src/utils");
-    } else if js_path.contains("src/controllers") || js_path.contains("src/routes") {
-        rust_path = rust_path.replace("src/controllers", "src-tauri/src/commands")
-                           .replace("src/routes", "src-tauri/src/commands");
-    } else if js_path.starts_with("src/") {
-        rust_path = rust_path.replace("src/", "src-tauri/src/");
-    }
-    
-    rust_path
-}
-
-// Helper function to convert camelCase or PascalCase to snake_case
-fn to_snake_case(s: &str) -> String {
-    let mut result = String::new();
-    
-    for (i, c) in s.char_indices() {
-        if c.is_uppercase() {
-            if i > 0 {
-                result.push('_');
+    fn suggest_rust_path(&self, js_file: &str) -> String {
+        // Convert JS file path to a suitable Rust file path
+        // e.g., src/utils/stringUtils.js -> src/utils/string_utils.rs
+        let mut rust_path = js_file.replace(".js", ".rs");
+        
+        // Convert camelCase to snake_case in file name
+        if let Some(last_slash) = rust_path.rfind('/') {
+            let file_name = &rust_path[last_slash+1..];
+            let mut snake_case = String::new();
+            
+            for (i, c) in file_name.chars().enumerate() {
+                if i > 0 && c.is_uppercase() {
+                    snake_case.push('_');
+                }
+                snake_case.push(c.to_lowercase().next().unwrap());
             }
-            result.push(c.to_lowercase().next().unwrap());
-        } else {
-            result.push(c);
+            
+            rust_path = format!("{}/{}", &rust_path[..last_slash], snake_case);
         }
+        
+        rust_path
     }
     
-    result
+    fn calculate_priority_score(&self, js_file: &str) -> u8 {
+        let mut score = 5; // Default priority
+        
+        // Increase score for core services and APIs
+        if js_file.contains("/services/") || js_file.contains("/api/") {
+            score += 3;
+        }
+        
+        // Increase for data models
+        if js_file.contains("/models/") {
+            score += 2;
+        }
+        
+        // Increase for utilities
+        if js_file.contains("/utils/") || js_file.contains("/helpers/") {
+            score += 1;
+        }
+        
+        // Lower priority for tests
+        if js_file.contains("/tests/") || js_file.contains(".test.js") {
+            score -= 3;
+        }
+        
+        // Ensure score is between 1 and 10
+        score.clamp(1, 10)
+    }
+    
+    pub fn generate_migration_plan(&self) -> Result<String, Box<dyn std::error::Error>> {
+        let analysis = self.analyze_js_files();
+        
+        let mut plan = String::from("# JavaScript to Rust Migration Plan\n\n");
+        
+        plan.push_str(&format!("Total JavaScript files: {}\n", analysis.total_js_files));
+        plan.push_str(&format!("Completed migrations: {}\n", analysis.completed_migrations));
+        plan.push_str(&format!("In-progress migrations: {}\n", analysis.in_progress_migrations));
+        plan.push_str(&format!("Not started migrations: {}\n", analysis.not_started_migrations));
+        plan.push_str(&format!("Not needed migrations: {}\n\n", analysis.not_needed_migrations));
+        
+        // Add high priority files
+        plan.push_str("## High Priority Files\n\n");
+        if analysis.high_priority_files.is_empty() {
+            plan.push_str("No high priority files identified.\n\n");
+        } else {
+            for file in &analysis.high_priority_files {
+                plan.push_str(&format!("- {}\n", file));
+            }
+            plan.push_str("\n");
+        }
+        
+        // Add in-progress migrations
+        plan.push_str("## In Progress Migrations\n\n");
+        let in_progress = analysis.js_files.iter()
+            .filter(|f| f.migration_status == MigrationStatus::InProgress)
+            .collect::<Vec<_>>();
+            
+        if in_progress.is_empty() {
+            plan.push_str("No migrations currently in progress.\n\n");
+        } else {
+            plan.push_str("| JavaScript File | Planned Rust Equivalent |\n");
+            plan.push_str("|----------------|-------------------------|\n");
+            
+            for file in in_progress {
+                if let Some(rust_path) = &file.rust_path {
+                    plan.push_str(&format!("| {} | {} |\n", file.relative_path, rust_path));
+                }
+            }
+            plan.push_str("\n");
+        }
+        
+        // Add not started migrations
+        plan.push_str("## Not Started Migrations\n\n");
+        let not_started = analysis.js_files.iter()
+            .filter(|f| f.migration_status == MigrationStatus::NotStarted)
+            .collect::<Vec<_>>();
+            
+        if not_started.is_empty() {
+            plan.push_str("All files have been migrated or are in progress!\n\n");
+        } else {
+            plan.push_str("| JavaScript File | Suggested Rust Equivalent |\n");
+            plan.push_str("|----------------|---------------------------|\n");
+            
+            for file in not_started {
+                if let Some(rust_path) = &file.rust_path {
+                    plan.push_str(&format!("| {} | {} |\n", file.relative_path, rust_path));
+                }
+            }
+            plan.push_str("\n");
+        }
+        
+        Ok(plan)
+    }
 }

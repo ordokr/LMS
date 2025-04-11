@@ -1,36 +1,44 @@
 {
   "models": [
     {
-      "canvasModelPath": "src/models/User.js",
-      "outputPath": "src/models/user.rs"
+      "modelName": "UserModel",
+      "sourceSystem": "unified",
+      "outputPath": "src/models/canvas/user.rs"
     },
     {
-      "canvasModelPath": "src/models/Course.js",
-      "outputPath": "src/models/course.rs"
+      "modelName": "CourseModel",
+      "sourceSystem": "unified",
+      "outputPath": "src/models/canvas/course.rs"
     },
     {
-      "canvasModelPath": "src/models/Assignment.js",
-      "outputPath": "src/models/assignment.rs"
+      "modelName": "AssignmentModel",
+      "sourceSystem": "unified",
+      "outputPath": "src/models/canvas/assignment.rs"
     },
     {
-      "canvasModelPath": "src/models/Discussion.js",
-      "outputPath": "src/models/discussion.rs"
+      "modelName": "DiscussionModel",
+      "sourceSystem": "unified",
+      "outputPath": "src/models/canvas/discussion.rs"
     },
     {
-      "canvasModelPath": "src/models/File.js",
-      "outputPath": "src/models/file.rs"
+      "modelName": "FileModel",
+      "sourceSystem": "unified",
+      "outputPath": "src/models/canvas/file.rs"
     },
     {
-      "canvasModelPath": "src/models/Notification.js",
-      "outputPath": "src/models/notification.rs"
+      "modelName": "NotificationModel",
+      "sourceSystem": "unified",
+      "outputPath": "src/models/canvas/notification.rs"
     },
     {
-      "canvasModelPath": "src/models/Calendar.js",
-      "outputPath": "src/models/calendar.rs"
+      "modelName": "CalendarModel",
+      "sourceSystem": "unified",
+      "outputPath": "src/models/canvas/calendar.rs"
     },
     {
-      "canvasModelPath": "src/models/Rubric.js",
-      "outputPath": "src/models/rubric.rs"
+      "modelName": "RubricModel",
+      "sourceSystem": "unified",
+      "outputPath": "src/models/canvas/rubric.rs"
     }
   ]
 }

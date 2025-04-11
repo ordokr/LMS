@@ -19,23 +19,28 @@ def process_batch(config_file):
 
     print(f"Found {len(config['models'])} models to process")
     success_count = 0
-    
     for model in config['models']:
-        canvas_path = model['canvasModelPath']
+        model_name = model['modelName']
+        source_system = model.get('sourceSystem', 'canvas')
         output_path = model['outputPath']
-        print(f"Processing: {canvas_path} -> {output_path}")
+        print(f"Processing: {model_name} (from {source_system}) -> {output_path}")
         
+        # Ensure output directory exists
+        output_dir = os.path.dirname(output_path)
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir, exist_ok=True)
+            
         try:
             result = subprocess.run(
-                ["python", "tools/generate_rust_model.py", canvas_path, output_path],
+                ["python", "tools/generate_rust_model.py", model_name, source_system, output_path],
                 check=True,
                 capture_output=True,
                 text=True
             )
-            print(f"Success: {os.path.basename(canvas_path)}")
+            print(f"Success: {model_name}")
             success_count += 1
         except subprocess.CalledProcessError as e:
-            print(f"Error processing {canvas_path}: {e.stderr}")
+            print(f"Error processing {model_name}: {e.stderr}")
     
     print(f"Completed processing. {success_count}/{len(config['models'])} models generated successfully.")
 

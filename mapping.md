@@ -19,6 +19,20 @@ This document maps features from Canvas LMS and Discourse to our Rust implementa
 
 | Canvas/Discourse Feature | Our Implementation | Status | Notes |
 |--------------------------|-------------------|--------|-------|
+| Canvas `util` | `models/group.rs:Group` | 0% | Auto-generated with 34 fields, 15 methods |
+| Canvas `upgradeinsecurerequests` | `models/grade.rs:Grade` | 0% | Auto-generated with 20 fields, 0 methods |
+| Canvas `for` | `models/module.rs:Module` | 0% | Auto-generated with 4 fields, 6 methods |
+| Canvas `util` | `models/group.rs:Group` | 0% | Auto-generated with 34 fields, 15 methods |
+| Canvas `upgradeinsecurerequests` | `models/grade.rs:Grade` | 0% | Auto-generated with 20 fields, 0 methods |
+| Canvas `for` | `models/module.rs:Module` | 0% | Auto-generated with 4 fields, 6 methods |
+| Canvas `util` | `models/group.rs:Group` | 0% | Auto-generated with 34 fields, 15 methods |
+| Canvas `upgradeinsecurerequests` | `models/grade.rs:Grade` | 0% | Auto-generated with 20 fields, 0 methods |
+| Canvas `for` | `models/module.rs:Module` | 0% | Auto-generated with 4 fields, 6 methods |
+| Canvas `util` | `models/group.rs:Group` | 0% | Auto-generated with 34 fields, 15 methods |
+| Canvas `upgradeinsecurerequests` | `models/grade.rs:Grade` | 0% | Auto-generated with 20 fields, 0 methods |
+| Canvas `for` | `models/module.rs:Module` | 0% | Auto-generated with 4 fields, 6 methods |
+| Unified `UserModel` | `models/user_model.rs:UserModel` | 0% | Auto-generated with 27 fields, 5 methods |
+| Canvas `user_defined_metadata` | `models/user.rs:User` | 0% | Auto-generated with 6 fields, 0 methods |
 | Canvas `User` | `models/auth.rs:User` | 80% | Missing preferences |
 | Canvas `UserProfile` | `models/auth.rs:UserProfile` | 60% | Simplified fields |
 | Discourse `User` | `models/auth.rs:User` | 70% | Need trust levels |

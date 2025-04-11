@@ -2,11 +2,12 @@
 name = "project-analyzer"
 version = "0.1.0"
 edition = "2021"
+authors = ["LMS Team"]
 
 [dependencies]
-walkdir = "2.3"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-chrono = "0.4"
-toml = "0.8" # Added for config file parsing
-syn = { version = "2.0", features = ["full", "visit", "extra-traits"] } # Added for Rust code parsing
+walkdir = "2.3.2"
+regex = "1.7.0"
+structopt = "0.3.26"
+lazy_static = "1.4.0"
+serde = { version = "1.0.152", features = ["derive"] }
+serde_json = "1.0.91"
