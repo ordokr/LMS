@@ -1,2 +1,0 @@
-WASM binary exists: true
-JS bindings exist: true
