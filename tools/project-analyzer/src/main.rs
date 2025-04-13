@@ -9,6 +9,19 @@ use std::io::Write;
 use std::error::Error;
 use structopt::StructOpt;
 use regex::Regex;
+use serde::Deserialize;
+use crate::TechStack;
+
+// Placeholder definitions for missing types
+#[derive(Debug, Deserialize)]
+struct ArchitectureInfo {
+    // Define fields as needed
+}
+
+#[derive(Debug, Deserialize)]
+struct Integration {
+    // Define fields as needed
+}
 
 mod js_migration_analyzer;
 use js_migration_analyzer::{JsMigrationAnalyzer, MigrationStatus};

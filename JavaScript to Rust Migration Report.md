@@ -291,3 +291,9 @@ The JavaScript to Rust migration has provided the following benefits:
 - Implement new features using Rust's robust ecosystem
 
 - Document the migrated codebase using Rust's documentation tools
+
+## Test Migrations
+
+| JavaScript Test File | Rust Equivalent |
+|----------------------|------------------|
+| test/services/notificationService.test.js | tests/notification_service_test.rs |

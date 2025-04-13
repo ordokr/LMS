@@ -34,11 +34,15 @@
       "modelName": "CalendarModel",
       "sourceSystem": "unified",
       "outputPath": "src/models/canvas/calendar.rs"
-    },
-    {
+    },    {
       "modelName": "RubricModel",
       "sourceSystem": "unified",
       "outputPath": "src/models/canvas/rubric.rs"
+    },
+    {
+      "modelName": "UserProfileModel",
+      "sourceSystem": "unified",
+      "outputPath": "src-tauri/src/models/user.rs"
     }
   ]
 }

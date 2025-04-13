@@ -1,12 +1,9 @@
-use std::env;
-use std::net::SocketAddr;
-use std::sync::Arc;
-
 use actix_web::{web, App, HttpServer, middleware, Responder, HttpResponse};
 use actix_cors::Cors;
-use mongodb::{Client, options::ClientOptions};
 use serde_json::json;
 use dotenv::dotenv;
+use sqlx::{SqlitePool, sqlite::SqliteConnectOptions};
+use std::env;
 
 use crate::routes::auth_routes;
 use crate::routes::webhook_routes;
@@ -15,28 +12,21 @@ use crate::utils::logger::create_logger;
 
 /// Application state
 pub struct AppState {
-    db: mongodb::Database,
+    db: SqlitePool,
     logger: slog::Logger,
 }
 
 /// Application configuration
 #[derive(Clone, Debug)]
 pub struct AppConfig {
-    pub mongodb_uri: String,
-    pub port: u16,
-    pub env: String,
+    pub sqlite_db_path: String,
 }
 
-impl Default for AppConfig {
-    fn default() -> Self {
+impl Config {
+    pub fn new() -> Self {
         Self {
-            mongodb_uri: env::var("MONGODB_URI")
-                .unwrap_or_else(|_| "mongodb://localhost:27017/lms-integration".to_string()),
-            port: env::var("PORT")
-                .ok()
-                .and_then(|p| p.parse().ok())
-                .unwrap_or(5000),
-            env: env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string()),
+            sqlite_db_path: env::var("SQLITE_DB_PATH")
+                .unwrap_or_else(|_| "sqlite.db".to_string()),
         }
     }
 }
@@ -56,24 +46,8 @@ pub async fn init_app(config: Option<AppConfig>) -> Result<actix_web::dev::Serve
         "port" => config.port
     );
     
-    // Connect to MongoDB if not in test environment
-    let db = if config.env != "test" {
-        slog::info!(logger, "Connecting to MongoDB"; "uri" => &config.mongodb_uri);
-        
-        let client_options = ClientOptions::parse(&config.mongodb_uri).await?;
-        let client = Client::with_options(client_options)?;
-        let db_name = config.mongodb_uri.split('/').last().unwrap_or("lms-integration");
-        
-        client.database(db_name)
-    } else {
-        // Create a mock database for testing
-        slog::info!(logger, "Using mock database for testing");
-        
-        let client_options = ClientOptions::parse("mongodb://localhost:27017").await?;
-        let client = Client::with_options(client_options)?;
-        
-        client.database("lms-integration-test")
-    };
+    // Connect to SQLite database
+    let db = setup_database(&config).await?;
     
     // Create app state
     let app_state = web::Data::new(AppState {

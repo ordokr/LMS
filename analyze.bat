@@ -52,8 +52,8 @@ if "%DASHBOARD%"=="true" echo - Generate visual dashboard: YES
 if "%TECH_DEBT%"=="true" echo - Analyze technical debt: YES
 
 REM Build options string for cargo run
-set "OPTIONS="
-if "%QUICK%"=="true" set "OPTIONS=--quick"
+set "OPTIONS=--"
+if "%QUICK%"=="true" set "OPTIONS=%OPTIONS% --quick"
 if "%UPDATE_RAG%"=="true" set "OPTIONS=%OPTIONS% --update-rag"
 if "%GENERATE_AI%"=="true" set "OPTIONS=%OPTIONS% --generate-ai"
 if "%ANALYZE_JS%"=="true" set "OPTIONS=%OPTIONS% --analyze-js"
