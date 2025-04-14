@@ -8,7 +8,12 @@ use crate::generators::architecture_doc_generator;
 use crate::generators::models_doc_generator;
 use crate::generators::api_doc_generator;
 use crate::generators::tech_debt_report_generator;
+use crate::generators::code_quality_report_generator;
+use crate::generators::model_report_generator;
+use crate::generators::dependency_report_generator;
+use crate::generators::trend_report_generator;
 use crate::generators::dashboard_generator;
+use crate::generators::enhanced_dashboard_generator;
 
 /// Generate all reports based on the analysis result
 pub fn generate_reports(result: &AnalysisResult) -> Result<(), String> {
@@ -42,8 +47,16 @@ pub fn generate_reports(result: &AnalysisResult) -> Result<(), String> {
     // Generate model report
     model_report_generator::generate_model_report(result)?;
 
-    // Generate dashboard
+    // Generate dependency report
+    dependency_report_generator::generate_dependency_report(result)?;
+
+    // Generate trend reports
+    trend_report_generator::generate_trend_report(result)?;
+    statistical_trend_generator::generate_statistical_trend_report(result)?;
+
+    // Generate dashboards
     dashboard_generator::generate_dashboard(result)?;
+    enhanced_dashboard_generator::generate_enhanced_dashboard(result)?;
 
     println!("All reports generated successfully.");
 

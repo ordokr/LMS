@@ -1,0 +1,72 @@
+name: LMS Project Analyzer
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 3 * * *'  # Run daily at 3 AM UTC
+
+jobs:
+  analyze:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0  # Fetch all history for all branches and tags
+    
+    - name: Set up Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+    
+    - name: Cache Rust dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+    
+    - name: Build analyzers
+      run: |
+        cd modules/analyzer
+        cargo build --release
+    
+    - name: Run analyzers
+      run: |
+        ./unified-analyze.bat --full --tech-debt --code-quality --models --dashboard
+    
+    - name: Generate comprehensive report
+      run: |
+        ./generate-comprehensive-report.bat
+    
+    - name: Upload analysis reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: analysis-reports
+        path: |
+          docs/central_reference_hub.md
+          docs/SUMMARY_REPORT.md
+          docs/technical_debt_report.md
+          docs/code_quality_summary.md
+          docs/model_summary.md
+          docs/comprehensive_report.md
+          docs/dashboard.html
+          docs/enhanced_dashboard.html
+    
+    - name: Check for critical issues
+      run: |
+        cd modules/analyzer
+        cargo run --bin check_critical_issues
+        if ($LASTEXITCODE -ne 0) {
+          Write-Host "::error::Critical issues found in the codebase. See the analysis reports for details."
+          exit 1
+        }
