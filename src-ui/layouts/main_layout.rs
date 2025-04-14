@@ -51,18 +51,26 @@ pub fn MainLayout(children: Children) -> impl IntoView {
                                 >
                                     "Courses"
                                 </A>
-                                
-                                // Instructor only links
+                                  // Instructor only links
                                 {move || {
                                     if is_instructor() {
                                         view! {
-                                            <A 
-                                                href="/instructor/courses/create"
-                                                class="border-transparent text-gray-500 hover:border-blue-500 hover:text-blue-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-                                                active_class="border-blue-500 text-blue-700"
-                                            >
-                                                "Create Course"
-                                            </A>
+                                            <>
+                                                <A 
+                                                    href="/instructor/courses/create"
+                                                    class="border-transparent text-gray-500 hover:border-blue-500 hover:text-blue-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                                                    active_class="border-blue-500 text-blue-700"
+                                                >
+                                                    "Create Course"
+                                                </A>
+                                                <A 
+                                                    href="/integrations/discourse"
+                                                    class="border-transparent text-gray-500 hover:border-blue-500 hover:text-blue-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                                                    active_class="border-blue-500 text-blue-700"
+                                                >
+                                                    "Discourse Integration"
+                                                </A>
+                                            </>
                                         }.into_view()
                                     } else {
                                         view! { <></> }.into_view()

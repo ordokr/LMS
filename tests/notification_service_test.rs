@@ -5,9 +5,10 @@ mod tests {
     use mockall::mock;
     use chrono::{DateTime, Utc};
     use serde_json::json;
-    
-    use crate::models::canvas::notification::Notification;
+    use tokio;
+
     use crate::services::notification_service::{NotificationService, NotificationSource, NotificationFilterOptions};
+    use crate::models::Notification;
     
     // Mock Canvas API
     mock! {

@@ -1,25 +1,9 @@
-use wasm_bindgen::prelude::*;
 use ed25519_dalek::{Keypair, Signature, Signer, Verifier};
 
-#[wasm_bindgen]
-pub struct BlockchainAnchor {
-    keypair: Keypair,
+pub fn sign_message(message: &[u8], keypair: &Keypair) -> Signature {
+    keypair.sign(message)
 }
 
-#[wasm_bindgen]
-impl BlockchainAnchor {
-    #[wasm_bindgen(constructor)]
-    pub fn new(seed: Option<String>) -> Self {
-        // Implementation as before
-        Self { keypair: Keypair::generate(&mut rand::thread_rng()) }
-    }
-    
-    // Cryptographic operations as before
-    #[wasm_bindgen]
-    pub fn sign(&self, message: &[u8]) -> Vec<u8> {
-        let signature = self.keypair.sign(message);
-        signature.to_bytes().to_vec()
-    }
-    
-    // Other methods as before
+pub fn verify_signature(message: &[u8], signature: &Signature, public_key: &ed25519_dalek::PublicKey) -> bool {
+    public_key.verify_strict(message, signature).is_ok()
 }

@@ -111,24 +111,19 @@ impl DiscourseClient {
         Ok(result)
     }
     
-    // Create a post
-    pub async fn create_post(&self, topic_id: &str, content: &str, external_id: Option<&str>, user_id: Option<&str>) -> Result<String, Error> {
+    // Create a new topic
+    pub async fn create_topic(&self, title: &str, content: &str, category_id: Option<&str>) -> Result<DiscourseTopic, Error> {
         let url = format!("{}/posts.json", self.base_url);
-        
+
         let mut json_payload = serde_json::json!({
-            "topic_id": topic_id,
+            "title": title,
             "raw": content
         });
-        
-        // Add external_id as custom field if provided
-        if let Some(ext_id) = external_id {
-            json_payload["custom_fields"] = serde_json::json!({
-                "canvas_entry_id": ext_id
-            });
+
+        if let Some(category) = category_id {
+            json_payload["category"] = serde_json::json!(category);
         }
-        
-        // TODO: Handle user_id mapping between systems
-        
+
         let response = self.client
             .post(&url)
             .header("Api-Key", &self.api_key)
@@ -136,17 +131,57 @@ impl DiscourseClient {
             .json(&json_payload)
             .send()
             .await?;
-            
+
+        if !response.status().is_success() {
+            return Err(Error::ApiError(format!("Failed to create topic: HTTP {}", response.status())));
+        }
+
+        response.json::<DiscourseTopic>().await
+            .map_err(|e| Error::DeserializationError(e.to_string()))
+    }
+
+    // Create a new post
+    pub async fn create_post(&self, topic_id: &str, content: &str) -> Result<DiscoursePost, Error> {
+        let url = format!("{}/posts.json", self.base_url);
+
+        let json_payload = serde_json::json!({
+            "topic_id": topic_id,
+            "raw": content
+        });
+
+        let response = self.client
+            .post(&url)
+            .header("Api-Key", &self.api_key)
+            .header("Api-Username", &self.api_username)
+            .json(&json_payload)
+            .send()
+            .await?;
+
         if !response.status().is_success() {
             return Err(Error::ApiError(format!("Failed to create post: HTTP {}", response.status())));
         }
-        
-        let json: serde_json::Value = response.json().await?;
-        let post_id = json["id"].as_str()
-            .ok_or_else(|| Error::DeserializationError("Failed to get post ID".into()))?
-            .to_string();
-            
-        Ok(post_id)
+
+        response.json::<DiscoursePost>().await
+            .map_err(|e| Error::DeserializationError(e.to_string()))
+    }
+
+    // Get all categories
+    pub async fn get_categories(&self) -> Result<Vec<DiscourseCategory>, Error> {
+        let url = format!("{}/categories.json", self.base_url);
+
+        let response = self.client
+            .get(&url)
+            .header("Api-Key", &self.api_key)
+            .header("Api-Username", &self.api_username)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(Error::ApiError(format!("Failed to get categories: HTTP {}", response.status())));
+        }
+
+        response.json::<Vec<DiscourseCategory>>().await
+            .map_err(|e| Error::DeserializationError(e.to_string()))
     }
     
     // Update a post

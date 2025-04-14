@@ -17,6 +17,7 @@ use crate::{
             course_create::CreateCourse,
             course_edit::EditCourse,
         },
+        integration::{DiscourseIntegrationPage, CanvasIntegrationPage, IntegrationDashboard},
         not_found::NotFound,
         unauthorized::Unauthorized,
     },
@@ -30,7 +31,7 @@ pub fn App() -> impl IntoView {
                 <Route path="/login" view=|| view! { <LoginForm /> } />
                 <Route path="/register" view=|| view! { <RegisterForm /> } />
                 <Route path="/unauthorized" view=|| view! { <Unauthorized /> } />
-                
+
                 // Protected routes
                 <Route
                     path="/"
@@ -41,13 +42,16 @@ pub fn App() -> impl IntoView {
                             </ProtectedRoute>
                         }
                     }
-                >
-                    <Route path="/" view=|| view! { <Dashboard /> } />
+                >                    <Route path="/" view=|| view! { <Dashboard /> } />
                     <Route path="/dashboard" view=|| view! { <Dashboard /> } />
                     <Route path="/courses" view=|| view! { <CoursesList /> } />
                     <Route path="/courses/:course_id" view=|| view! { <CourseDetail /> } />
+                    <Route path="/integrations" view=|| view! { <IntegrationDashboard /> } />
+                    <Route path="/integrations/discourse" view=|| view! { <DiscourseIntegrationPage /> } />
+                    <Route path="/integrations/canvas" view=|| view! { <CanvasIntegrationPage /> } />
+                    <Route path="/integrations/settings" view=|| view! { <IntegrationSettingsPage /> } />
                 </Route>
-                
+
                 // Instructor-only routes
                 <Route
                     path="/instructor"
@@ -62,7 +66,7 @@ pub fn App() -> impl IntoView {
                     <Route path="/courses/create" view=|| view! { <CreateCourse /> } />
                     <Route path="/courses/:course_id/edit" view=|| view! { <EditCourse /> } />
                 </Route>
-                
+
                 // 404 Not Found
                 <Route path="/*" view=|| view! { <NotFound /> } />
             </Routes>

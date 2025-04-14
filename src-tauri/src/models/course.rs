@@ -8,6 +8,21 @@ pub struct Course {
     pub description: Option<String>,
     pub instructor_id: i64,
     pub created_at: DateTime<Utc>,
+    pub status: CourseStatus, // Added field for workflow state
+}
+
+impl Course {
+    pub fn activate(&mut self) {
+        self.status = CourseStatus::Active;
+    }
+
+    pub fn archive(&mut self) {
+        self.status = CourseStatus::Archived;
+    }
+
+    pub fn is_active(&self) -> bool {
+        self.status == CourseStatus::Active
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

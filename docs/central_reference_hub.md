@@ -24,7 +24,7 @@ The LMS (Learning Management System) project is a migration and integration of C
 - MeiliSearch
 
 ### AI Integration
-- Gemini
+- Local AI Model implementation via LM Studio or the like
 
 ### Blockchain
 - Custom Rust implementation
@@ -97,9 +97,15 @@ The LMS (Learning Management System) project is a migration and integration of C
 
 | Integration | Source | Target | Status |
 |-------------|--------|--------|--------|
-| Canvas Course Management | Canvas | LMS | In Progress |
+| Canvas Course Management | Canvas | LMS | Completed |
 | Discourse Forums | Discourse | LMS | Planned |
-| Blockchain Certification | Native | LMS | In Progress |
+| Blockchain Certification | Native | LMS | Completed |
+
+## Recent Updates
+
+- **Canvas Course Management**: Workflow states and API endpoints finalized.
+- **Blockchain Certification**: Certificate creation and verification integrated with the LMS.
+- **Batch Model Generation**: Rust models updated to align with the latest configurations.
 
 ## Documentation Links
 
@@ -107,6 +113,7 @@ The LMS (Learning Management System) project is a migration and integration of C
 - [Models Documentation](./models/overview.md)
 - [Integration Documentation](./integration/overview.md)
 - [Blockchain Implementation](../rag_knowledge_base/integration/blockchain_implementation.md)
+- [Analyzer Reference](./analyzer_reference.md)
 
 ## AI Development Guidance
 

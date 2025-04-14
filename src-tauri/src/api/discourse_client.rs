@@ -182,6 +182,40 @@ impl DiscourseClient {
             "created_at": Utc::now().to_rfc3339(),
         }))
     }
+
+    // Fetch posts for a specific topic
+    pub async fn get_topic_posts(&self, topic_id: u64) -> Result<Vec<serde_json::Value>> {
+        let url = format!("{}/t/{}/posts.json", self.base_url, topic_id);
+
+        let response = self.client.get(&url)
+            .query(&[
+                ("api_key", &self.api_key),
+                ("api_username", &self.api_username),
+            ])
+            .send()
+            .await
+            .map_err(DiscourseApiError::HttpError)?;
+
+        if !response.status().is_success() {
+            return Err(DiscourseApiError::ApiError {
+                status_code: response.status(),
+                message: response.text().await.unwrap_or_else(|_| "Unknown error".to_string()),
+            });
+        }
+
+        let posts = response.json::<serde_json::Value>().await
+            .map_err(DiscourseApiError::SerializationError)?;
+
+        // Extract posts array from the response
+        if let Some(posts_array) = posts.get("post_stream").and_then(|ps| ps.get("posts")).and_then(|p| p.as_array()) {
+            return Ok(posts_array.clone());
+        }
+
+        Err(DiscourseApiError::ApiError {
+            status_code: response.status(),
+            message: "Failed to parse posts from response".to_string(),
+        })
+    }
 }
 
 // Factory function to create a Discourse client

@@ -7,6 +7,7 @@ mod models;
 mod database;
 mod routes; // Add this line to import your routes module
 mod middleware;
+mod commands; // Integration commands and other command modules
 mod core;
 mod sync;
 mod lms;
@@ -94,6 +95,7 @@ use blockchain::{
 use crate::services::integration::canvas_integration::CanvasIntegrationService;
 use crate::services::integration::discourse_integration::DiscourseIntegrationService;
 use crate::services::integration::sync_service::IntegrationSyncService;
+use crate::services::integration::batch_sync::BatchSyncService;
 use crate::api::integration_commands::{
     sync_topic,
     sync_all_pending,
@@ -134,7 +136,7 @@ use crate::controllers::forum::{
     create_topic,
     update_topic,
     delete_topic,
-    
+
     // Posts controller
     get_post,
     create_post,
@@ -142,7 +144,7 @@ use crate::controllers::forum::{
     delete_post,
     like_post,
     unlike_post,
-    
+
     // Categories controller
     list_categories,
     get_category,
@@ -224,10 +226,10 @@ async fn handle_create_course(
 ) -> impl IntoResponse {
     // Log the attempt
     println!("Attempting to create course: {} - {}", payload.name, payload.description);
-    
+
     // Pass the database connection to the lib function
     let conn = state.conn.lock().await;
-    
+
     // Use a more direct approach to database interaction
     match database::create_course(&conn, &payload.name, &payload.description) {
         Ok(message) => (StatusCode::CREATED, message).into_response(),
@@ -248,9 +250,9 @@ async fn handle_create_forum_thread(
     Json(payload): Json<ForumThread>
 ) -> impl IntoResponse {
     println!("Attempting to create forum thread: {} - {}", payload.title, payload.category);
-    
+
     let conn = state.conn.lock().await;
-    
+
     match database::create_forum_thread(&conn, &payload.title, &payload.category) {
         Ok(message) => (StatusCode::CREATED, message).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
@@ -261,7 +263,7 @@ async fn handle_get_forum_threads(
     State(state): State<Arc<AppState>>
 ) -> impl IntoResponse {
     let conn = state.conn.lock().await;
-    
+
     match database::get_forum_threads(&conn) {
         Ok(threads) => (StatusCode::OK, Json(threads)).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error": e}))).into_response(),
@@ -365,7 +367,43 @@ pub fn run() {
         .setup(|app| {
             // Create a Tokio runtime for our Axum server
             let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
-            
+
+            // Initialize database
+            let db = db::init_db().expect("Failed to initialize database");
+
+            // Create the integration services
+            let canvas_service = Arc::new(CanvasIntegrationService::new(db.clone()));
+            let discourse_service = Arc::new(DiscourseIntegrationService::new(db.clone()));
+            let sync_service = Arc::new(IntegrationSyncService::new(
+                db.clone(),
+                canvas_service.clone(),
+                discourse_service.clone(),
+            ));
+
+            // Create and start the batch sync service
+            let batch_sync_service = BatchSyncService::new(
+                db.clone(),
+                sync_service.clone(),
+                10, // batch size
+                60, // interval in seconds
+            );
+
+            // Start the batch sync loop in a background task
+            let batch_sync_service_arc = Arc::new(batch_sync_service);
+            let batch_sync_clone = batch_sync_service_arc.clone();
+            rt.spawn(async move {
+                if let Err(e) = batch_sync_clone.start_batch_sync_loop().await {
+                    eprintln!("Error starting batch sync loop: {}", e);
+                }
+            });
+
+            // Make services available to the app
+            app.manage(db);
+            app.manage(canvas_service);
+            app.manage(discourse_service);
+            app.manage(sync_service);
+            app.manage(batch_sync_service_arc);
+
             // Spawn the server within the runtime
             rt.spawn(async {
                 let app_router = create_api_router(app_state.clone());
@@ -376,17 +414,17 @@ pub fn run() {
                     .await
                     .unwrap();
             });
-            
+
             // Store the runtime in the app state to keep it alive
             app.manage(rt);
-            
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             // Auth commands
             login,
             verify_token,
-            
+
             // User profile commands
             user_controller::get_user_profile,
             user_controller::update_user_profile,
@@ -395,7 +433,7 @@ pub fn run() {
             user_controller::get_user_topics,
             user_controller::get_user_posts,
             user_controller::get_user_id_by_username,
-            
+
             // Notification commands
             user_controller::get_user_notifications,
             user_controller::mark_notification_read,
@@ -403,7 +441,16 @@ pub fn run() {
             user_controller::get_unread_notification_count,
             user_controller::create_notification,
             user_controller::get_user_notification_summaries,
-            
+
+            // Integration notification commands
+            api::notification_commands::get_notifications,
+            api::notification_commands::get_unread_notifications,
+            api::notification_commands::get_unread_notification_count,
+            api::notification_commands::mark_notification_read,
+            api::notification_commands::mark_all_notifications_read,
+            api::notification_commands::dismiss_notification,
+            api::notification_commands::dismiss_all_notifications,
+
             // Follow commands
             follow_controller::follow_user,
             follow_controller::unfollow_user,
@@ -413,29 +460,28 @@ pub fn run() {
             follow_controller::subscribe_to_topic,
             follow_controller::subscribe_to_category,
             follow_controller::get_topic_subscription,
-            
+
             // Forum commands
             list_topics,
             get_topic,
             create_topic,
             update_topic,
             delete_topic,
-            
+
             get_post,
             create_post,
             update_post,
             delete_post,
             like_post,
             unlike_post,
-            
+
             list_categories,
             get_category,
             create_category,
             update_category,
             delete_category,
             get_category_topics,
-            
-            // Integration commands
+              // Integration commands
             get_course_integration_settings,
             update_course_integration_settings,
             connect_course_to_canvas,
@@ -450,18 +496,30 @@ pub fn run() {
             delete_course_category_mapping,
             sync_course_category,
             update_course_category_sync_direction,
-            
+
+            // Discourse Integration commands
+            commands::get_discourse_integration_status,
+            commands::get_discourse_topics,
+            commands::get_discourse_categories,
+            commands::get_discourse_sync_history,
+            commands::sync_all_discourse_topics,
+            commands::sync_discourse_topic,
+            commands::setup_discourse_integration,
+            commands::open_url,
+
             // Sync commands
             sync_topic,
             sync_all_pending,
             mark_topic_for_sync,
             test_canvas_connectivity,
             test_discourse_connectivity,
+            get_sync_conflicts,
+            resolve_sync_conflict,
             get_sync_status,
             clear_sync_errors,
             get_sync_history,
             get_sync_history_stats,
-            
+
             // Discussion topic commands
             list_topics,
             get_topic,
@@ -485,23 +543,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
         .init();
-    
+
     tracing::info!(event = "application_start", version = env!("CARGO_PKG_VERSION"));
-    
+
     // Initialize database connection pool
     let db_url = "sqlite:educonnect.db?mode=rwc&cache=shared";
     let db_pool = SqlitePoolOptions::new()
         .max_connections(16) // Adjust based on expected load
         .connect(db_url)
         .await?;
-    
+
     // Apply optimizations
     optimize_db_connection(&db_pool).await?;
-    
+
     // Initialize blockchain components with optimized async configuration
     let hybrid_chain = HybridChain::new(Some("chain_config.toml")).await?;
     let chain = Arc::new(Mutex::new(hybrid_chain));
-    
+
     // Spawn CPU-intensive blockchain operations on dedicated threads
     let chain_clone = Arc::clone(&chain);
     tokio::task::spawn_blocking(move || {
@@ -509,7 +567,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let crypto = BlockchainCrypto::new();
         // Store in thread-local storage or return for further use
     });
-    
+
     // Spawn I/O-bound batch processing on the async runtime
     let chain_clone = Arc::clone(&chain);
     let db_clone = db_pool.clone();
@@ -517,7 +575,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let batch_processor = BatchProcessor::new(db_clone, chain_clone);
         batch_processor.start_batching().await;
     });
-    
+
     // Initialize Tauri app with optimized state management
     tauri::Builder::default()
         .manage(AppState {
@@ -528,7 +586,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             // Command handlers
         ])
         .run(tauri::generate_context!())?;
-    
+
     Ok(())
 }
 
@@ -567,21 +625,21 @@ fn create_api_router(app_state: Arc<AppState>) -> Router {
         .route("/posts", post(create_post))
         .route("/topics", post(create_topic))
         .layer(middleware::from_fn(middleware::require_auth));
-    
+
     // Routes that require admin privileges
     let admin_routes = Router::new()
         .route("/categories", post(create_category))
         .route("/categories/:id", put(update_category).delete(delete_category))
         .layer(middleware::from_fn(middleware::require_admin));
-    
+
     // Public routes
     Router::new()
         .route("/", get(root))
-        
+
         // Auth endpoints
         .route("/auth/register", post(register_user))
         .route("/auth/login", post(login_user))
-        
+
         // Public endpoints
         .route("/categories", get(list_categories))
         .route("/categories/:id", get(get_category))
@@ -589,11 +647,11 @@ fn create_api_router(app_state: Arc<AppState>) -> Router {
         .route("/categories/:id/topics", get(list_topics))
         .route("/topics/:id/posts", get(list_topic_posts))
         .route("/posts/:id", get(get_post))
-        
+
         // Merge in our protected routes
         .merge(protected_routes)
         .merge(admin_routes)
-        
+
         .with_state(app_state)
 }
 
@@ -609,15 +667,15 @@ async fn main() {
 
     // Load configuration
     let config = AppConfig::load();
-    
+
     // Initialize database
     let db_pool = init_db(&config.database.sqlite_path)
         .await
         .expect("Failed to initialize database");
-    
+
     // Optimize database connection
     optimize_db_connection(&db_pool).await.expect("Failed to optimize database connection");
-    
+
     // Set up repositories
     let user_repo = Arc::new(UserRepository::new(db_pool.clone()));
     let forum_category_repo = Arc::new(ForumCategoryRepository::new(db_pool.clone()));
@@ -626,26 +684,26 @@ async fn main() {
     let module_repo = Arc::new(ModuleRepository::new(db_pool.clone()));
     let assignment_repo = Arc::new(AssignmentRepository::new(db_pool.clone()));
     let course_category_repo = CourseCategoryRepository::new(db_pool.clone());
-    
+
     // Set up sync engine
     let sync_engine = Arc::new(SyncEngine::new(db_pool.clone()));
-    
+
     // Initialize sync engine
     sync_engine.initialize().await.expect("Failed to initialize sync engine");
-    
+
     // Set up sync service
     let sync_service = SyncService::new(
         sync_engine.clone(),
         config.sync.sync_endpoint.clone(),
         config.sync.sync_interval,
     );
-    
+
     // Set up authentication service
     let auth_service = Arc::new(AuthService::new(
         config.server.jwt_secret.clone(),
         config.server.jwt_expiration,
     ));
-    
+
     // Set up CORS
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -667,11 +725,11 @@ async fn main() {
         .layer(Extension(auth_service))
         .layer(Extension(sync_engine))
         .layer(Extension(db_pool));
-    
+
     // Run the server
     let addr = SocketAddr::from(([127, 0, 0, 1], config.server.port));
     tracing::info!("Listening on {}", addr);
-    
+
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
         .with_graceful_shutdown(shutdown_signal())
@@ -687,32 +745,32 @@ fn main() {
         .enable_time()
         .build()
         .expect("Failed to create Tokio runtime");
-        
+
     rt.block_on(async {
         // Initialize database
         let db_path = "educonnect.db";
         let pool = db::setup_database(db_path)
             .await
             .expect("Failed to initialize database");
-        
+
         // Initialize cache
         let forum_cache = Arc::new(ForumCache::new());
-        
+
         // Create application state
         let app_state = Arc::new(AppState {
             pool,
             cache: forum_cache,
         });
-        
+
         // Create API router
         let app = Router::new()
             .nest("/api/forum", forum_router())
             .with_state(app_state);
-        
+
         // Start server
         let addr = "0.0.0.0:3000";
         println!("Starting server on {}", addr);
-        
+
         Server::bind(&addr.parse().unwrap())
             .serve(app.into_make_service())
             .await
@@ -771,7 +829,7 @@ use log::info;
 fn main() {
     // Initialize logging
     env_logger::init();
-    
+
     // Configure tokio for optimal thread utilization
     let rt = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(num_cpus::get())
@@ -779,10 +837,10 @@ fn main() {
         .enable_time()
         .build()
         .expect("Failed to create Tokio runtime");
-        
+
     rt.block_on(async {
         info!("Starting optimized forum application");
-        
+
         // Initialize database with optimizations
         let db_path = "educonnect.db";
         let pool = match METRICS.measure_async("db_setup", || db::setup_database(db_path)).await {
@@ -792,43 +850,43 @@ fn main() {
                 std::process::exit(1);
             }
         };
-        
+
         // Apply memory optimizations
         if let Err(e) = configure_memory_limits(&pool).await {
             log::warn!("Failed to configure memory limits: {:?}", e);
         }
-        
+
         // Initialize advanced cache systems
         let forum_cache = Arc::new(ForumCache::new());
         info!("Cache systems initialized");
-        
+
         // Start memory monitoring
         let memory_monitor = MemoryMonitor::new(pool.clone(), 50); // 50MB threshold
         memory_monitor.start_monitoring();
         info!("Memory monitoring started");
-        
+
         // Initialize task queue with workers
         let task_queue = Arc::new(TaskQueue::new(4)); // 4 worker threads
         let task_handlers = TaskHandlers::new(pool.clone());
         task_queue.start_workers(task_handlers.get_handler()).await;
         info!("Background task system initialized with 4 workers");
-        
+
         // Create application state
         let app_state = Arc::new(AppState {
             pool: pool.clone(),
             cache: forum_cache,
             task_queue: task_queue.clone(),
         });
-        
+
         // Create API router
         let app = Router::new()
             .nest("/api/forum", forum_router())
             .with_state(app_state);
-        
+
         // Start server
         let addr = "0.0.0.0:3000";
         info!("Starting server on {}", addr);
-        
+
         Server::bind(&addr.parse().unwrap())
             .serve(app.into_make_service())
             .await
@@ -857,7 +915,7 @@ async fn main() {
     // Initialize environment
     dotenv().ok();
     env_logger::init();
-    
+
     // Initialize database
     let db_path = std::env::var("DATABASE_URL").unwrap_or_else(|_| "educonnect.db".to_string());
     let pool = match db::setup_database(&db_path).await {
@@ -867,17 +925,17 @@ async fn main() {
             std::process::exit(1);
         }
     };
-    
+
     // Initialize Meilisearch client
     let meili_host = std::env::var("MEILI_HOST").unwrap_or_else(|_| "http://localhost:7700".to_string());
     let meili_key = std::env::var("MEILI_MASTER_KEY").ok();
-    
+
     let search_client = Arc::new(MeiliSearchClient::new(
         &meili_host,
         meili_key.as_deref(),
         pool.clone(),
     ));
-    
+
     // Initialize Meilisearch indexes
     if let Err(e) = search_client.initialize().await {
         log::warn!("Failed to initialize Meilisearch: {}", e);
@@ -889,12 +947,12 @@ async fn main() {
             if let Err(e) = search_client.sync_data(true).await {
                 log::warn!("Initial Meilisearch sync failed: {}", e);
             }
-            
+
             // Start background sync task
             search_client.clone().start_background_sync();
         }
     }
-    
+
     // Initialize cache systems
     let forum_cache = Arc::new(cache::forum_cache::ForumCache::new());
 
@@ -903,7 +961,7 @@ async fn main() {
         pool: pool.clone(),
         cache: forum_cache.clone(),
     });
-    
+
     let search_state = Arc::new(api::search::AppState {
         search_client: search_client.clone(),
     });
@@ -912,15 +970,15 @@ async fn main() {
     let app = Router::new()
         .nest("/api/forum", forum_router().with_state(forum_state))
         .nest("/api/search", search_router().with_state(search_state));
-    
+
     // Start server
     let addr = std::env::var("SERVER_ADDR")
         .unwrap_or_else(|_| "0.0.0.0:3000".to_string())
         .parse()
         .expect("Invalid server address");
-        
+
     info!("Starting server on {}", addr);
-    
+
     Server::bind(&addr)
         .serve(app.into_make_service())
         .await
@@ -948,11 +1006,11 @@ use log::info;
 async fn main() {
     // Initialize environment
     env_logger::init();
-    
+
     // Setup app data directory
     let app_data_dir = tauri::api::path::app_data_dir(&tauri::Config::default())
         .expect("Failed to get app data directory");
-    
+
     // Initialize database
     let db_path = app_data_dir.join("educonnect.db").to_string_lossy().to_string();
     let pool = match db::setup_database(&db_path).await {
@@ -962,7 +1020,7 @@ async fn main() {
             std::process::exit(1);
         }
     };
-    
+
     // Initialize embedded Meilisearch
     let embedded_meili = match setup_meilisearch(&app_data_dir).await {
         Ok(meili) => Arc::new(meili),
@@ -971,14 +1029,14 @@ async fn main() {
             std::process::exit(1);
         }
     };
-    
+
     // Start embedded Meilisearch
     let meili_config = match embedded_meili.start().await {
         Ok(config) => config,
         Err(e) => {
             log::warn!("Failed to start embedded Meilisearch: {}", e);
             log::info!("Continuing without Meilisearch - search functionality will be limited");
-            
+
             // Create default config with no server
             search::embedded::MeilisearchConfig {
                 host: "http://127.0.0.1:7701".to_string(),
@@ -986,14 +1044,14 @@ async fn main() {
             }
         }
     };
-    
+
     // Initialize Meilisearch client
     let search_client = Arc::new(MeiliSearchClient::new(
         &meili_config.host,
         meili_config.api_key.as_deref(),
         pool.clone(),
     ));
-    
+
     // Initialize Meilisearch indexes
     if let Err(e) = search_client.initialize().await {
         log::warn!("Failed to initialize Meilisearch: {}", e);
@@ -1005,12 +1063,12 @@ async fn main() {
             if let Err(e) = search_client.sync_data(true).await {
                 log::warn!("Initial Meilisearch sync failed: {}", e);
             }
-            
+
             // Start background sync task
             search_client.clone().start_background_sync();
         }
     }
-    
+
     // Initialize cache systems
     let forum_cache = Arc::new(cache::forum_cache::ForumCache::new());
 
@@ -1019,7 +1077,7 @@ async fn main() {
         pool: pool.clone(),
         cache: forum_cache.clone(),
     });
-    
+
     let search_state = Arc::new(api::search::AppState {
         search_client: search_client.clone(),
     });
@@ -1028,11 +1086,11 @@ async fn main() {
     let app = Router::new()
         .nest("/api/forum", forum_router().with_state(forum_state))
         .nest("/api/search", search_router().with_state(search_state));
-    
+
     // Start server
     let addr = "127.0.0.1:3000".parse().expect("Invalid server address");
     info!("Starting server on {}", addr);
-    
+
     // Ensure Meilisearch is properly stopped when the app exits
     let embedded_meili_clone = embedded_meili.clone();
     ctrlc::set_handler(move || {
@@ -1044,7 +1102,7 @@ async fn main() {
         });
         std::process::exit(0);
     }).expect("Error setting Ctrl-C handler");
-    
+
     Server::bind(&addr)
         .serve(app.into_make_service())
         .await
@@ -1075,42 +1133,42 @@ pub struct AppState {
 async fn main() {
     // Initialize logger
     env_logger::init();
-    
+
     // Connect to SQLite database
     let db_pool = SqlitePoolOptions::new()
         .max_connections(5)
         .connect("sqlite:data.db")
         .await
         .expect("Failed to connect to SQLite database");
-    
+
     // Run migrations
     sqlx::migrate!("./migrations")
         .run(&db_pool)
         .await
         .expect("Failed to run migrations");
-    
+
     // Initialize repositories
     let user_repository = Arc::new(UserRepository::new(db_pool.clone()));
-    
+
     // Initialize clients
     let canvas_client = Arc::new(CanvasClient::new(
         "https://canvas.example.com/api/v1",
         "your_canvas_api_key",
     ));
-    
+
     let discourse_client = Arc::new(DiscourseClient::new(
         "https://discourse.example.com",
         "your_discourse_api_key",
         "system",
     ));
-    
+
     // Initialize services
     let user_sync_service = Arc::new(UserSyncService::new(
         user_repository.clone(),
         canvas_client.clone(),
         discourse_client.clone(),
     ));
-    
+
     // Build Tauri application
     tauri::Builder::default()
         .manage(AppState {

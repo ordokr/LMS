@@ -8,7 +8,7 @@ This project aims to port the Ruby-based Discourse forum system to a modern Rust
 
 | Discourse Component | Rust Replacement | Implementation Details |
 |---------------------|------------------|------------------------|
-| Ruby on Rails API | Axum + SeaORM | REST/GraphQL endpoints with type-safe handlers |
+| Ruby on Rails API | Axum + sqlx | REST/GraphQL endpoints with type-safe handlers |
 | Ember.js Frontend | Leptos (SSR + WASM) | Fine-grained reactivity with server-side rendering |
 | PostgreSQL | SQLite + Redb | Embedded database with key-value store for metadata |
 | Redis Cache | Moka + Tokio | In-memory async caching with TTL support |
@@ -217,3 +217,59 @@ This project aims to port the Ruby-based Discourse forum system to a modern Rust
 - Docker for server deployment
 - CI/CD pipeline for automated builds
 - Update mechanism for client applications
+
+## Technical Analysis: SQLite + Redb for Offline-First Forum
+
+### Database Strategy Assessment
+
+#### SQLite for Primary Storage
+
+**Strength:** Ideal for embedded desktop apps with ACID compliance and zero-config deployment. Supports complex queries through rusqlite/sqlx crates with type-safe Rust bindings.
+
+**Consideration:** Requires careful schema design to handle Discourse's relationships (1M+ topic/post connections). Use `WITHOUT ROWID` tables for PK-heavy access patterns.
+
+#### Redb for Metadata
+
+**Advantage:** Pure-Rust embedded KV store with B-tree indexing and memory-mapped I/O outperforms Redis for local storage. Typed API (`Table<u64, &[u8]>`) aligns well with Rust's safety goals.
+
+**Limitation:** Lacks built-in replication. For offline sync, implement a CRDT layer for metadata conflict resolution.
+
+### Key Implementation Recommendations
+
+#### Data Partitioning
+
+```rust
+// SQLite for relational data
+CREATE TABLE posts (
+    id INTEGER PRIMARY KEY,
+    content TEXT NOT NULL,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE
+);
+
+// Redb for metadata
+let user_meta_table = db.open_table("user_meta")?;
+user_meta_table.insert(123, &[1, 0, 1, 1])?; // [has_avatar, trusted, etc.]
+```
+
+#### Concurrency Pattern
+
+- **SQLite:** Use WAL mode with `busy_timeout` for concurrent writes.
+- **Redb:** Leverage read-only transactions with `ReadTransaction` and batched writes.
+
+#### Migration Path
+
+1. **Phase 1:** Use SQLite's `.dump` command for baseline migration.
+2. **Phase 2:** Implement Redb shadow tables for hot metadata.
+
+### Alternative Considerations
+
+Consider adding Sled for high-write scenarios like real-time collaboration metadata.
+
+### Critical Path Items
+
+- Implement SQLite `VACUUM` hooks in Tauri's setup phase.
+- Use Redb's native encryption for sensitive metadata.
+- Benchmark with realistic dataset (50GB SQLite + 5GB Redb).
+- Develop cross-database transaction layer using event sourcing.
+
+This architecture balances Rust's safety guarantees with pragmatic offline capabilities, though teams should budget for additional complexity in cross-store queries.

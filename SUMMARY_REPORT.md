@@ -73,3 +73,30 @@ The project currently carries some technical debt:
 4. ~~**Missing Test Coverage**: Current test coverage is at ~43%~~ - IMPROVED to 68%
 
 See the [full report in the Central Reference Hub](docs/central_reference_hub.md) for more details.
+
+## Canvas Integration Analysis
+
+### Key Findings
+- **Authentication**: Implemented using OAuth2 but requires secure token handling and user management.
+- **Courses**: CRUD operations exist but need consistent naming conventions for course categories.
+- **Assignments**: CRUD operations exist but lack validation for assignment submissions.
+- **Discussions**: Forum-like discussions are implemented but require verification of topic creation, post management, and user participation tracking.
+- **Users**: User management is present but lacks role management.
+
+### Potential Conflicts
+- **Authentication**: Conflict between existing JWT implementation and OAuth2.
+- **Courses**: Inconsistent naming conventions for course categories.
+- **Assignments**: Missing validation for assignment submissions.
+
+### Recommendations
+1. **Refactor Authentication**: Standardize on OAuth2 for all authentication processes.
+2. **Implement Missing Features**:
+   - Add validation for assignment submissions.
+   - Implement user role management.
+3. **Verify and Enhance Discussions**: Ensure all features like topic creation, post management, and user participation tracking are fully implemented.
+4. **Integrate Gemini**: Use Gemini for automated code analysis, documentation, and quality checks.
+
+### Next Steps
+- Address the identified conflicts and implement the missing features.
+- Ensure consistency in naming conventions and data validation.
+- Document progress and update the integration status accordingly.

@@ -324,63 +324,40 @@ pub struct TopicUpdateRequest {
     pub tags: Option<Vec<String>>, // Tag names
 }
 
+/// Represents a forum group (Discourse Group)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Group {
     pub id: i64,
-    pub name: Option<String>,
-    pub display_name: Option<String>,
+    pub name: String,
+    pub full_name: Option<String>,
     pub description: Option<String>,
-    pub members_count: Option<i32>,
+    pub visibility_level: Option<i32>, // 0: public, 1: logged-in, 2: staff, etc.
     pub mentionable_level: Option<i32>,
     pub messageable_level: Option<i32>,
-    pub visibility_level: Option<i32>,
-    pub primary_group: Option<bool>,
-    pub title: Option<String>,
-    pub grant_trust_level: Option<i32>,
-    pub automatic: Option<bool>,
-    pub bio_raw: Option<String>,
-    pub bio_cooked: Option<String>,
-    pub public_admission: Option<bool>,
-    pub public_exit: Option<bool>,
-    pub allow_membership_requests: Option<bool>,
-    pub full_name: Option<String>,
-    pub default_notification_level: Option<i32>,
-    
-    // Canvas-specific fields
-    pub context_type: Option<String>,
-    pub context_id: Option<i64>,
-    pub max_membership: Option<i32>,
-    pub is_public: Option<bool>,
-    pub join_level: Option<String>,
+    pub automatic: bool,
+    pub user_count: Option<i32>,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
+    pub members: Option<Vec<i64>>, // User IDs
+    pub category_ids: Option<Vec<i64>>, // Associated category IDs
 }
 
 impl Group {
-    pub fn new() -> Self {
+    pub fn new(id: i64, name: String) -> Self {
         Self {
-            id: 0,
-            name: None,
-            display_name: None,
+            id,
+            name,
+            full_name: None,
             description: None,
-            members_count: None,
+            visibility_level: None,
             mentionable_level: None,
             messageable_level: None,
-            visibility_level: None,
-            primary_group: None,
-            title: None,
-            grant_trust_level: None,
-            automatic: None,
-            bio_raw: None,
-            bio_cooked: None,
-            public_admission: None,
-            public_exit: None,
-            allow_membership_requests: None,
-            full_name: None,
-            default_notification_level: None,
-            context_type: None,
-            context_id: None,
-            max_membership: None,
-            is_public: None,
-            join_level: None,
+            automatic: false,
+            user_count: None,
+            created_at: None,
+            updated_at: None,
+            members: None,
+            category_ids: None,
         }
     }
     

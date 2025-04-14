@@ -1,0 +1,24 @@
+[package]
+name = "lms-analyzer"
+version = "0.1.0"
+edition = "2021"
+description = "Unified analyzer for the LMS project"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.7"
+chrono = { version = "0.4", features = ["serde"] }
+walkdir = "2.3"
+tokio = { version = "1.28", features = ["full"] }
+async-trait = "0.1"
+thiserror = "1.0"
+anyhow = "1.0"
+log = "0.4"
+env_logger = "0.10"
+regex = "1.8"
+pathdiff = "0.2"
+
+[lib]
+name = "lms_analyzer"
+path = "src/lib.rs"

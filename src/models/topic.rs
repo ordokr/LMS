@@ -1,3 +1,16 @@
+use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
+
+#[derive(Debug, Serialize, Deserialize, FromRow)]
+pub struct Topic {
+    pub id: String,
+    pub category_id: String, // Foreign key to Category
+    pub user_id: String,     // Foreign key to User
+    pub title: String,
+    pub slug: String,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+}
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;

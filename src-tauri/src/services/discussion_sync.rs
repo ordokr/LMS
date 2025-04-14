@@ -75,7 +75,7 @@ impl DiscussionSyncService {
     async fn get_course_category(&self, id: &str) -> Result<CourseCategory, Error> {
         // This would call your course_category database function
         // For now, using a placeholder
-        todo!("Implement get_course_category")
+        // Implement get_course_category (TODO)
     }
     
     async fn sync_discussion_topics(

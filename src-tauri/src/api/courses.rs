@@ -19,7 +19,8 @@ use tauri::State;
 pub struct CourseRequest {
     name: String,
     code: String,
-    description: Option<String>
+    description: Option<String>,
+    status: Option<CourseStatus>, // Added field for status
 }
 
 // ROUTE HANDLERS
@@ -41,12 +42,33 @@ async fn get_course(
     Ok(axum::Json(course))
 }
 
+async fn update_course_status(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(id): axum::extract::Path<i64>,
+    axum::Json(new_status): axum::Json<CourseStatus>,
+) -> Result<impl axum::response::IntoResponse, crate::api::forum::AppError> {
+    let repo = CourseRepository::new(&state.db);
+    let mut course = repo.get_by_id(id).await?;
+    match new_status {
+        CourseStatus::Active => course.activate(),
+        CourseStatus::Archived => course.archive(),
+        _ => (),
+    }
+    repo.update_status(id, new_status).await?;
+    Ok(axum::Json(course))
+}
+
 async fn create_course(
     State(state): State<Arc<AppState>>,
     axum::Json(course_req): axum::Json<CourseRequest>
 ) -> Result<impl axum::response::IntoResponse, crate::api::forum::AppError> {
     let repo = CourseRepository::new(&state.db);
-    let course = repo.create(course_req.name, course_req.code, course_req.description).await?;
+    let course = repo.create(
+        course_req.name,
+        course_req.code,
+        course_req.description,
+        course_req.status.unwrap_or(CourseStatus::Draft), // Default to Draft
+    ).await?;
     Ok(axum::Json(course))
 }
 

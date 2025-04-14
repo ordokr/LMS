@@ -15,6 +15,9 @@ use api::integration::integration_routes;
 use api::topic_mapping::topic_mapping_routes;
 use api::monitoring::monitoring_routes;
 use api::webhooks::webhook_routes;
+use api::file_routes::file_routes;
+use api::submission_attachment_routes::submission_attachment_routes;
+use api::forum_attachment_routes::forum_attachment_routes;
 use jobs::sync_scheduler::init_sync_scheduler;
 use middleware::tracing::correlation_id_middleware;
 use monitoring::api_health_check::ApiHealthCheck;
@@ -43,6 +46,22 @@ async fn main() {
     dotenv::dotenv().ok();
     info!("Starting Canvas-Discourse Integration Service");
     
+    // Run Gemini code analysis if enabled
+    if std::env::var("ENABLE_GEMINI_ANALYSIS").unwrap_or_else(|_| "false".to_string()) == "true" {
+        info!("Running Gemini code analysis...");
+        match gemini::analyze_code().await {
+            Ok(analysis) => {
+                info!("Code Quality: {}", analysis.quality);
+                info!("Potential Conflicts: {:?}", analysis.conflicts);
+                info!("Architecture Adherence: {}", analysis.architecture_adherence);
+                info!("Next Steps: {:?}", analysis.next_steps);
+            }
+            Err(e) => {
+                warn!("Failed to analyze code with Gemini: {}", e);
+            }
+        }
+    }
+    
     // Set up database connection
     let database_url = std::env::var("DATABASE_URL")
         .expect("DATABASE_URL must be set");
@@ -65,6 +84,13 @@ async fn main() {
     
     // Create app state
     let app_state = AppState::new(pool.clone());
+    
+    // Initialize file storage schema
+    info!("Initializing file storage schema...");
+    match app_state.file_storage.init_schema().await {
+        Ok(_) => info!("File storage schema initialized successfully"),
+        Err(e) => warn!("Error initializing file storage schema: {}", e)
+    }
     
     // Initialize health checks
     let canvas_health_url = std::env::var("CANVAS_HEALTH_URL")
@@ -136,6 +162,9 @@ async fn main() {
         .merge(topic_mapping_routes())
         .merge(webhook_routes())
         .merge(monitoring_routes())
+        .merge(file_routes())
+        .merge(submission_attachment_routes())
+        .merge(forum_attachment_routes())
         // Apply middleware
         .layer(middleware::from_fn(correlation_id_middleware))
         .layer(TraceLayer::new_for_http())

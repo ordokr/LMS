@@ -4,6 +4,7 @@ mod users;
 mod forum;
 mod integration;
 mod discussion_routes;
+pub mod notification_commands;
 
 use axum::{Router, routing::get};
 use std::sync::Arc;
@@ -75,7 +76,7 @@ pub fn forum_router() -> Router<Arc<AppState>> {
 // Singleton HTTP client with connection pooling
 pub fn get_http_client() -> &'static Client {
     static HTTP_CLIENT: OnceLock<Client> = OnceLock::new();
-    
+
     HTTP_CLIENT.get_or_init(|| {
         // Create a client with optimized connection pooling
         Client::builder()

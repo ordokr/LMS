@@ -3,7 +3,7 @@
     "rust": "html"
   },
   "github.copilot.enable": {
-    "*": true
+    "*": false
   },
   "github.copilot.advanced": {
     "documentPrioritization": [

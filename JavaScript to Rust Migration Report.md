@@ -1,12 +1,12 @@
 # JavaScript to Rust Migration Report
 
-_Generated: 2025-04-10_
+_Generated: 2025-04-13_
 
 
 ## Migration Summary
 
 
-- **Total migrated files:** 59
+- **Total migrated files:** 54
 
 - **Services:** 18 files
 
@@ -14,15 +14,13 @@ _Generated: 2025-04-10_
 
 - **Controllers:** 1 files
 
-- **Routes:** 4 files
+- **Routes:** 2 files
 
-- **Utils:** 3 files
+- **Utils:** 2 files
 
 - **Middleware:** 1 files
 
-- **Monitoring:** 3 files
-
-- **Other:** 12 files
+- **Other:** 13 files
 
 
 
@@ -136,10 +134,6 @@ _Generated: 2025-04-10_
 
 | src/routes/authRoutes.js | src/routes/auth_routes.rs |
 
-| src/routes/notificationRoutes.js | src/routes/notification_routes.rs |
-
-| src/routes/webhookRoutes.js | src/routes/webhook_routes.rs |
-
 
 
 ## Utils Migrations
@@ -153,10 +147,6 @@ _Generated: 2025-04-10_
 
 | src/utils/namingConventions.js | src/utils/naming_conventions.rs |
 
-| Migration/fileSystemUtils.js | src/utils/file_system_utils.rs |
-
-| src/config.js | src/config.rs |
-
 
 
 ## Middleware Migrations
@@ -167,55 +157,6 @@ _Generated: 2025-04-10_
 |----------------|------------------|
 
 | src/middleware/authMiddleware.js | src/middleware/auth_middleware.rs |
-
-
-## Monitoring Migrations
-
-
-| JavaScript File | Rust Equivalent |
-
-|----------------|------------------|
-
-| src/monitoring/metrics.js | src/monitoring/metrics.rs |
-
-| src/monitoring/performance.js | src/monitoring/performance.rs |
-
-| src/monitoring/start.js | src/monitoring/start.rs |
-
-
-
-## App Migrations
-
-
-| JavaScript File | Rust Equivalent |
-
-|----------------|------------------|
-
-| src/app.js | src/bin/server.rs |
-
-
-
-## Client Migrations
-
-
-| JavaScript File | Rust Equivalent |
-
-|----------------|------------------|
-
-| src/clients/canvas.js | src/clients/canvas.rs |
-
-| src/clients/discourse.js | src/clients/discourse.rs |
-
-
-
-## Feedback Migrations
-
-
-| JavaScript File | Rust Equivalent |
-
-|----------------|------------------|
-
-| src/feedback/collector.js | src/feedback/collector.rs |
 
 
 
@@ -252,16 +193,6 @@ _Generated: 2025-04-10_
 
 | analyze.js | tools/project-analyzer/src/main.rs |
 
-| src/config.js | src/config.rs |
-
-| Migration/AstAnalyzer.js | tools/project-analyzer/src/ast_analyzer.rs |
-
-| Migration/generate-ai-insights.js | tools/project-analyzer/src/ai_insights_generator.rs |
-
-| Migration/run-full-analysis.js | tools/project-analyzer/src/full_analysis_runner.rs |
-
-| Migration/unified-project-analyzer.js | tools/project-analyzer/src/unified_project_analyzer.rs |
-
 
 
 ## Migration Benefits
@@ -291,9 +222,3 @@ The JavaScript to Rust migration has provided the following benefits:
 - Implement new features using Rust's robust ecosystem
 
 - Document the migrated codebase using Rust's documentation tools
-
-## Test Migrations
-
-| JavaScript Test File | Rust Equivalent |
-|----------------------|------------------|
-| test/services/notificationService.test.js | tests/notification_service_test.rs |

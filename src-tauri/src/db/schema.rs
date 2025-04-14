@@ -14,6 +14,20 @@ table! {
     }
 }
 
+table! {
+    sync_history (id) {
+        id -> Text,
+        mapping_id -> Text,
+        sync_type -> Text,
+        status -> Text,
+        message -> Nullable<Text>,
+        details -> Nullable<Text>,
+        started_at -> Timestamp,
+        completed_at -> Nullable<Timestamp>,
+        created_at -> Timestamp,
+    }
+}
+
 use sqlx::{Pool, Sqlite};
 use tracing::{info, warn, error};
 
@@ -25,15 +39,8 @@ pub async fn validate_schema(pool: &Pool<Sqlite>) -> Result<(), sqlx::Error> {
     create_courses_table(pool).await?;
     create_assignments_table(pool).await?;
     create_submissions_table(pool).await?;
-    create_users_table(pool).await?;
-    create_user_profiles_table(pool).await?;
-    create_user_preferences_table(pool).await?;
-    create_user_integration_settings_table(pool).await?;
-    create_course_category_mappings_table(pool).await?;
-    create_discussions_table(pool).await?;
-    create_notifications_table(pool).await?;
-    create_modules_table(pool).await?;
-    create_module_items_table(pool).await?;
+    create_discussion_mappings_table(pool).await?;
+    create_sync_history_table(pool).await?;
     
     info!("Database schema validation complete");
     Ok(())

@@ -52,6 +52,14 @@ pub enum NotificationType {
     DiscoursePost,
     DiscourseReply,
     DiscourseMessage,
+    // Integration notification types
+    Success,
+    Error,
+    Warning,
+    Info,
+    SyncSuccess,
+    SyncError,
+    SyncConflict,
 }
 
 impl ToString for NotificationType {
@@ -68,6 +76,14 @@ impl ToString for NotificationType {
             NotificationType::DiscoursePost => "discourse_post".to_string(),
             NotificationType::DiscourseReply => "discourse_reply".to_string(),
             NotificationType::DiscourseMessage => "discourse_message".to_string(),
+            // Integration notification types
+            NotificationType::Success => "success".to_string(),
+            NotificationType::Error => "error".to_string(),
+            NotificationType::Warning => "warning".to_string(),
+            NotificationType::Info => "info".to_string(),
+            NotificationType::SyncSuccess => "sync_success".to_string(),
+            NotificationType::SyncError => "sync_error".to_string(),
+            NotificationType::SyncConflict => "sync_conflict".to_string(),
         }
     }
 }

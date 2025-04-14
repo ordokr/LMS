@@ -300,7 +300,7 @@ impl<M> KnowledgeGraphGenerator<M> {
             };
             
             let statement = format!(
-                "CREATE (n:{} {{id: \"{}\", label: \"{}\", type: \"{}\"{}{}});\n",
+                "CREATE (n:{} {{id: \"{}\", label: \"{}\", type: \"{}\"{}{}}});\n",
                 node.node_type,
                 node.id,
                 node.label.replace("\"", "\\\""),

@@ -7,5 +7,9 @@ edition = "2021"
 name = "index-project"
 path = "index_project.rs"
 
+[[bin]]
+name = "migration-utility"
+path = "migration_utility/src/main.rs"
+
 [dependencies]
 chrono = "0.4"

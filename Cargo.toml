@@ -1,23 +1,23 @@
 [package]
-name = "blockchain-wasm"
+name = "lms-root"
+
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.76.0" # Latest stable as of April 2025
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
-# Database and ORM
-sqlx = { version = "0.8.3", features = ["runtime-tokio", "sqlite", "macros"] }
+reqwest = { version = "0.11", features = ["blocking", "json", "default"] }
+axum = { version = "0.6", optional = true }
+sqlx = { version = "0.7.0", features = ["runtime-tokio", "sqlite", "postgres", "macros"] }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
 
 # Core dependencies for async/await
-tokio = { version = "1", features = ["full"], optional = true }
-futures = "0.3.30"
-
-# HTTP client
-reqwest = { version = "0.11", features = ["json"] }
+http-body-util = "0.1.3"
+tower = "0.4"
 
 # Serialization/Deserialization
-serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
 # Date/Time handling
@@ -60,19 +60,17 @@ gloo-net = "0.6.0"
 
 # Authentication and security
 base64 = "0.21.5"  # Change from 0.22.1 to match the patched version
-jsonwebtoken = "9.3.1"
+oauth2 = "3.0"
+jsonwebtoken = "8.0"
 argon2 = "0.5.2"
 rand_core = { version = "0.9.3", features = ["std"] }
-
-# Web framework
-axum = { version = "0.7", optional = true }
 
 # Actix web framework
 actix-web = { version = "4.0" }
 actix-cors = "0.6"
 
 # WebAssembly utilities
-web-sys = { version = "0.3" }
+web-sys = "0.3"
 
 # Environment variable management
 dotenv = "0.15"
@@ -93,6 +91,9 @@ uuid = { version = "1.3", features = ["v4", "serde"] }
 
 # File system traversal
 walkdir = "2.3"
+structopt = "0.3.26"
+gloo-storage = "0.3.0"
+tower-http = "0.6.2"
 
 [dev-dependencies]
 # Testing utilities
@@ -109,8 +110,8 @@ tauri-build = { version = "2.1.1", features = [] }
 
 [workspace]
 members = [
-    "src-tauri",
-    "tools/project-analyzer"
+    "tools",
+    "blockchain-wasm"
 ]
 
 [workspace.package]
@@ -153,3 +154,7 @@ crate-type = ["cdylib"]
 
 [profile.dev]
 # Your dev profile settings
+
+[[bin]]
+name = "project-analyzer"
+path = "src/bin/project_analyzer.rs"

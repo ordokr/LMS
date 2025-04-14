@@ -16,3 +16,9 @@ services/integration/auth/jwt-provider.js
 
 # Ignore generated documentation
 docs/
+
+# filepath: .eslintignore
+src/utils/**/*.ts
+src/workers/**/*.ts
+wasm/
+# Add other specific files or directories if needed

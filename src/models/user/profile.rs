@@ -22,6 +22,13 @@ pub struct UserProfile {
     pub featured_topic_id: Option<String>,
     pub followers_count: i32,
     pub following_count: i32,
+    // Discourse-specific fields
+    pub avatar_url: Option<String>,
+    pub profile_background_url: Option<String>,
+    pub card_background_url: Option<String>,
+    pub custom_fields: Option<serde_json::Value>,
+    pub badges: Option<Vec<String>>, // Badge IDs or names
+    // TODO: Add associations for user, uploads, badges, etc.
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]

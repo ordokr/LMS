@@ -1,73 +1,83 @@
 use axum::{
-    extract::{Json, Query, State},
-    http::{StatusCode, Uri},
-    response::{IntoResponse, Redirect},
+    extract::{Json, State, Query},
+    http::StatusCode,
+    response::IntoResponse,
+    response::Redirect,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use anyhow::Result;
-use crate::AppState;
+use http::Uri;
 
-/// Request to generate an SSO URL for Discourse
+use crate::AppState;
+use crate::models::user::User;
+use crate::services::unified_auth_service::UnifiedAuthService;
+
 #[derive(Debug, Deserialize)]
-pub struct GenerateSsoRequest {
-    pub user_id: String,
+pub struct SsoRequest {
     pub return_url: Option<String>,
 }
 
-/// Response with the SSO URL
-#[derive(Debug, Serialize)]
-pub struct SsoUrlResponse {
-    pub sso_url: String,
-}
-
-/// Query parameters for SSO callback
 #[derive(Debug, Deserialize)]
 pub struct SsoCallback {
     pub token: String,
     pub return_to: Option<String>,
 }
 
-/// Handler to generate an SSO URL for Discourse
-pub async fn generate_sso_url(
+/// Handler for initiating SSO flow to Discourse
+pub async fn sso_init(
     State(state): State<Arc<AppState>>,
-    Json(payload): Json<GenerateSsoRequest>,
+    Query(params): Query<SsoRequest>,
+    auth_header: Option<String>,
 ) -> impl IntoResponse {
-    // Get user info from database
-    match state.db.get_user_by_id(&payload.user_id).await {
-        Some(user) => {
-            // Generate a special short-lived SSO token            let sso_token = match state.jwt_service.generate_token(
-                &user.id,
-                &user.role,
-                &user.canvas_id,
-                user.discourse_id.as_deref(),
-                Some(&user.email),
-                Some(&user.name),
-            ) {
-                Ok(token) => token,
-                Err(_) => {
-                    return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({
-                        "error": "Failed to generate SSO token"
+    // Extract token from authorization header
+    let token = match auth_header {
+        Some(header) if header.starts_with("Bearer ") => &header[7..],
+        _ => return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({
+            "error": "Authentication required"
+        }))),
+    };
+    
+    // Validate the token
+    match state.auth_service.validate_token(token) {
+        Ok(claims) => {
+            // Get user from database
+            match state.db.get_user_by_id(&claims.sub).await {
+                Some(user) => {
+                    // Generate SSO URL with token
+                    match state.auth_service.generate_sso_token(&user, params.return_url.as_deref()) {
+                        Ok(sso_token) => {
+                            // Construct SSO URL
+                            let discourse_url = std::env::var("DISCOURSE_URL")
+                                .unwrap_or_else(|_| "http://localhost:3000".to_string());
+                            
+                            let sso_path = "/auth/canvas/sso";
+                            
+                            let mut url = format!("{}{}", discourse_url, sso_path);
+                            url.push_str(&format!("?token={}", sso_token));
+                            
+                            if let Some(return_url) = &params.return_url {
+                                url.push_str(&format!("&return_url={}", urlencoding::encode(return_url)));
+                            }
+                            
+                            (StatusCode::OK, Json(serde_json::json!({ "sso_url": url })))
+                        },
+                        Err(e) => {
+                            (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({
+                                "error": format!("Failed to generate SSO token: {}", e)
+                            })))
+                        }
+                    }
+                },
+                None => {
+                    (StatusCode::NOT_FOUND, Json(serde_json::json!({
+                        "error": "User not found"
                     })))
                 }
-            };
-            
-            // Construct the SSO URL for Discourse
-            let discourse_url = std::env::var("DISCOURSE_URL")
-                .unwrap_or_else(|_| "http://localhost:4200".to_string());
-                
-            let mut sso_url = format!("{}/canvas-sso?token={}", discourse_url, sso_token);
-            
-            // Add return URL if provided
-            if let Some(return_url) = payload.return_url {
-                sso_url = format!("{}&return_to={}", sso_url, urlencoding::encode(&return_url));
             }
-            
-            (StatusCode::OK, Json(SsoUrlResponse { sso_url }))
         },
-        None => {
-            (StatusCode::NOT_FOUND, Json(serde_json::json!({
-                "error": "User not found"
+        Err(_) => {
+            (StatusCode::UNAUTHORIZED, Json(serde_json::json!({
+                "error": "Invalid token"
             })))
         }
     }
@@ -79,7 +89,7 @@ pub async fn sso_callback(
     Query(params): Query<SsoCallback>,
 ) -> impl IntoResponse {
     // Validate the token
-    match state.jwt_service.validate_token(&params.token) {
+    match state.auth_service.validate_token(&params.token) {
         Ok(claims) => {
             // Check if the user exists
             match state.db.get_user_by_id(&claims.sub).await {
@@ -130,14 +140,14 @@ pub async fn verify_discourse_sso(
     Json(token): Json<String>,
 ) -> impl IntoResponse {
     // Validate the token
-    match state.jwt_service.validate_token(&token) {
+    match state.auth_service.validate_token(&token) {
         Ok(claims) => {
             // Return user information for Discourse
             (StatusCode::OK, Json(serde_json::json!({
                 "valid": true,
                 "user_id": claims.sub,
-                "email": claims.email, // Note: You'll need to add email to your Claims struct
-                "name": claims.name,   // Note: You'll need to add name to your Claims struct
+                "email": claims.email,
+                "name": claims.name,
                 "external_id": claims.canvas_id,
                 "admin": claims.role == "admin",
                 "moderator": claims.role == "teacher" || claims.role == "admin"
