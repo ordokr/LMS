@@ -1,0 +1,35 @@
+{
+  "sections": [
+    {
+      "title": "Project Overview",
+      "content": "The project is currently in the early-development phase with 13.2% completion. The most active area recently has been API Development.",
+      "keywords": [
+        "overview",
+        "status",
+        "phase"
+      ],
+      "importance": 10
+    },
+    {
+      "title": "Architecture",
+      "content": "The project follows these architectural frameworks: Tauri, Leptos, Axum. And uses these design patterns: Repository, Service, Factory.",
+      "keywords": [
+        "architecture",
+        "frameworks",
+        "design_patterns"
+      ],
+      "importance": 9
+    },
+    {
+      "title": "Data Models",
+      "content": "The project has implemented 0/50 data models (0.0% complete).",
+      "keywords": [
+        "models",
+        "data",
+        "entities"
+      ],
+      "importance": 8
+    }
+  ],
+  "last_updated": "2025-04-15T02:11:31.161301600+00:00"
+}

@@ -6,10 +6,10 @@ use std::error::Error;
 use clap::{Parser, Subcommand};
 use lms::utils::file_system::FileSystemUtils;
 use lms::analyzers::project_structure::ProjectStructure;
-use lms::analyzers::ast_analyzer::{AstAnalyzer, CodeMetrics};
+// use lms::analyzers::ast_analyzer::{AstAnalyzer, CodeMetrics}; // Analyzers have been moved to tools/unified-analyzer
 use lms::analyzers::analysis_runner::{AnalysisRunner, AnalysisCommand};
 use lms::analyzers::docs_updater::DocsUpdater;
-use lms::analyzers::js_migration_analyzer::JsMigrationAnalyzer;
+// use lms::analyzers::js_migration_analyzer::JsMigrationAnalyzer; // Analyzers have been moved to tools/unified-analyzer
 use lms::ai::gemini_analyzer::{GeminiAnalyzer, CodeInsight};
 use tokio;
 

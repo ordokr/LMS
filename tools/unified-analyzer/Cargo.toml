@@ -1,0 +1,24 @@
+[package]
+name = "unified-analyzer"
+version = "0.1.0"
+edition = "2021"
+description = "Unified analyzer for the LMS project"
+
+[workspace]
+
+[dependencies]
+tokio = { version = "1.28", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+futures-util = "0.3"
+anyhow = "1.0"
+walkdir = "2.3"
+regex = "1.8"
+tempfile = "3.5"
+toml = "0.7"
+thiserror = "1.0"
+clap = { version = "4.3", features = ["derive"] }
+
+[dev-dependencies]
+tempfile = "3.5"

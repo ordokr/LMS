@@ -1,0 +1,67 @@
+mod analyzers;
+mod utils;
+
+use std::path::PathBuf;
+use std::sync::Arc;
+use anyhow::Result;
+
+use analyzers::unified_analyzer::UnifiedProjectAnalyzer;
+use utils::file_system::FileSystemUtils;
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    println!("Unified Analyzer for LMS Project");
+
+    // Get the current directory or a specified directory
+    let args: Vec<String> = std::env::args().collect();
+    let base_dir = if args.len() > 1 {
+        PathBuf::from(&args[1])
+    } else {
+        std::env::current_dir()?
+    };
+
+    println!("Analyzing project at: {}", base_dir.display());
+
+    // Initialize the file system utilities
+    let fs_utils = Arc::new(FileSystemUtils::new());
+
+    // Create the unified analyzer
+    let analyzer = UnifiedProjectAnalyzer::new(base_dir.clone(), fs_utils);
+
+    // Run the analysis
+    let result = match analyzer.analyze().await {
+        Ok(result) => result,
+        Err(e) => return Err(anyhow::anyhow!("Analysis failed: {}", e)),
+    };
+
+    // Generate documentation
+    if let Err(e) = analyzer.generate_central_reference_hub().await {
+        return Err(anyhow::anyhow!("Failed to generate central reference hub: {}", e));
+    }
+
+    if let Err(e) = analyzer.generate_analyzer_reference().await {
+        return Err(anyhow::anyhow!("Failed to generate analyzer reference: {}", e));
+    }
+    
+    // Generate AI knowledge base
+    if let Err(e) = analyzer.generate_ai_knowledge_base().await {
+        return Err(anyhow::anyhow!("Failed to generate AI knowledge base: {}", e));
+    }
+    
+    // Generate metrics visualizations
+    if let Err(e) = analyzer.generate_metrics_visualizations().await {
+        return Err(anyhow::anyhow!("Failed to generate metrics visualizations: {}", e));
+    }
+    
+    // Generate project dashboard
+    if let Err(e) = analyzer.generate_project_dashboard().await {
+        return Err(anyhow::anyhow!("Failed to generate project dashboard: {}", e));
+    }
+
+    println!("Analysis completed successfully!");
+    println!("Timestamp: {}", result.timestamp);
+    println!("Project status: {}", result.project_status.phase);
+    println!("Completion percentage: {}%", result.project_status.completion_percentage);
+
+    Ok(())
+}

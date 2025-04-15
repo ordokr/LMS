@@ -12,6 +12,7 @@ pub mod llm_insights_generator;
 pub mod dashboard_generator;
 pub mod enhanced_dashboard_generator;
 pub mod report_generator;
+pub mod project_doc_generator;
 
 // Re-export key functions for easier access
 pub use report_generator::generate_reports;
@@ -24,3 +25,4 @@ pub use trend_report_generator::generate_trend_report;
 pub use statistical_trend_generator::generate_statistical_trend_report;
 pub use llm_insights_generator::generate_llm_insights_report;
 pub use enhanced_dashboard_generator::generate_enhanced_dashboard;
+pub use project_doc_generator::{generate_project_docs, run_project_analysis_and_generate_docs};

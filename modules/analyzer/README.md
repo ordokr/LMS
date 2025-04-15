@@ -18,6 +18,7 @@ The LMS Project Analyzer is designed to be a standalone tool that can analyze th
 ### Core Components
 
 - **UnifiedAnalyzer**: The main analyzer that orchestrates the analysis process.
+- **ProjectAnalyzer**: Analyzes project structure, models, components, and routes.
 - **AnalyzerConfig**: Configuration for the analyzer, loaded from `analyzer_config.toml`.
 - **AnalysisResult**: The result of the analysis, containing various metrics and insights.
 - **TechDebtAnalyzer**: Analyzes technical debt in the codebase.
@@ -30,6 +31,7 @@ The LMS Project Analyzer is designed to be a standalone tool that can analyze th
 - **ArchitectureDocGenerator**: Generates architecture documentation (`docs/architecture/overview.md`).
 - **ModelsDocGenerator**: Generates models documentation (`docs/models/overview.md`).
 - **ApiDocGenerator**: Generates API documentation (`docs/api/reference.md`).
+- **ProjectDocGenerator**: Generates comprehensive project documentation using the ProjectAnalyzer.
 - **TechDebtReportGenerator**: Generates technical debt report (`docs/technical_debt_report.md`).
 - **CodeQualityReportGenerator**: Generates code quality report (`docs/quality/code_quality_report.md`).
 - **ModelReportGenerator**: Generates model report (`docs/models/model_report.md`).
@@ -60,6 +62,7 @@ unified-analyze.bat [command] [options]
 - `--update-hub`: Update central reference hub
 - `--summary`: Generate summary report
 - `--update-rag`: Update RAG knowledge base
+- `--project`: Run project analyzer and generate comprehensive documentation
 
 #### Options for `--full` command
 

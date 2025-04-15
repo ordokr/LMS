@@ -22,7 +22,7 @@ mod monitoring;
 mod search;
 mod metrics;
 mod error;
-mod analyzers;
+// mod analyzers; // Analyzers have been moved to tools/unified-analyzer
 mod ai;
 
 use axum::{

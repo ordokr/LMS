@@ -18,7 +18,19 @@ log = "0.4"
 env_logger = "0.10"
 regex = "1.8"
 pathdiff = "0.2"
+statrs = "0.16"
+semver = "1.0"
+reqwest = { version = "0.11", features = ["json", "blocking"] }
+clap = { version = "4.4", features = ["derive"] }
 
 [lib]
 name = "lms_analyzer"
 path = "src/lib.rs"
+
+[[bin]]
+name = "project-analyzer"
+path = "src/bin/project-analyzer.rs"
+
+[[bin]]
+name = "test_project_analyzer"
+path = "src/bin/test_project_analyzer.rs"

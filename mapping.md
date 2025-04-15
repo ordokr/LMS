@@ -30,6 +30,9 @@ This document maps features from Canvas LMS and Discourse to our Rust implementa
 | Canvas `native-modules` | `models/module.rs:Module` | 0% | Auto-generated with 1 fields, 0 methods |
 | Canvas `util` | `models/group.rs:Group` | 0% | Auto-generated with 34 fields, 15 methods |
 | Canvas `upgradeinsecurerequests` | `models/grade.rs:Grade` | 0% | Auto-generated with 20 fields, 0 methods |
+| Canvas `native-modules` | `models/module.rs:Module` | 0% | Auto-generated with 1 fields, 0 methods |
+| Canvas `util` | `models/group.rs:Group` | 0% | Auto-generated with 34 fields, 15 methods |
+| Canvas `upgradeinsecurerequests` | `models/grade.rs:Grade` | 0% | Auto-generated with 20 fields, 0 methods |
 | Canvas `for` | `models/module.rs:Module` | 0% | Auto-generated with 4 fields, 6 methods |
 | Canvas `util` | `models/group.rs:Group` | 0% | Auto-generated with 34 fields, 15 methods |
 | Canvas `upgradeinsecurerequests` | `models/grade.rs:Grade` | 0% | Auto-generated with 20 fields, 0 methods |

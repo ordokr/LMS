@@ -9,6 +9,7 @@ pub mod trend_analyzer;
 pub mod statistical_trend_analyzer;
 pub mod ai_insights_analyzer;
 pub mod llm_integration;
+pub mod project_analyzer;
 
 // Re-export key structures for easier access
 pub use analyzer_config::AnalyzerConfig;
@@ -22,3 +23,4 @@ pub use trend_analyzer::TrendAnalyzer;
 pub use statistical_trend_analyzer::StatisticalTrendAnalyzer;
 pub use ai_insights_analyzer::AiInsightsAnalyzer;
 pub use llm_integration::LlmIntegration;
+pub use project_analyzer::ProjectAnalyzer;

@@ -10,7 +10,7 @@ rust-version = "1.76.0" # Latest stable as of April 2025
 reqwest = { version = "0.11", features = ["blocking", "json", "default"] }
 axum = { version = "0.6", optional = true }
 sqlx = { version = "0.7.0", features = ["runtime-tokio", "sqlite", "postgres", "macros"] }
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["full"], optional = true }
 serde = { version = "1.0", features = ["derive"] }
 
 # Core dependencies for async/await
@@ -111,7 +111,8 @@ tauri-build = { version = "2.1.1", features = [] }
 [workspace]
 members = [
     "tools",
-    "blockchain-wasm"
+    "blockchain-wasm",
+    "modules/analyzer"
 ]
 
 [workspace.package]
@@ -155,6 +156,7 @@ crate-type = ["cdylib"]
 [profile.dev]
 # Your dev profile settings
 
-[[bin]]
-name = "project-analyzer"
-path = "src/bin/project_analyzer.rs"
+# Binary moved to modules/analyzer
+# [[bin]]
+# name = "project-analyzer"
+# path = "src/bin/project_analyzer.rs"

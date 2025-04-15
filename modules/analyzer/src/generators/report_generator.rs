@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use chrono::Local;
 
 use crate::core::analysis_result::AnalysisResult;
+use crate::core::analyzer_config::AnalyzerConfig;
 use crate::generators::central_hub_generator;
 use crate::generators::architecture_doc_generator;
 use crate::generators::models_doc_generator;
@@ -14,6 +15,8 @@ use crate::generators::dependency_report_generator;
 use crate::generators::trend_report_generator;
 use crate::generators::dashboard_generator;
 use crate::generators::enhanced_dashboard_generator;
+use crate::generators::project_doc_generator;
+use crate::generators::statistical_trend_generator;
 
 /// Generate all reports based on the analysis result
 pub fn generate_reports(result: &AnalysisResult) -> Result<(), String> {
@@ -59,6 +62,18 @@ pub fn generate_reports(result: &AnalysisResult) -> Result<(), String> {
     enhanced_dashboard_generator::generate_enhanced_dashboard(result)?;
 
     println!("All reports generated successfully.");
+
+    Ok(())
+}
+
+/// Generate reports using the project analyzer
+pub async fn generate_project_analyzer_reports(config: &AnalyzerConfig) -> Result<(), String> {
+    println!("Generating reports using project analyzer...");
+
+    // Run project analysis and generate documentation
+    project_doc_generator::run_project_analysis_and_generate_docs(config).await?;
+
+    println!("Project analyzer reports generated successfully.");
 
     Ok(())
 }

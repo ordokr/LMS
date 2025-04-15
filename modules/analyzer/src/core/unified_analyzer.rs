@@ -5,6 +5,8 @@ use std::sync::Arc;
 use walkdir::WalkDir;
 use chrono::Local;
 
+use crate::core::project_analyzer::ProjectAnalyzer;
+
 use crate::core::analyzer_config::AnalyzerConfig;
 use crate::core::analysis_result::{
     AnalysisResult, ProjectSummary, CodeMetrics, ModelMetrics, ApiEndpointMetrics,
@@ -92,50 +94,45 @@ impl UnifiedAnalyzer {
     fn analyze_project_structure(&self, result: &mut AnalysisResult) -> Result<(), String> {
         println!("Analyzing project structure...");
 
-        let mut summary = ProjectSummary {
-            total_files: 0,
-            lines_of_code: 0,
-            file_types: HashMap::new(),
-            rust_files: 0,
-            haskell_files: 0,
+        // Create a project analyzer
+        let project_analyzer = ProjectAnalyzer::new(self.config.clone());
+
+        // Run the project analysis
+        let project_analysis = project_analyzer.analyze()
+            .map_err(|e| format!("Project analysis failed: {}", e))?;
+
+        // Convert project summary to analysis result summary
+        let summary = ProjectSummary {
+            total_files: project_analysis.summary.total_files,
+            lines_of_code: project_analysis.summary.lines_of_code,
+            file_types: project_analysis.summary.file_types.clone(),
+            rust_files: project_analysis.summary.rust_files,
+            haskell_files: project_analysis.summary.haskell_files,
         };
-
-        // Walk through the target directories
-        for target_dir in &self.config.target_dirs {
-            let target_path = self.base_dir.join(target_dir);
-
-            for entry in WalkDir::new(&target_path)
-                .into_iter()
-                .filter_entry(|e| !self.is_excluded(e.path()))
-                .filter_map(Result::ok)
-                .filter(|e| e.file_type().is_file())
-            {
-                let path = entry.path();
-
-                // Count files by type
-                summary.total_files += 1;
-
-                if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                    let ext = ext.to_lowercase();
-                    *summary.file_types.entry(ext.clone()).or_insert(0) += 1;
-
-                    // Count specific file types
-                    if ext == "rs" {
-                        summary.rust_files += 1;
-                    } else if ext == "hs" {
-                        summary.haskell_files += 1;
-                    }
-
-                    // Count lines of code
-                    if let Ok(content) = fs::read_to_string(path) {
-                        summary.lines_of_code += content.lines().count();
-                    }
-                }
-            }
-        }
 
         // Update the result
         result.summary = summary;
+
+        // Update models information
+        result.models.total = project_analysis.models.len();
+        result.models.implemented = project_analysis.models.len();
+        if project_analysis.models.len() > 0 {
+            result.models.implementation_percentage = 100.0;
+        }
+
+        // Update API endpoints information
+        result.api_endpoints.total = project_analysis.routes.len();
+        result.api_endpoints.implemented = project_analysis.routes.len();
+        if project_analysis.routes.len() > 0 {
+            result.api_endpoints.implementation_percentage = 100.0;
+        }
+
+        // Update UI components information
+        result.ui_components.total = project_analysis.components.len();
+        result.ui_components.implemented = project_analysis.components.len();
+        if project_analysis.components.len() > 0 {
+            result.ui_components.implementation_percentage = 100.0;
+        }
 
         Ok(())
     }
@@ -371,90 +368,6 @@ impl UnifiedAnalyzer {
         result.models.implementation_percentage = 100.0;
 
         // TODO: Update the result with more detailed model information
-
-        Ok(())
-    }
-
-        // Walk through Rust files
-        for target_dir in &self.config.target_dirs {
-            let target_path = self.base_dir.join(target_dir);
-
-            for entry in WalkDir::new(&target_path)
-                .into_iter()
-                .filter_entry(|e| !self.is_excluded(e.path()))
-                .filter_map(Result::ok)
-                .filter(|e| e.file_type().is_file())
-                .filter(|e| e.path().extension().and_then(|ext| ext.to_str()) == Some("rs"))
-            {
-                let path = entry.path();
-
-                if let Ok(content) = fs::read_to_string(path) {
-                    // Check for TODOs, FIXMEs, and HACKs
-                    for (i, line) in content.lines().enumerate() {
-                        // Check for TODO comments
-                        if line.contains("TODO") {
-                            tech_debt_items.push(TechDebtItem {
-                                file: path.strip_prefix(&self.base_dir).unwrap_or(path).to_string_lossy().to_string(),
-                                line: i + 1,
-                                category: "TODO".to_string(),
-                                description: extract_comment(line),
-                                severity: TechDebtSeverity::Low,
-                                fix_suggestion: "Implement the TODO item".to_string(),
-                            });
-                        }
-
-                        // Check for FIXME comments
-                        if line.contains("FIXME") {
-                            tech_debt_items.push(TechDebtItem {
-                                file: path.strip_prefix(&self.base_dir).unwrap_or(path).to_string_lossy().to_string(),
-                                line: i + 1,
-                                category: "FIXME".to_string(),
-                                description: extract_comment(line),
-                                severity: TechDebtSeverity::Medium,
-                                fix_suggestion: "Fix the noted issue".to_string(),
-                            });
-                        }
-
-                        // Check for HACK comments
-                        if line.contains("HACK") {
-                            tech_debt_items.push(TechDebtItem {
-                                file: path.strip_prefix(&self.base_dir).unwrap_or(path).to_string_lossy().to_string(),
-                                line: i + 1,
-                                category: "HACK".to_string(),
-                                description: extract_comment(line),
-                                severity: TechDebtSeverity::High,
-                                fix_suggestion: "Refactor the hack with a proper solution".to_string(),
-                            });
-                        }
-                    }
-                }
-            }
-        }
-
-        // Count technical debt items by severity
-        let mut critical_issues = 0;
-        let mut high_issues = 0;
-        let mut medium_issues = 0;
-        let mut low_issues = 0;
-
-        for item in &tech_debt_items {
-            match item.severity {
-                TechDebtSeverity::Critical => critical_issues += 1,
-                TechDebtSeverity::High => high_issues += 1,
-                TechDebtSeverity::Medium => medium_issues += 1,
-                TechDebtSeverity::Low => low_issues += 1,
-            }
-        }
-
-        // Update the result
-        result.tech_debt_metrics = TechDebtMetrics {
-            total_issues: tech_debt_items.len(),
-            critical_issues,
-            high_issues,
-            medium_issues,
-            low_issues,
-            items: tech_debt_items,
-        };
 
         Ok(())
     }
