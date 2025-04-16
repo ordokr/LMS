@@ -7,18 +7,16 @@ description = "Unified analyzer for the LMS project"
 [workspace]
 
 [dependencies]
-tokio = { version = "1.28", features = ["full"] }
+walkdir = "2.4.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
-futures-util = "0.3"
-anyhow = "1.0"
-walkdir = "2.3"
-regex = "1.8"
-tempfile = "3.5"
-toml = "0.7"
-thiserror = "1.0"
-clap = { version = "4.3", features = ["derive"] }
-
-[dev-dependencies]
-tempfile = "3.5"
+log = "0.4"
+tokio = { version = "1.28", features = ["full"] } # Existing dependency
+futures-util = "0.3" # Existing dependency
+anyhow = "1.0" # Existing dependency
+regex = "1.8" # Existing dependency
+tempfile = "3.5" # Existing dependency
+toml = "0.7" # Existing dependency
+thiserror = "1.0" # Existing dependency
+clap = { version = "4.3", features = ["derive"] } # Existing dependency

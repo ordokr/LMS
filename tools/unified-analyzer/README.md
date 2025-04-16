@@ -32,6 +32,11 @@ cargo test --test unified_analyzer_test
 
 # Run integration tests
 cargo test --test unified_analyzer_integration_test
+
+cargo test --test unified_analyzer_test
+
+# Run integration tests
+cargo test --test unified_analyzer_integration_test
 ```
 
 ## Output

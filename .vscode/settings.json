@@ -12,5 +12,7 @@
       "LAST_ANALYSIS_RESULTS.md"
     ]
   },
-  "editor.inlineSuggest.enabled": true
+  "editor.inlineSuggest.enabled": true,
+  "IDX.aI.enableInlineCompletion": true,
+  "IDX.aI.enableCodebaseIndexing": true
 }

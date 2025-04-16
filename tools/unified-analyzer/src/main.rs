@@ -1,19 +1,34 @@
 mod analyzers;
-mod utils;
-mod generators;
 mod config;
-
-use std::path::PathBuf;
-use std::sync::Arc;
-use anyhow::Result;
+mod generators;
+mod utils;
 
 use analyzers::unified_analyzer::UnifiedProjectAnalyzer;
-use utils::file_system::FileSystemUtils;
-use generators::*;
+use std::path::PathBuf;
+use std::sync::Arc;
+
+use crate::analyzers::modules::{file_structure_analyzer, file_structure_analyzer::FileStructureAnalyzer};
+use anyhow::Result;
 use config::Config;
+use generators::*;
+use log::info;
+
+use crate::analyzers::modules::file_structure_analyzer::FileStructureAnalyzer;
+use crate::analyzers::modules::ruby_rails_analyzer::RubyRailsAnalyzer;
+use crate::analyzers::modules::ember_analyzer::EmberAnalyzer;
+use crate::analyzers::modules::react_analyzer::ReactAnalyzer;
+use crate::analyzers::modules::template_analyzer::TemplateAnalyzer;
+use crate::analyzers::modules::route_analyzer::RouteAnalyzer;
+use crate::analyzers::modules::api_analyzer::ApiAnalyzer;
+use crate::analyzers::modules::dependency_analyzer::DependencyAnalyzer;
+use crate::analyzers::modules::auth_flow_analyzer::AuthFlowAnalyzer;
+use crate::analyzers::modules::offline_first_readiness_analyzer::OfflineFirstReadinessAnalyzer;
+use crate::analyzers::modules::database_schema_analyzer::DatabaseSchemaAnalyzer;
+use crate::analyzers::modules::business_logic_analyzer::BusinessLogicAnalyzer;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    env_logger::init();
     println!("Unified Analyzer for LMS Project");
 
     // Load configuration
@@ -37,15 +52,76 @@ async fn main() -> Result<()> {
         std::env::current_dir()?
     };
 
-    println!("Analyzing project at: {}", base_dir.display());
+    info!("Analyzing project at: {}", base_dir.display());
 
     // Initialize the file system utilities
+
+    // Call File Structure Analyzer
+    let file_structure_analyzer = FileStructureAnalyzer::new();
+    match file_structure_analyzer.analyze("C:UsersTimDesktopPort") {
+        Ok(_) => println!("File Structure Analysis completed successfully!"),
+        Err(e) => println!("File Structure Analysis failed: {:?}", e),
+    }
+
     let fs_utils = Arc::new(FileSystemUtils::new());
 
+    file_structure_analyzer::FileStructureAnalyzer::analyze("C:UsersTimDesktopPort").expect("File structure analysis failed");
+
+    println!("---- Starting Unified Analysis ----");
+    // Call Unified Analyzer
+    println!("---- Starting Unified Analysis ----");
     // Create the unified analyzer
     let analyzer = UnifiedProjectAnalyzer::new(base_dir.clone(), fs_utils);
 
-    // Run the analysis
+        // Initialize and run FileStructureAnalyzer
+    let file_structure_analyzer = FileStructureAnalyzer::new();
+    file_structure_analyzer.analyze("C:UsersTimDesktopPort").expect("File structure analysis failed");
+
+    // Initialize and run RubyRailsAnalyzer
+    let ruby_rails_analyzer = RubyRailsAnalyzer::new();
+    ruby_rails_analyzer.analyze(&base_dir).expect("Ruby on Rails analysis failed");
+
+    // Initialize and run EmberAnalyzer
+    let ember_analyzer = EmberAnalyzer::new();
+    ember_analyzer.analyze(&base_dir).expect("Ember analysis failed");
+
+    // Initialize and run ReactAnalyzer
+    let react_analyzer = ReactAnalyzer::new();
+    react_analyzer.analyze(&base_dir).expect("React analysis failed");
+
+    // Initialize and run TemplateAnalyzer
+    let template_analyzer = TemplateAnalyzer::new();
+    template_analyzer.analyze(&base_dir).expect("Template analysis failed");
+
+    // Initialize and run RouteAnalyzer
+    let route_analyzer = RouteAnalyzer::new();
+    route_analyzer.analyze(&base_dir).expect("Route analysis failed");
+
+    // Initialize and run ApiAnalyzer
+    let api_analyzer = ApiAnalyzer::new();
+    api_analyzer.analyze(&base_dir).expect("API analysis failed");
+
+    // Initialize and run DependencyAnalyzer
+    let dependency_analyzer = DependencyAnalyzer::new();
+    dependency_analyzer.analyze(&base_dir).expect("Dependency analysis failed");
+
+    // Initialize and run AuthFlowAnalyzer
+    let auth_flow_analyzer = AuthFlowAnalyzer::new();
+    auth_flow_analyzer.analyze(&base_dir).expect("Authentication flow analysis failed");
+
+    // Initialize and run OfflineFirstReadinessAnalyzer
+    let offline_first_readiness_analyzer = OfflineFirstReadinessAnalyzer::new();
+    offline_first_readiness_analyzer.analyze(&base_dir).expect("Offline-first readiness analysis failed");
+
+    // Initialize and run DatabaseSchemaAnalyzer
+    let database_schema_analyzer = DatabaseSchemaAnalyzer::new();
+    database_schema_analyzer.analyze(&base_dir).expect("Database schema analysis failed");
+
+    // Initialize and run BusinessLogicAnalyzer
+    let business_logic_analyzer = BusinessLogicAnalyzer::new();
+    business_logic_analyzer.analyze(&base_dir).expect("Business logic analysis failed");
+
+    // Run the unified analysis
     let result = match analyzer.analyze().await {
         Ok(result) => result,
         Err(e) => return Err(anyhow::anyhow!("Analysis failed: {}", e)),
