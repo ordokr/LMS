@@ -9,6 +9,7 @@ pub mod tech_debt_report_generator;
 pub mod summary_report_generator;
 pub mod enhanced_central_hub_generator;
 
+pub mod documentation_generator;
 // Medium Priority Generators
 pub mod sync_architecture_generator;
 pub mod database_architecture_generator;

@@ -1,92 +1,114 @@
 rust
-use chrono::{DateTime, Utc};
-use log::debug;
 use serde::{Deserialize, Serialize};
-use std::{fs, path::Path, time::SystemTime};
+use std::{borrow::Cow, collections::HashMap, fs, io, path::{Path, PathBuf}};
 use walkdir::WalkDir;
+use regex::Regex;
 
-#[derive(Serialize, Deserialize, Debug)]
-struct FileMetadata {
-    file_name: String,
-    file_type: String,
-    file_size: u64,
-    modified_date: String,
-    file_path: String,
-}
-/*
-/// The absolute path of the file.
-absolute_path: PathBuf,
-
-/// The type of the file (e.g., "file", "directory").
-    file_type: String,
-
-
-    /// The size of the file in bytes, if it is a file. Otherwise, 0.
-    size: u64,    
-    /// The last modified time of the file.
-    modified_time: String,
-
-    /// The content of the file, if it's a code file. Otherwise, an empty string.
-    content: Cow<'static, str>,
-}*/
-
-
-#[derive(Debug)]
-pub struct FileStructureAnalyzer {
-    // We might need to store configuration or other data here later
-    // For now, it's empty
-}
-/*#[derive(Debug, Clone)]
-pub enum FileMetadataResult {
-    Ok(FileMetadata),
-    Err(FileStructureError),
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct FileMetadata {
+    pub name: String,
+    pub parent_directory: Option<PathBuf>,
+    pub relative_path: PathBuf,
+    pub absolute_path: PathBuf,
+    pub file_type: String,
+    pub size: u64,
+    pub modified_time: String,
+    pub content: Cow<'static, str>,
+    pub dependencies: Vec<PathBuf>,
 }
 
-/// Represents the type of a file based on its extension.
-#[derive(Debug, PartialEq, Clone)]
-pub enum FileType {
-    Rust,
-    JSX,
-    TSX,
-    Ruby,
-    Python,
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub enum DirectoryPurpose {
+    Model,
+    Controller,
+    View,
+    Route,
+    Helper,
+    Mailer,
+    Job,
+    Serializer,
+    Migration,
+    Config,
+    Lib,
+    Service,
+    Component,
+    Util,
+    Style,
+    Test,
     Unknown,
 }
 
-impl FileType {
-    fn is_code(&self) -> bool {
-        !matches!(self, FileType::Unknown)
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct DirectoryMetadata {
+    pub purpose: DirectoryPurpose,
+}
+
+impl Default for FileMetadata {
+    fn default() -> Self {
+        FileMetadata {
+            name: String::new(),
+            parent_directory: None,
+            absolute_path: PathBuf::new(),
+            file_type: String::new(),
+            size: 0,
+            modified_time: String::new(),
+            content: Cow::Borrowed(""),
+            dependencies: Vec::new(),
+        }
     }
 }
 
-fn detect_file_type(file_path: &Path) -> FileType {
-        Some("rs") => FileType::Rust,
-        Some("js") => FileType::JavaScript,
-        Some("jsx") => FileType::JSX,
-        Some("ts") => FileType::TypeScript,
-        Some("tsx") => FileType::TSX,
-        Some("rb") => FileType::Ruby,
-        Some("py") => FileType::Python,
-        _ => FileType::Unknown,
+#[derive(Debug)]
+pub struct FileStructureAnalyzer {
+    pub directory_metadata: HashMap<PathBuf, DirectoryMetadata>,
+    pub file_dependency_graph: HashMap<PathBuf, Vec<PathBuf>>,
 }
 
-#[derive(Debug, ThisError)]
-pub enum FileStructureError {
-    /// Represents errors related to file system operations.
-    #[error("File system error: {0}")]    
-    FileSystemError(#[source] std::io::Error),
+impl Default for FileStructureAnalyzer {
+    fn default() -> Self {
+        FileStructureAnalyzer {
+            directory_metadata: HashMap::new(),
+            file_dependency_graph: HashMap::new(),
+        }
+    }
+}
 
-    /// Represents errors that occur during regex operations.
-    #[error("Regex error: {0}")]    
-    RegexError(#[source] regex::Error),
+impl FileStructureAnalyzer {
+    pub fn analyze(&self, root_path: &str) -> Result<String, FileStructureError> {
+        let mut analyzer = FileStructureAnalyzer::default();
+        let root_path_buf = PathBuf::from(root_path);
 
-    /// Represents errors that occur when stripping a prefix from a path.
-    #[error("Path stripping error: {0}")]    
-    PathStripError(#[source] std::path::StripPrefixError),
+        // First pass: Collect file metadata and categorize directories
+        for entry in WalkDir::new(root_path).into_iter().filter_map(Result::ok) {
+            let relative_path = entry.path().strip_prefix(&root_path_buf).map_err(|e| FileStructureError::PathError(e.to_string()))?.to_path_buf();
+            let absolute_path = entry.path().to_path_buf();
 
-    /// Represents errors that occur when reading a file.
-    #[error("Error reading file: {file_path:?}: {source}")]    
-    ReadFileError { file_path: PathBuf, source: String },
+            if entry.path().is_dir() {
+                let purpose = analyzer.categorize_directory(&relative_path);
+                analyzer.directory_metadata.insert(absolute_path, DirectoryMetadata { purpose });
+            }
+        }
+
+        // Second pass: Analyze files and build dependency graph
+        let mut file_metadata_list = Vec::new();
+        for entry in WalkDir::new(root_path).into_iter().filter_map(Result::ok) {
+            if entry.path().is_file() {
+                let relative_path = entry.path().strip_prefix(&root_path_buf).map_err(|e| FileStructureError::PathError(e.to_string()))?.to_path_buf();
+                let file_metadata = analyzer.analyze_file_metadata(&root_path_buf, &relative_path)?;
+                file_metadata_list.push(file_metadata.clone());
+
+                if !file_metadata.dependencies.is_empty() {
+                    analyzer.file_dependency_graph.insert(
+                        file_metadata.relative_path,
+                        file_metadata.dependencies,
+                    );
+                }
+            }
+        }
+
+        serde_json::to_string_pretty(&analyzer.file_dependency_graph).map_err(FileStructureError::JsonError)
+    }
+
     /// Analyzes a single file to extract its metadata.
     ///
     /// This function takes the root path of the project and the relative path of a file,
@@ -100,8 +122,8 @@ pub enum FileStructureError {
     /// # Returns
     /// A `Result` containing the `FileMetadata` on success, or a `FileStructureError` on failure.
     fn analyze_file_metadata(
-        &self,
-        root_path: &PathBuf,
+        &mut self,
+        root_path: &PathBuf,        
         relative_path: &PathBuf,
     ) -> Result<FileMetadata, FileStructureError> {
         let absolute_path = root_path.join(relative_path);
@@ -121,7 +143,7 @@ pub enum FileStructureError {
         };
 
         let size = if file_type == "file" {
-            metadata.len()            
+            metadata.len()
         } else {
             0
         };
@@ -131,20 +153,75 @@ pub enum FileStructureError {
             .map_err(FileStructureError::FileSystemError)?
             .as_secs()
             .to_string();
-        let content = if file_type == "file" && detect_file_type(&absolute_path).is_code() {            
+        let content = if file_type == "file" && detect_file_type(&absolute_path).is_code() {
             self.get_file_content(&absolute_path)?
         } else {
             String::new()
         };
 
-        Ok(FileMetadata {
+        let parent_directory = relative_path.parent().map(PathBuf::from);
+
+        let mut file_metadata = FileMetadata {
+            name: relative_path
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string(),
+            parent_directory: parent_directory.clone(),
             relative_path: relative_path.clone(),
             absolute_path,
             file_type,
-            size,            
+            size,
             modified_time,
             content: Cow::Owned(content),
-        })
+            ..Default::default()
+        };
+
+        if file_metadata.file_type == "file" {
+            if let Some(dependencies) = self.detect_imports(
+                root_path,
+                &file_metadata,
+                parent_directory
+                    .as_ref()
+                    .and_then(|parent| {
+                        self.directory_metadata
+                            .get(parent)
+                            .map(|dir_meta| dir_meta.purpose.clone())
+                    })
+                    .unwrap_or(DirectoryPurpose::Unknown),
+            ) {
+                file_metadata.dependencies = dependencies;
+            }
+        }
+
+        // Update file dependency graph
+        self.file_dependency_graph.insert(
+            file_metadata.relative_path.clone(),
+            file_metadata.dependencies.clone(),
+        );
+
+        Ok(file_metadata)
+    }
+    fn categorize_directory(&self, relative_path: &Path) -> DirectoryPurpose {
+        match relative_path.to_string_lossy().as_ref() {
+            "models" | "app/models" => DirectoryPurpose::Model,
+            "controllers" | "app/controllers" => DirectoryPurpose::Controller,
+            "views" | "app/views" => DirectoryPurpose::View,
+            "routes" => DirectoryPurpose::Route,
+            "helpers" | "app/helpers" => DirectoryPurpose::Helper,
+            "mailers" | "app/mailers" => DirectoryPurpose::Mailer,
+            "jobs" | "app/jobs" => DirectoryPurpose::Job,
+            "serializers" | "app/serializers" => DirectoryPurpose::Serializer,
+            "migrations" | "db/migrate" => DirectoryPurpose::Migration,
+            "config" => DirectoryPurpose::Config,
+            "lib" => DirectoryPurpose::Lib,
+            "services" => DirectoryPurpose::Service,
+            "components" => DirectoryPurpose::Component,
+            "utils" | "libs" => DirectoryPurpose::Util,
+            "styles" | "stylesheets" => DirectoryPurpose::Style,
+            "tests" | "spec" => DirectoryPurpose::Test,
+            _ => DirectoryPurpose::Unknown,
+        }
     }
 
     /// Detects imports within a given file.
@@ -160,8 +237,13 @@ pub enum FileStructureError {
     /// # Returns
     /// An `Option` containing a vector of import paths (relative to the project root) on success,
     /// or `None` if the file is not a code file or no imports were found.
-    fn detect_imports(&self, root_path: &PathBuf, file_metadata: &FileMetadata) -> Option<Vec<PathBuf>> {
-        if file_metadata.file_type != "file" {
+    fn detect_imports(
+        &self,
+        root_path: &PathBuf,
+        file_metadata: &FileMetadata,
+        directory_purpose: DirectoryPurpose,
+    ) -> Option<Vec<PathBuf>> {
+        if file_metadata.file_type != "file" || directory_purpose == DirectoryPurpose::Migration {
             return None;
         }
 
@@ -303,63 +385,6 @@ pub enum FileStructureError {
             source: e.to_string(),
         })
     }
-
-    pub fn analyze(&self, root_path: &str) -> Result<String, FileStructureError> {
-        let mut file_metadata_list: Vec<FileMetadata> = Vec::new();
-
-        for entry in WalkDir::new(root_path) {
-            let entry = entry.map_err(FileStructureError::IoError)?;
-            let path = entry.path();
-            let metadata = fs::metadata(path).map_err(FileStructureError::IoError)?;
-            let file_type = if metadata.is_file() {
-                "file".to_string()
-            } else if metadata.is_dir() {
-                "directory".to_string()
-            } else {
-                "unknown".to_string()
-            };
-
-            let modified_date: DateTime<Utc> = metadata
-                .modified()
-                .map_err(FileStructureError::IoError)?
-                .into();
-
-            let file_metadata_item = FileMetadata {
-                file_name: entry.file_name().to_string_lossy().to_string(),
-                file_type,
-                file_size: metadata.len(),
-                modified_date: modified_date.to_rfc3339(),
-                file_path: path.to_string_lossy().to_string(),
-            };
-
-            file_metadata_list.push(file_metadata_item);
-        }
-
-        let json_output = serde_json::to_string_pretty(&file_metadata_list)
-            .map_err(FileStructureError::JsonError)?;
-
-        debug!("{}", json_output);
-
-        Ok(json_output)
-    }
-
-    pub fn new() -> Self {
-        FileStructureAnalyzer {}
-    }
-    pub fn default() -> Self {
-        Self::new()
-    }
-
-    /*
-}
-*/
-impl Default for FileStructureAnalyzer {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-    }
 }
 
 #[derive(Debug)]
@@ -368,11 +393,22 @@ pub enum FileStructureError {
     IoError(io::Error),
     /// Represents errors during JSON serialization.
     JsonError(serde_json::Error),
+    ReadFileError {
+        file_path: PathBuf,
+        source: String,
+    },
+    RegexError(String),
+    FileSystemError(std::time::SystemTimeError),
+    PathError(String),
 }
 
 impl From<io::Error> for FileStructureError {
     fn from(error: io::Error) -> Self {
         FileStructureError::IoError(error)
+    }
+}impl From<regex::Error> for FileStructureError {
+    fn from(error: regex::Error) -> Self {
+        FileStructureError::RegexError(error.to_string())
     }
 }
 impl From<serde_json::Error> for FileStructureError {
@@ -380,38 +416,34 @@ impl From<serde_json::Error> for FileStructureError {
         FileStructureError::JsonError(error)
     }
 }
-const JAVASCRIPT_EXTENSION: &str = "js";
-const TYPESCRIPT_EXTENSION: &str = "ts";
-const JSX_EXTENSION: &str = "jsx";
-const TSX_EXTENSION: &str = "tsx";
-const RUBY_EXTENSION: &str = "rb";
-const PYTHON_EXTENSION: &str = "py";
 
-lazy_static::lazy_static! {
-    /// Regex patterns for detecting imports in different file types.
-    static ref RUST_IMPORT_REGEX: Regex = Regex::new(r#"(?:use|mod)\s+([\w::{}]*);?"#)
-        .expect(RUST_IMPORT_REGEX_ERROR_MESSAGE);
-
-    static ref JAVASCRIPT_IMPORT_REQUIRE_REGEX: Regex = Regex::new(
-        r#"(?:import|require)(?:\s+(?:[\w\s{},*]+)\s+from)?\s+["']([^"']+)["']|require\(['"]([^'"]+)['"]\)"#
-    )
-    .expect(JAVASCRIPT_IMPORT_REQUIRE_REGEX_ERROR_MESSAGE);
-
-    static ref TYPESCRIPT_IMPORT_REGEX: Regex = Regex::new(
-        r#"(?:import|require)(?:\s+(?:[\w\s{},*]+)\s+from)?\s+["']([^"']+)["']"#
-    )
-    .expect(TYPESCRIPT_IMPORT_REGEX_ERROR_MESSAGE);
-
-    static ref RUBY_REQUIRE_REGEX: Regex = Regex::new(r#"^\s*require\s+(['"])(.*?)\1"#)
-        .expect(RUBY_REQUIRE_REGEX_ERROR_MESSAGE);
-
-    static ref PYTHON_IMPORT_REGEX: Regex = Regex::new(r#"(?:^|\n)import (?:(?:([\w\d._]+)|([\w\d._]+) as [\w\d]+)|(?:((.*)))|(*))|(?:^|\n)from (?:([\w\d._]+) )?import (?:([\w\d._]+)|([\w\d._]+) as [\w\d]+|(?:((.*))))"#)
-        .expect(PYTHON_IMPORT_REGEX_ERROR_MESSAGE);
+#[derive(Debug, PartialEq)]
+pub enum FileType {
+    Rust,
+    JavaScript,
+    JSX,
+    TypeScript,
+    TSX,
+    Ruby,
+    Python,
+    Unknown,
 }
 
-/// Regex patterns error messages.
-const RUST_IMPORT_REGEX_ERROR_MESSAGE: &str = "Unable to create rust import regex";
-const JAVASCRIPT_IMPORT_REQUIRE_REGEX_ERROR_MESSAGE: &str = "Unable to create javascript import/require regex";
-const TYPESCRIPT_IMPORT_REGEX_ERROR_MESSAGE: &str = "Unable to create typescript import regex";
-const RUBY_REQUIRE_REGEX_ERROR_MESSAGE: &str = "Unable to create ruby require regex";
-const PYTHON_IMPORT_REGEX_ERROR_MESSAGE: &str = "Unable to create python import regex";
+impl FileType {
+    fn is_code(&self) -> bool {
+        !matches!(self, FileType::Unknown)
+    }
+}
+
+fn detect_file_type(path: &Path) -> FileType {
+    match path.extension().and_then(|ext| ext.to_str()) {
+        Some("rs") => FileType::Rust,
+        Some("js") => FileType::JavaScript,
+        Some("jsx") => FileType::JSX,
+        Some("ts") => FileType::TypeScript,
+        Some("tsx") => FileType::TSX,
+        Some("rb") => FileType::Ruby,
+        Some("py") => FileType::Python,
+        _ => FileType::Unknown,
+    }
+}

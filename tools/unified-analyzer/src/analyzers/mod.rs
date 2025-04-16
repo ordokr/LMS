@@ -23,6 +23,8 @@ use modules::auth_flow_analyzer::AuthFlowAnalyzer;
 use modules::offline_first_readiness_analyzer::OfflineFirstReadinessAnalyzer;
 use modules::database_schema_analyzer::DatabaseSchemaAnalyzer;
 use modules::business_logic_analyzer::BusinessLogicAnalyzer;
+use modules::canvas_analyzer::CanvasAnalyzer;
+use modules::discourse_analyzer::DiscourseAnalyzer;
 
 // Re-export individual analyzers for use in UnifiedProjectAnalyzer
 pub use modules::file_structure_analyzer::FileStructureAnalyzer as ExposedFileStructureAnalyzer;
@@ -37,6 +39,8 @@ pub use modules::auth_flow_analyzer::AuthFlowAnalyzer as ExposedAuthFlowAnalyzer
 pub use modules::offline_first_readiness_analyzer::OfflineFirstReadinessAnalyzer as ExposedOfflineFirstReadinessAnalyzer;
 pub use modules::database_schema_analyzer::DatabaseSchemaAnalyzer as ExposedDatabaseSchemaAnalyzer;
 pub use modules::business_logic_analyzer::BusinessLogicAnalyzer as ExposedBusinessLogicAnalyzer;
+pub use modules::canvas_analyzer::CanvasAnalyzer as ExposedCanvasAnalyzer;
+pub use modules::discourse_analyzer::DiscourseAnalyzer as ExposedDiscourseAnalyzer;
 
 // Function to run all analyzers sequentially
 pub fn run_all_analyzers(
@@ -55,5 +59,7 @@ pub fn run_all_analyzers(
         OfflineFirstReadinessAnalyzer::analyze(project_path),
         DatabaseSchemaAnalyzer::analyze(project_path),
         BusinessLogicAnalyzer::analyze(project_path),
+        CanvasAnalyzer::analyze(project_path),
+        DiscourseAnalyzer::analyze(project_path),
     ]
 }
