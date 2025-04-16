@@ -1,27 +1,29 @@
 mod analyzers;
 mod config;
 mod generators;
+mod integrator;
 mod output_schema;
 mod utils;
 
-use crate::analyzers::modules::{{
+use crate::analyzers::modules::{api_analyzer::ApiAnalyzer, auth_flow_analyzer::AuthFlowAnalyzer, canvas_analyzer::CanvasAnalyzer, database_schema_analyzer::DatabaseSchemaAnalyzer, discourse_analyzer::DiscourseAnalyzer, ruby_rails_analyzer::RubyRailsAnalyzer,
     business_logic_analyzer::BusinessLogicAnalyzer, dependency_analyzer::DependencyAnalyzer,
     ember_analyzer::EmberAnalyzer, file_structure_analyzer::FileStructureAnalyzer,
     offline_first_readiness_analyzer::OfflineFirstReadinessAnalyzer, react_analyzer::ReactAnalyzer,
     route_analyzer::RouteAnalyzer, template_analyzer::TemplateAnalyzer,
-}};
+};
 use anyhow::Result;
 use config::Config;
 use generators::*;
 use log::info;
 use std::fs::File;
 use std::path::PathBuf;
-use crate::{{analyzers::modules::*, generators::documentation_generator::generate_documentation, integrator::integrate_analysis_results, utils::file_system::FileSystemUtils}};
+use crate::{generators::documentation_generator::generate_documentation, integrator::integrate_analysis_results, utils::file_system::FileSystemUtils};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::init();
     println!("Unified Analyzer for LMS Project");
+    eprintln!("This is a test message to stderr");
 
     // Load configuration
     let config = match Config::from_file("config.toml") {
@@ -47,17 +49,19 @@ async fn main() -> Result<()> {
     info!("Analyzing project at: {}", base_dir.display());
 
     run_analysis(&base_dir).await?;
+    Ok(())
+}
 
 async fn run_analysis(base_dir: &PathBuf) -> Result<()> {
     println!("---- Starting Unified Analysis ----");
 
     // Initialize and run FileStructureAnalyzer
     let file_structure_analyzer = FileStructureAnalyzer::new();
-    let file_structure_result = file_structure_analyzer.analyze(&base_dir).expect("File structure analysis failed");
+    let file_structure_result = file_structure_analyzer.analyze(&base_dir.to_string_lossy()).expect("File structure analysis failed");
 
     // Initialize and run RubyRailsAnalyzer
     let ruby_rails_analyzer = RubyRailsAnalyzer::new();
-    let ruby_rails_result = ruby_rails_analyzer.analyze(&base_dir).expect("Ruby on Rails analysis failed");
+    let ruby_rails_result = ruby_rails_analyzer.analyze(&base_dir.to_string_lossy()).expect("Ruby on Rails analysis failed");
 
     // Initialize and run EmberAnalyzer
     let ember_analyzer = EmberAnalyzer::new();
@@ -99,6 +103,20 @@ async fn run_analysis(base_dir: &PathBuf) -> Result<()> {
     let business_logic_analyzer = BusinessLogicAnalyzer::new();
     let business_logic_result = business_logic_analyzer.analyze(&base_dir).expect("Business logic analysis failed");
 
+    // Initialize and run CanvasAnalyzer
+    println!("Starting Canvas analysis...");
+    let canvas_analyzer = CanvasAnalyzer::new();
+    let canvas_path = "C:\\Users\\Tim\\Desktop\\LMS\\test_project";
+    let canvas_result = canvas_analyzer.analyze(canvas_path).expect("Canvas analysis failed");
+    println!("Canvas analysis completed.");
+
+    // Initialize and run DiscourseAnalyzer
+    println!("Starting Discourse analysis...");
+    let discourse_analyzer = DiscourseAnalyzer::new();
+    let discourse_path = "C:\\Users\\Tim\\Desktop\\LMS\\test_project";
+    let discourse_result = discourse_analyzer.analyze(discourse_path).expect("Discourse analysis failed");
+    println!("Discourse analysis completed.");
+
     // Integrate analysis results
     let unified_output = integrate_analysis_results(
         file_structure_result,
@@ -113,6 +131,8 @@ async fn run_analysis(base_dir: &PathBuf) -> Result<()> {
         offline_first_readiness_result,
         database_schema_result,
         business_logic_result,
+        canvas_result,
+        discourse_result,
     );
 
     // Write the unified output to a JSON file

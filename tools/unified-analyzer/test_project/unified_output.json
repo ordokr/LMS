@@ -1,0 +1,104 @@
+{
+  "api": {
+    "auth_protected_routes": [],
+    "clients": [],
+    "endpoints": {},
+    "route_patterns": {}
+  },
+  "auth_flow": {
+    "auth_flows": [],
+    "auth_methods": {},
+    "auth_roles": {},
+    "protected_routes": []
+  },
+  "business_logic": {
+    "algorithms": [],
+    "business_rules": [],
+    "edge_cases": [],
+    "patterns": [],
+    "workflows": []
+  },
+  "canvas": {
+    "assignments": {},
+    "courses": {},
+    "modules": {}
+  },
+  "database_schema": {
+    "migrations": [],
+    "tables": {}
+  },
+  "dependencies": {
+    "dependency_graph": {
+      "edges": [],
+      "nodes": []
+    },
+    "js_dependencies": {},
+    "python_dependencies": {},
+    "ruby_dependencies": {},
+    "system_dependencies": {}
+  },
+  "discourse": {
+    "categories": {},
+    "posts": {},
+    "topics": {}
+  },
+  "ember": {
+    "components": {},
+    "controllers": {},
+    "helpers": {},
+    "initializers": {},
+    "models": {},
+    "routes": {},
+    "services": {}
+  },
+  "file_structure": {
+    "docs\\api_documentation.md": [],
+    "docs\\architecture_overview.md": [],
+    "docs\\business_logic.md": [],
+    "docs\\database_schema.md": [],
+    "docs\\file_structure.md": [],
+    "docs\\implementation_roadmap.md": [],
+    "docs\\index.md": [],
+    "docs\\offline_readiness.md": [],
+    "unified_output.json": []
+  },
+  "metadata": {
+    "description": "Unified analysis of Canvas and Discourse for LMS project",
+    "timestamp": "2025-04-16T21:44:34.830988+00:00",
+    "version": "0.1.0"
+  },
+  "offline_first_readiness": {
+    "conflict_resolution_strategies": [],
+    "data_access_patterns": [],
+    "data_update_patterns": [],
+    "offline_readiness_score": 50,
+    "real_time_update_requirements": [],
+    "recommendations": [
+      "The application requires moderate changes to support offline-first functionality.",
+      "Implement conflict resolution strategies (e.g., timestamp-based or version-based) for offline data synchronization.",
+      "Consider using IndexedDB or SQLite for client-side data storage.",
+      "Implement a background sync mechanism using Service Workers.",
+      "Add a queue system for operations performed while offline."
+    ]
+  },
+  "react": {
+    "error": "Failed to parse: expected value at line 1 column 1",
+    "raw": "React analysis completed"
+  },
+  "routes": {
+    "auth_protected_routes": [],
+    "route_patterns": {},
+    "routes": []
+  },
+  "ruby_rails": {
+    "callbacks": [],
+    "controllers": {},
+    "database_schemas": {},
+    "hooks": [],
+    "models": {},
+    "routes": []
+  },
+  "templates": {
+    "templates": {}
+  }
+}

@@ -1,0 +1,231 @@
+use std::path::PathBuf;
+use serde::{Serialize, Deserialize};
+use std::collections::HashMap;
+use std::fs;
+use walkdir::WalkDir;
+use regex::Regex;
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct TemplateBinding {
+    pub name: String,
+    pub binding_type: String,
+    pub source: String,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct TemplatePartial {
+    pub name: String,
+    pub path: String,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct TemplateLoop {
+    pub iterator: String,
+    pub collection: String,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct TemplateConditional {
+    pub condition: String,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct TemplateAnalysis {
+    pub path: String,
+    pub bindings: Vec<TemplateBinding>,
+    pub partials: Vec<TemplatePartial>,
+    pub loops: Vec<TemplateLoop>,
+    pub conditionals: Vec<TemplateConditional>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct TemplateAnalyzer {
+    pub templates: HashMap<String, TemplateAnalysis>,
+}
+
+impl TemplateAnalyzer {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn analyze(&self, base_dir: &PathBuf) -> Result<String, String> {
+        let mut analyzer = TemplateAnalyzer::default();
+        
+        // Look for template files in both Canvas and Discourse directories
+        for entry in WalkDir::new(base_dir)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(extension) = path.extension() {
+                    if let Some(ext) = extension.to_str() {
+                        if ext == "erb" || ext == "hbs" || ext == "html" {
+                            if let Ok(content) = fs::read_to_string(path) {
+                                if let Some(rel_path) = path.strip_prefix(base_dir).ok() {
+                                    let template_path = rel_path.to_string_lossy().to_string();
+                                    let analysis = analyzer.analyze_template(&template_path, &content, ext);
+                                    analyzer.templates.insert(template_path, analysis);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        match serde_json::to_string_pretty(&analyzer) {
+            Ok(json) => Ok(json),
+            Err(e) => Err(format!("Failed to serialize TemplateAnalyzer: {}", e)),
+        }
+    }
+
+    fn analyze_template(&self, path: &str, content: &str, template_type: &str) -> TemplateAnalysis {
+        let mut analysis = TemplateAnalysis {
+            path: path.to_string(),
+            ..Default::default()
+        };
+
+        match template_type {
+            "erb" => self.analyze_erb(&mut analysis, content),
+            "hbs" => self.analyze_hbs(&mut analysis, content),
+            "html" => self.analyze_html(&mut analysis, content),
+            _ => {}
+        }
+
+        analysis
+    }
+
+    fn analyze_erb(&self, analysis: &mut TemplateAnalysis, content: &str) {
+        // ERB binding pattern: <%= variable %> or <%= method(args) %>
+        let binding_regex = Regex::new(r#"<%=\s*([^%]+?)\s*%>"#).unwrap();
+        for cap in binding_regex.captures_iter(content) {
+            if let Some(binding) = cap.get(1) {
+                analysis.bindings.push(TemplateBinding {
+                    name: binding.as_str().trim().to_string(),
+                    binding_type: "erb".to_string(),
+                    source: "rails".to_string(),
+                });
+            }
+        }
+
+        // ERB partial pattern: <%= render partial: 'path/to/partial' %>
+        let partial_regex = Regex::new(r#"<%=\s*render\s+partial:\s*['"](.*?)['"](\s*%>)"#).unwrap();
+        for cap in partial_regex.captures_iter(content) {
+            if let Some(partial) = cap.get(1) {
+                analysis.partials.push(TemplatePartial {
+                    name: partial.as_str().split('/').last().unwrap_or(partial.as_str()).to_string(),
+                    path: partial.as_str().to_string(),
+                });
+            }
+        }
+
+        // ERB loop pattern: <% collection.each do |item| %> ... <% end %>
+        let loop_regex = Regex::new(r#"<%\s*([^%]+?)\.each\s+do\s+\|([^|]+?)\|\s*%>"#).unwrap();
+        for cap in loop_regex.captures_iter(content) {
+            if let (Some(collection), Some(iterator)) = (cap.get(1), cap.get(2)) {
+                analysis.loops.push(TemplateLoop {
+                    iterator: iterator.as_str().trim().to_string(),
+                    collection: collection.as_str().trim().to_string(),
+                });
+            }
+        }
+
+        // ERB conditional pattern: <% if condition %> ... <% end %>
+        let conditional_regex = Regex::new(r#"<%\s*if\s+([^%]+?)\s*%>"#).unwrap();
+        for cap in conditional_regex.captures_iter(content) {
+            if let Some(condition) = cap.get(1) {
+                analysis.conditionals.push(TemplateConditional {
+                    condition: condition.as_str().trim().to_string(),
+                });
+            }
+        }
+    }
+
+    fn analyze_hbs(&self, analysis: &mut TemplateAnalysis, content: &str) {
+        // Handlebars binding pattern: {{variable}} or {{{variable}}}
+        let binding_regex = Regex::new(r#"\{\{\{?([^}]+?)\}?\}\}"#).unwrap();
+        for cap in binding_regex.captures_iter(content) {
+            if let Some(binding) = cap.get(1) {
+                let binding_str = binding.as_str().trim();
+                if !binding_str.starts_with("#") && !binding_str.starts_with("/") {
+                    analysis.bindings.push(TemplateBinding {
+                        name: binding_str.to_string(),
+                        binding_type: "hbs".to_string(),
+                        source: "ember".to_string(),
+                    });
+                }
+            }
+        }
+
+        // Handlebars partial pattern: {{> partial}}
+        let partial_regex = Regex::new(r#"\{\{>\s*([^}]+?)\s*\}\}"#).unwrap();
+        for cap in partial_regex.captures_iter(content) {
+            if let Some(partial) = cap.get(1) {
+                analysis.partials.push(TemplatePartial {
+                    name: partial.as_str().trim().to_string(),
+                    path: partial.as_str().trim().to_string(),
+                });
+            }
+        }
+
+        // Handlebars loop pattern: {{#each items as |item|}}
+        let loop_regex = Regex::new(r#"\{\{#each\s+([^\s]+)\s+as\s+\|([^|]+?)\|\}\}"#).unwrap();
+        for cap in loop_regex.captures_iter(content) {
+            if let (Some(collection), Some(iterator)) = (cap.get(1), cap.get(2)) {
+                analysis.loops.push(TemplateLoop {
+                    iterator: iterator.as_str().trim().to_string(),
+                    collection: collection.as_str().trim().to_string(),
+                });
+            }
+        }
+
+        // Handlebars conditional pattern: {{#if condition}}
+        let conditional_regex = Regex::new(r#"\{\{#if\s+([^}]+?)\s*\}\}"#).unwrap();
+        for cap in conditional_regex.captures_iter(content) {
+            if let Some(condition) = cap.get(1) {
+                analysis.conditionals.push(TemplateConditional {
+                    condition: condition.as_str().trim().to_string(),
+                });
+            }
+        }
+    }
+
+    fn analyze_html(&self, analysis: &mut TemplateAnalysis, content: &str) {
+        // Look for data-* attributes which might indicate bindings
+        let data_attr_regex = Regex::new(r#"data-([\w-]+)=['"](.*?)['"](\s*)"#).unwrap();
+        for cap in data_attr_regex.captures_iter(content) {
+            if let (Some(attr), Some(value)) = (cap.get(1), cap.get(2)) {
+                analysis.bindings.push(TemplateBinding {
+                    name: format!("{}: {}", attr.as_str(), value.as_str()),
+                    binding_type: "data-attribute".to_string(),
+                    source: "html".to_string(),
+                });
+            }
+        }
+
+        // Look for ng-* attributes (Angular) or v-* attributes (Vue)
+        let framework_attr_regex = Regex::new(r#"(ng-|v-)([\\w-]+)=['"](.*?)['"](\s*)"#).unwrap();
+        for cap in framework_attr_regex.captures_iter(content) {
+            if let (Some(prefix), Some(attr), Some(value)) = (cap.get(1), cap.get(2), cap.get(3)) {
+                let framework = if prefix.as_str() == "ng-" { "angular" } else { "vue" };
+                analysis.bindings.push(TemplateBinding {
+                    name: format!("{}{}: {}", prefix.as_str(), attr.as_str(), value.as_str()),
+                    binding_type: "framework-binding".to_string(),
+                    source: framework.to_string(),
+                });
+            }
+        }
+
+        // Look for includes or imports
+        let include_regex = Regex::new(r#"<include\s+src=['"](.*?)['"](\s*>)"#).unwrap();
+        for cap in include_regex.captures_iter(content) {
+            if let Some(src) = cap.get(1) {
+                analysis.partials.push(TemplatePartial {
+                    name: src.as_str().split('/').last().unwrap_or(src.as_str()).to_string(),
+                    path: src.as_str().to_string(),
+                });
+            }
+        }
+    }
+}

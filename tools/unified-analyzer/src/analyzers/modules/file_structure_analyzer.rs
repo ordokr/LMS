@@ -1,8 +1,16 @@
-rust
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, collections::HashMap, fs, io, path::{Path, PathBuf}};
 use walkdir::WalkDir;
 use regex::Regex;
+use lazy_static::lazy_static;
+
+lazy_static! {
+    static ref RUST_IMPORT_REGEX: Regex = Regex::new(r#"use\s+([^;]+);|mod\s+([^;{]+)"#).unwrap();
+    static ref JAVASCRIPT_IMPORT_REQUIRE_REGEX: Regex = Regex::new(r#"(?:import\s+.*?from\s+['"]([^'"]+)['"]|require\s*\(['"]([^'"]+)['"]\))"#).unwrap();
+    static ref TYPESCRIPT_IMPORT_REGEX: Regex = Regex::new(r#"import\s+.*?from\s+['"]([^'"]+)['"]"#).unwrap();
+    static ref RUBY_REQUIRE_REGEX: Regex = Regex::new(r#"require(?:_relative)?\s+['"]([^'"]+)['"]"#).unwrap();
+    static ref PYTHON_IMPORT_REGEX: Regex = Regex::new(r#"(?:from\s+([^\s]+)\s+import|import\s+([^\s]+))"#).unwrap();
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FileMetadata {
@@ -48,6 +56,7 @@ impl Default for FileMetadata {
         FileMetadata {
             name: String::new(),
             parent_directory: None,
+            relative_path: PathBuf::new(),
             absolute_path: PathBuf::new(),
             file_type: String::new(),
             size: 0,
@@ -74,6 +83,9 @@ impl Default for FileStructureAnalyzer {
 }
 
 impl FileStructureAnalyzer {
+    pub fn new() -> Self {
+        Self::default()
+    }
     pub fn analyze(&self, root_path: &str) -> Result<String, FileStructureError> {
         let mut analyzer = FileStructureAnalyzer::default();
         let root_path_buf = PathBuf::from(root_path);
@@ -123,16 +135,11 @@ impl FileStructureAnalyzer {
     /// A `Result` containing the `FileMetadata` on success, or a `FileStructureError` on failure.
     fn analyze_file_metadata(
         &mut self,
-        root_path: &PathBuf,        
+        root_path: &PathBuf,
         relative_path: &PathBuf,
     ) -> Result<FileMetadata, FileStructureError> {
         let absolute_path = root_path.join(relative_path);
-        let metadata = std::fs::metadata(&absolute_path).map_err(|err| {
-            FileStructureError::ReadFileError {
-                file_path: absolute_path.clone(),                
-                source: err.to_string(),
-            }
-        })?;
+        let metadata = std::fs::metadata(&absolute_path)?;
 
         let file_type = if metadata.is_file() {
             "file".to_string()
@@ -225,7 +232,7 @@ impl FileStructureAnalyzer {
     }
 
     /// Detects imports within a given file.
-    ///    
+    ///
     /// This function reads the content of a file, determines its type, and then uses
     /// appropriate regex patterns to identify import statements. The detected imports
     /// are adjusted to be relative to the project's root path.
@@ -251,7 +258,7 @@ impl FileStructureAnalyzer {
         if !file_type.is_code() {
             return None;
         }
-        
+
         let detect_imports_fn: Box<dyn Fn(&str) -> Vec<String>> = match file_type {
             FileType::Rust => Box::new(|content| self.detect_imports_with_regex(content, &RUST_IMPORT_REGEX)),
             FileType::JavaScript | FileType::JSX => Box::new(|content| self.detect_imports_with_regex(content, &JAVASCRIPT_IMPORT_REQUIRE_REGEX)),
@@ -260,7 +267,7 @@ impl FileStructureAnalyzer {
             FileType::Python => Box::new(|content| self.detect_imports_with_regex(content, &PYTHON_IMPORT_REGEX)),
             _ => return Some(Vec::new()),
         };
-        
+
         let imports = detect_imports_fn(&file_metadata.content);
 
         if imports.is_empty() {
@@ -268,56 +275,61 @@ impl FileStructureAnalyzer {
         }
 
         let file_dir = file_metadata.absolute_path.parent()?;
-        let import_paths = imports
+        let import_paths: Vec<PathBuf> = imports
             .into_iter()
             .map(|import| {
                 let import_path = Path::new(&import);
 
                 let mut full_import_path = if import_path.starts_with(".") {
                     file_dir.join(import_path)
-                } else {
+                } else if let Ok(relative_path) = file_dir.strip_prefix(root_path) {
                     // Handling imports relative to the project root
-                    if let Ok(relative_path) = file_dir.strip_prefix(root_path) {
-                        let mut components = relative_path.components().map(|c| c.as_ref()).collect::<Vec<_>>();
-                        if import_path.components().count() > 1{
-                            components.extend(import_path.components().skip(1).map(|c| c.as_ref()));
-                            let mut path = root_path.join(components.iter().collect::<PathBuf>());
-                            if let Some(ext) = path.extension(){
-                                path
-                            }else{
-                                path.with_extension(match detect_file_type(&path){
-                                    FileType::Rust => "rs",
-                                    FileType::JavaScript | FileType::JSX => "js",
-                                    FileType::TypeScript | FileType::TSX => "ts",
-                                    FileType::Ruby => "rb",
-                                    FileType::Python => "py",
-                                    _ => return None,
-                                })
-                            }
-                        }else{
-                            let mut path = root_path.join(import_path);
-                            if let Some(ext) = path.extension(){
-                                path
-                            }else{
-                                path.with_extension(match detect_file_type(&path){
-                                    FileType::Rust => "rs",
-                                    FileType::JavaScript | FileType::JSX => "js",
-                                    FileType::TypeScript | FileType::TSX => "ts",
-                                    FileType::Ruby => "rb",
-                                    FileType::Python => "py",
-                                    _ => return None,
-                                })
-                            }
+                    // Convert components to strings to avoid borrowing issues
+                    let rel_path_str = relative_path.to_string_lossy().to_string();
+                    let import_path_str = import_path.to_string_lossy().to_string();
+
+                    if import_path.components().count() > 1 {
+                        // Combine the paths
+                        let combined_path = if rel_path_str.is_empty() {
+                            import_path_str
+                        } else {
+                            format!("{}/{}", rel_path_str, import_path_str)
+                        };
+
+                        let path = root_path.join(combined_path);
+                        if path.extension().is_some() {
+                            path
+                        } else {
+                            path.with_extension(match detect_file_type(&path) {
+                                FileType::Rust => "rs",
+                                FileType::JavaScript | FileType::JSX => "js",
+                                FileType::TypeScript | FileType::TSX => "ts",
+                                FileType::Ruby => "rb",
+                                FileType::Python => "py",
+                                _ => return None,
+                            })
                         }
-                    }else{
-                        root_path.join(import_path)
+                    } else {
+                        let path = root_path.join(import_path);
+                        if path.extension().is_some() {
+                            path
+                        } else {
+                            path.with_extension(match detect_file_type(&path) {
+                                FileType::Rust => "rs",
+                                FileType::JavaScript | FileType::JSX => "js",
+                                FileType::TypeScript | FileType::TSX => "ts",
+                                FileType::Ruby => "rb",
+                                FileType::Python => "py",
+                                _ => return None,
+                            })
+                        }
                     }
-                }else{
-                    let mut path = root_path.join(import_path);
-                    if let Some(ext) = path.extension(){
+                } else {
+                    let path = root_path.join(import_path);
+                    if path.extension().is_some() {
                         path
-                    }else{
-                        path.with_extension(match detect_file_type(&path){
+                    } else {
+                        path.with_extension(match detect_file_type(&path) {
                             FileType::Rust => "rs",
                             FileType::JavaScript | FileType::JSX => "js",
                             FileType::TypeScript | FileType::TSX => "ts",
@@ -328,17 +340,17 @@ impl FileStructureAnalyzer {
                     }
                 };
 
-                if full_import_path.is_dir(){
+                let result_path = if full_import_path.is_dir() {
                     full_import_path.push("mod");
-                    match detect_file_type(&full_import_path){
+                    match detect_file_type(&full_import_path) {
                         FileType::Rust => full_import_path.with_extension("rs"),
                         _ => full_import_path,
                     }
-                }else{
-                    if let Some(ext) = full_import_path.extension(){
+                } else {
+                    if full_import_path.extension().is_some() {
                         full_import_path
-                    }else{
-                        match detect_file_type(&full_import_path){
+                    } else {
+                        match detect_file_type(&full_import_path) {
                             FileType::Rust => full_import_path.with_extension("rs"),
                             FileType::JavaScript | FileType::JSX => full_import_path.with_extension("js"),
                             FileType::TypeScript | FileType::TSX => full_import_path.with_extension("ts"),
@@ -347,15 +359,26 @@ impl FileStructureAnalyzer {
                             _ => return None,
                         }
                     }
+                };
+                Some(result_path)
+            })
+            .filter_map(|path| {
+                if let Some(path_buf) = path {
+                    if let Ok(rel_path) = path_buf.strip_prefix(root_path) {
+                        Some(PathBuf::from(rel_path))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
                 }
             })
-            .filter_map(|path| path.strip_prefix(root_path).ok().map(PathBuf::from))
             .collect();
 
         if import_paths.is_empty() {
             None
         } else {
-            Some(import_paths)            
+            Some(import_paths)
         }
     }
 
@@ -379,43 +402,31 @@ impl FileStructureAnalyzer {
             .collect()
     }
 
-    fn get_file_content(&self, file_path: &Path) -> Result<String, FileStructureError> {        
-        std::fs::read_to_string(file_path).map_err(|e| FileStructureError::ReadFileError {
-            file_path: file_path.to_path_buf(),
-            source: e.to_string(),
-        })
+    fn get_file_content(&self, file_path: &Path) -> Result<String, FileStructureError> {
+        std::fs::read_to_string(file_path).map_err(|e| FileStructureError::IoError(e))
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum FileStructureError {
-    /// Represents errors related to file system operations.
-    IoError(io::Error),
-    /// Represents errors during JSON serialization.
-    JsonError(serde_json::Error),
-    ReadFileError {
-        file_path: PathBuf,
-        source: String,
-    },
+    #[error("IO error: {0}")]
+    IoError(#[from] std::io::Error),
+    #[error("Walkdir error: {0}")]
+    WalkdirError(#[from] walkdir::Error),
+    #[error("JSON error: {0}")]
+    JsonError(#[from] serde_json::Error),
+    #[error("Error: {0}")]
+    Other(String),
+
+    #[error("Regex error: {0}")]
     RegexError(String),
-    FileSystemError(std::time::SystemTimeError),
+    #[error("File system error: {0}")]
+    FileSystemError(#[from] std::time::SystemTimeError),
+    #[error("Path error: {0}")]
     PathError(String),
 }
 
-impl From<io::Error> for FileStructureError {
-    fn from(error: io::Error) -> Self {
-        FileStructureError::IoError(error)
-    }
-}impl From<regex::Error> for FileStructureError {
-    fn from(error: regex::Error) -> Self {
-        FileStructureError::RegexError(error.to_string())
-    }
-}
-impl From<serde_json::Error> for FileStructureError {
-    fn from(error: serde_json::Error) -> Self {
-        FileStructureError::JsonError(error)
-    }
-}
+// These are now handled by the #[from] attribute in the thiserror derive
 
 #[derive(Debug, PartialEq)]
 pub enum FileType {

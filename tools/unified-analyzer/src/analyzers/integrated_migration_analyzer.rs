@@ -98,17 +98,26 @@ impl IntegratedMigrationAnalyzer {
         if let Some(canvas_dir) = &self.canvas_dir {
             if canvas_dir.exists() {
                 println!("Analyzing Canvas LMS at {:?}...", canvas_dir);
-                let mut canvas_analyzer = CanvasAnalyzer::new(canvas_dir);
+                let canvas_analyzer = CanvasAnalyzer::new();
+                let canvas_dir_str = canvas_dir.to_string_lossy().to_string();
 
-                match canvas_analyzer.analyze() {
-                    Ok(canvas_result) => {
-                        println!("Canvas analysis complete. Found {} models.", canvas_result.models.len());
+                match canvas_analyzer.analyze(&canvas_dir_str) {
+                    Ok(canvas_result_str) => {
+                        // Parse the JSON string into a Value
+                        let canvas_result: serde_json::Value = serde_json::from_str(&canvas_result_str).unwrap_or_default();
 
                         // Extract model names for the integrated result
-                        self.result.canvas_models = canvas_result.models
-                            .iter()
-                            .map(|model| model.name.clone())
-                            .collect();
+                        if let Some(courses) = canvas_result.get("courses") {
+                            if let Some(courses_obj) = courses.as_object() {
+                                println!("Canvas analysis complete. Found {} courses.", courses_obj.len());
+
+                                // Extract course names
+                                self.result.canvas_models = courses_obj
+                                    .keys()
+                                    .map(|k| k.clone())
+                                    .collect();
+                            }
+                        }
                     },
                     Err(e) => {
                         eprintln!("Error analyzing Canvas: {}", e);
@@ -123,17 +132,26 @@ impl IntegratedMigrationAnalyzer {
         if let Some(discourse_dir) = &self.discourse_dir {
             if discourse_dir.exists() {
                 println!("Analyzing Discourse forum at {:?}...", discourse_dir);
-                let mut discourse_analyzer = DiscourseAnalyzer::new(discourse_dir);
+                let discourse_analyzer = DiscourseAnalyzer::new();
+                let discourse_dir_str = discourse_dir.to_string_lossy().to_string();
 
-                match discourse_analyzer.analyze() {
-                    Ok(discourse_result) => {
-                        println!("Discourse analysis complete. Found {} models.", discourse_result.models.len());
+                match discourse_analyzer.analyze(&discourse_dir_str) {
+                    Ok(discourse_result_str) => {
+                        // Parse the JSON string into a Value
+                        let discourse_result: serde_json::Value = serde_json::from_str(&discourse_result_str).unwrap_or_default();
 
                         // Extract model names for the integrated result
-                        self.result.discourse_models = discourse_result.models
-                            .iter()
-                            .map(|model| model.name.clone())
-                            .collect();
+                        if let Some(topics) = discourse_result.get("topics") {
+                            if let Some(topics_obj) = topics.as_object() {
+                                println!("Discourse analysis complete. Found {} topics.", topics_obj.len());
+
+                                // Extract topic names
+                                self.result.discourse_models = topics_obj
+                                    .keys()
+                                    .map(|k| k.clone())
+                                    .collect();
+                            }
+                        }
                     },
                     Err(e) => {
                         eprintln!("Error analyzing Discourse: {}", e);

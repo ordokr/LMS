@@ -1,4 +1,3 @@
-rust
 use regex::Regex;
 use std::{
     collections::HashMap,
@@ -70,6 +69,16 @@ pub struct RubyRailsAnalyzer {
 }
 
 impl RubyRailsAnalyzer {
+    pub fn new() -> Self {
+        Self {
+            models: HashMap::new(),
+            controllers: HashMap::new(),
+            routes: Vec::new(),
+            callbacks: Vec::new(),
+            hooks: Vec::new(),
+            database_schemas: HashMap::new(),
+        }
+    }
     pub fn analyze(&self, project_path: &str) -> Result<String, RubyRailsError> {
         let mut analyzer = RubyRailsAnalyzer::default();
 
@@ -280,7 +289,7 @@ impl RubyRailsAnalyzer {
                                     let content_str = content.as_str();
 
                                     lazy_static! {
-                                        static ref DEFINE_METHOD_REGEX: Regex = Regex::new(r"define_method\s+\"?([\w]+)\"?\s+do([\s\S]*?)end").unwrap();
+                                        static ref DEFINE_METHOD_REGEX: Regex = Regex::new(r#"define_method\s+"?([\w]+)"?\s+do([\s\S]*?)end"#).unwrap();
                                     }
 
                                     for method_caps in DEFINE_METHOD_REGEX.captures_iter(content_str) {
@@ -383,33 +392,21 @@ impl RubyRailsAnalyzer {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum RubyRailsError {
-    IoError(io::Error),
+    #[error("IO error: {0}")]
+    IoError(#[from] io::Error),
+    #[error("Regex error: {0}")]
     RegexError(String),
-    JsonError(serde_json::Error),
-    WalkDirError(walkdir::Error),
-}
+    #[error("JSON error: {0}")]
+    JsonError(#[from] serde_json::Error),
+    #[error("WalkDir error: {0}")]
+    WalkDirError(#[from] walkdir::Error),
 
-impl From<io::Error> for RubyRailsError {
-    fn from(error: io::Error) -> Self {
-        RubyRailsError::IoError(error)
-    }
 }
 
 impl From<regex::Error> for RubyRailsError {
     fn from(error: regex::Error) -> Self {
         RubyRailsError::RegexError(error.to_string())
-    }
-}
-impl From<serde_json::Error> for RubyRailsError {
-    fn from(error: serde_json::Error) -> Self {
-        RubyRailsError::JsonError(error)
-    }
-}
-
-impl From<walkdir::Error> for RubyRailsError {
-    fn from(error: walkdir::Error) -> Self {
-        RubyRailsError::WalkDirError(error)
     }
 }

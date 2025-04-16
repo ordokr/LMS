@@ -46,20 +46,37 @@ pub use modules::discourse_analyzer::DiscourseAnalyzer as ExposedDiscourseAnalyz
 pub fn run_all_analyzers(
     project_path: &str,
 ) -> Vec<Result<String, String>> {
+    let path_buf = std::path::PathBuf::from(project_path);
+
+    let file_structure_analyzer = FileStructureAnalyzer::default();
+    let ruby_rails_analyzer = RubyRailsAnalyzer::new();
+    let ember_analyzer = EmberAnalyzer::new();
+    let react_analyzer = ReactAnalyzer::new();
+    let template_analyzer = TemplateAnalyzer::new();
+    let route_analyzer = RouteAnalyzer::new();
+    let api_analyzer = ApiAnalyzer::new();
+    let dependency_analyzer = DependencyAnalyzer::new();
+    let auth_flow_analyzer = AuthFlowAnalyzer::new();
+    let offline_first_readiness_analyzer = OfflineFirstReadinessAnalyzer::new();
+    let database_schema_analyzer = DatabaseSchemaAnalyzer::new();
+    let business_logic_analyzer = BusinessLogicAnalyzer::new();
+    let canvas_analyzer = CanvasAnalyzer::new();
+    let discourse_analyzer = DiscourseAnalyzer::new();
+
     vec![
-        FileStructureAnalyzer::analyze(project_path),
-        RubyRailsAnalyzer::analyze(project_path),
-        EmberAnalyzer::analyze(project_path),
-        ReactAnalyzer::analyze(project_path),
-        TemplateAnalyzer::analyze(project_path),
-        RouteAnalyzer::analyze(project_path),
-        ApiAnalyzer::analyze(project_path),
-        DependencyAnalyzer::analyze(project_path),
-        AuthFlowAnalyzer::analyze(project_path),
-        OfflineFirstReadinessAnalyzer::analyze(project_path),
-        DatabaseSchemaAnalyzer::analyze(project_path),
-        BusinessLogicAnalyzer::analyze(project_path),
-        CanvasAnalyzer::analyze(project_path),
-        DiscourseAnalyzer::analyze(project_path),
+        file_structure_analyzer.analyze(project_path).map_err(|e| e.to_string()),
+        ruby_rails_analyzer.analyze(project_path).map_err(|e| e.to_string()),
+        ember_analyzer.analyze(&path_buf),
+        react_analyzer.analyze(&path_buf),
+        template_analyzer.analyze(&path_buf),
+        route_analyzer.analyze(&path_buf),
+        api_analyzer.analyze(&path_buf),
+        dependency_analyzer.analyze(&path_buf),
+        auth_flow_analyzer.analyze(&path_buf),
+        offline_first_readiness_analyzer.analyze(&path_buf),
+        database_schema_analyzer.analyze(&path_buf),
+        business_logic_analyzer.analyze(&path_buf),
+        canvas_analyzer.analyze(project_path).map_err(|e| e.to_string()),
+        discourse_analyzer.analyze(project_path).map_err(|e| e.to_string()),
     ]
 }

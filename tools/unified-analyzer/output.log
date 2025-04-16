@@ -1,0 +1,1019 @@
+warning: unused import: `PathBuf`
+ --> src\analyzers\modules\ruby_rails_analyzer.rs:6:18
+  |
+6 |     path::{Path, PathBuf},
+  |                  ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `Path`
+ --> src\analyzers\modules\ember_analyzer.rs:6:12
+  |
+6 |     path::{Path, PathBuf},
+  |            ^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> src\analyzers\modules\offline_first_readiness_analyzer.rs:3:5
+  |
+3 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `regex::Regex`
+ --> src\analyzers\modules\offline_first_readiness_analyzer.rs:6:5
+  |
+6 | use regex::Regex;
+  |     ^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> src\analyzers\modules\business_logic_analyzer.rs:3:5
+  |
+3 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `fs` and `io`
+ --> src\analyzers\modules\file_structure_analyzer.rs:2:46
+  |
+2 | use std::{borrow::Cow, collections::HashMap, fs, io, path::{Path, PathBuf}};
+  |                                              ^^  ^^
+
+warning: unused import: `crate::analyzers::modules::db_schema_analyzer::DbSchema`
+ --> src\analyzers\modules\unified_analyzer.rs:8:5
+  |
+8 | use crate::analyzers::modules::db_schema_analyzer::DbSchema;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Error` and `Path`
+ --> src\analyzers\modules\canvas_analyzer.rs:5:16
+  |
+5 |     io::{self, Error},
+  |                ^^^^^
+6 |     path::{Path, PathBuf},
+  |            ^^^^
+
+warning: unused imports: `Error` and `Path`
+ --> src\analyzers\modules\discourse_analyzer.rs:5:16
+  |
+5 |     io::{self, Error},
+  |                ^^^^^
+6 |     path::{Path, PathBuf},
+  |            ^^^^
+
+warning: unused import: `crate::utils::file_system::FileSystemUtils`
+ --> src\generators\documentation_generator.rs:6:5
+  |
+6 | use crate::utils::file_system::FileSystemUtils;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `file_name`
+   --> src\analyzers\modules\ruby_rails_analyzer.rs:315:38
+    |
+315 |     fn extract_controller(&mut self, file_name: &str,
+    |                                      ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_file_name`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `file_name`
+   --> src\analyzers\modules\ruby_rails_analyzer.rs:347:33
+    |
+347 |     fn extract_model(&mut self, file_name: &str,
+    |                                 ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_file_name`
+
+warning: unused variable: `base_dir`
+  --> src\analyzers\modules\react_analyzer.rs:14:27
+   |
+14 |     pub fn analyze(&self, base_dir: &PathBuf) -> Result<String, String> {
+   |                           ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_base_dir`
+
+warning: unused variable: `dep`
+   --> src\analyzers\modules\dependency_analyzer.rs:394:20
+    |
+394 |         for (name, dep) in &self.ruby_dependencies {
+    |                    ^^^ help: if this is intentional, prefix it with an underscore: `_dep`
+
+warning: unused variable: `dep`
+   --> src\analyzers\modules\dependency_analyzer.rs:406:20
+    |
+406 |         for (name, dep) in &self.js_dependencies {
+    |                    ^^^ help: if this is intentional, prefix it with an underscore: `_dep`
+
+warning: unused variable: `unified_output`
+  --> src\generators\documentation_generator.rs:48:25
+   |
+48 | fn generate_central_hub(unified_output: &Value, base_dir: &PathBuf) -> Result<()> {
+   |                         ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_unified_output`
+
+warning: unused variable: `unified_output`
+   --> src\generators\documentation_generator.rs:630:35
+    |
+630 | fn generate_architecture_overview(unified_output: &Value, base_dir: &PathBuf) -> Result<()> {
+    |                                   ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_unified_output`
+
+warning: unused variable: `unified_output`
+   --> src\generators\documentation_generator.rs:745:36
+    |
+745 | fn generate_implementation_roadmap(unified_output: &Value, base_dir: &PathBuf) -> Result<()> {
+    |                                    ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_unified_output`
+
+warning: struct `AstAnalyzer` is never constructed
+ --> src\analyzers\ast_analyzer.rs:3:12
+  |
+3 | pub struct AstAnalyzer;
+  |            ^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` on by default
+
+warning: associated items `new`, `analyze_file`, `count_functions`, `count_structs`, `count_impls`, and `estimate_complexity` are never used
+  --> src\analyzers\ast_analyzer.rs:6:12
+   |
+5  | impl AstAnalyzer {
+   | ---------------- associated items in this implementation
+6  |     pub fn new() -> Self {
+   |            ^^^
+...
+10 |     pub fn analyze_file(&self, _file_path: &Path, content: &str) -> CodeMetrics {
+   |            ^^^^^^^^^^^^
+...
+26 |     fn count_functions(&self, content: &str) -> usize {
+   |        ^^^^^^^^^^^^^^^
+...
+30 |     fn count_structs(&self, content: &str) -> usize {
+   |        ^^^^^^^^^^^^^
+...
+34 |     fn count_impls(&self, content: &str) -> usize {
+   |        ^^^^^^^^^^^
+...
+38 |     fn estimate_complexity(&self, content: &str) -> f32 {
+   |        ^^^^^^^^^^^^^^^^^^^
+
+warning: struct `CodeMetrics` is never constructed
+  --> src\analyzers\ast_analyzer.rs:60:12
+   |
+60 | pub struct CodeMetrics {
+   |            ^^^^^^^^^^^
+   |
+   = note: `CodeMetrics` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: struct `ComponentInfo` is never constructed
+  --> src\analyzers\ast_analyzer.rs:69:12
+   |
+69 | pub struct ComponentInfo {
+   |            ^^^^^^^^^^^^^
+   |
+   = note: `ComponentInfo` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: struct `ProjectStructure` is never constructed
+ --> src\analyzers\project_structure.rs:5:12
+  |
+5 | pub struct ProjectStructure {
+  |            ^^^^^^^^^^^^^^^^
+
+warning: associated items `new`, `analyze`, `get_file_count`, `get_directory_count`, and `get_files_by_extension` are never used
+  --> src\analyzers\project_structure.rs:12:12
+   |
+11 | impl ProjectStructure {
+   | --------------------- associated items in this implementation
+12 |     pub fn new(base_dir: &Path) -> Self {
+   |            ^^^
+...
+23 |     fn analyze(&mut self) {
+   |        ^^^^^^^
+...
+40 |     pub fn get_file_count(&self) -> usize {
+   |            ^^^^^^^^^^^^^^
+...
+44 |     pub fn get_directory_count(&self) -> usize {
+   |            ^^^^^^^^^^^^^^^^^^^
+...
+48 |     pub fn get_files_by_extension(&self, extension: &str) -> Vec<PathBuf> {
+   |            ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: methods `calculate_storage_size` and `estimate_batch_efficiency` are never used
+  --> src\analyzers\modules\blockchain_analyzer.rs:49:8
+   |
+20 | impl BlockchainAnalyzer {
+   | ----------------------- methods in this implementation
+...
+49 |     fn calculate_storage_size(&self) -> Result<usize, Box<dyn std::error::Error + Send + Sync>> {
+   |        ^^^^^^^^^^^^^^^^^^^^^^
+...
+62 |     fn estimate_batch_efficiency(&self) -> Result<f64, Box<dyn std::error::Error + Send + Sync>> {
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `extract_template_bindings` is never used
+   --> src\analyzers\modules\ember_analyzer.rs:250:8
+    |
+67  | impl EmberAnalyzer {
+    | ------------------ method in this implementation
+...
+250 |     fn extract_template_bindings(&self, content: &str) -> Vec<String> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `fs_utils` is never read
+   --> src\analyzers\modules\unified_analyzer.rs:460:5
+    |
+458 | pub struct UnifiedProjectAnalyzer {
+    |            ---------------------- field in this struct
+459 |     base_dir: PathBuf,
+460 |     fs_utils: Arc<FileSystemUtils>,
+    |     ^^^^^^^^
+
+warning: `unified-analyzer` (lib) generated 27 warnings (run `cargo fix --lib -p unified-analyzer` to apply 10 suggestions)
+warning: unused imports: `AnalysisResult` and `UnifiedProjectAnalyzer`
+  --> src\analyzers\mod.rs:10:28
+   |
+10 | pub use unified_analyzer::{AnalysisResult, UnifiedProjectAnalyzer};
+   |                            ^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `integrated_migration_analyzer::IntegratedMigrationAnalyzer`
+  --> src\analyzers\mod.rs:11:9
+   |
+11 | pub use integrated_migration_analyzer::IntegratedMigrationAnalyzer;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `modules::file_structure_analyzer::FileStructureAnalyzer as ExposedFileStructureAnalyzer`
+  --> src\analyzers\mod.rs:30:9
+   |
+30 | pub use modules::file_structure_analyzer::FileStructureAnalyzer as ExposedFileStructureAnalyzer;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `modules::ruby_rails_analyzer::RubyRailsAnalyzer as ExposedRubyRailsAnalyzer`
+  --> src\analyzers\mod.rs:31:9
+   |
+31 | pub use modules::ruby_rails_analyzer::RubyRailsAnalyzer as ExposedRubyRailsAnalyzer;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `modules::ember_analyzer::EmberAnalyzer as ExposedEmberAnalyzer`
+  --> src\analyzers\mod.rs:32:9
+   |
+32 | pub use modules::ember_analyzer::EmberAnalyzer as ExposedEmberAnalyzer;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `modules::react_analyzer::ReactAnalyzer as ExposedReactAnalyzer`
+  --> src\analyzers\mod.rs:33:9
+   |
+33 | pub use modules::react_analyzer::ReactAnalyzer as ExposedReactAnalyzer;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `modules::template_analyzer::TemplateAnalyzer as ExposedTemplateAnalyzer`
+  --> src\analyzers\mod.rs:34:9
+   |
+34 | pub use modules::template_analyzer::TemplateAnalyzer as ExposedTemplateAnalyzer;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `modules::route_analyzer::RouteAnalyzer as ExposedRouteAnalyzer`
+  --> src\analyzers\mod.rs:35:9
+   |
+35 | pub use modules::route_analyzer::RouteAnalyzer as ExposedRouteAnalyzer;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `modules::api_analyzer::ApiAnalyzer as ExposedApiAnalyzer`
+  --> src\analyzers\mod.rs:36:9
+   |
+36 | pub use modules::api_analyzer::ApiAnalyzer as ExposedApiAnalyzer;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `modules::dependency_analyzer::DependencyAnalyzer as ExposedDependencyAnalyzer`
+  --> src\analyzers\mod.rs:37:9
+   |
+37 | pub use modules::dependency_analyzer::DependencyAnalyzer as ExposedDependencyAnalyzer;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `modules::auth_flow_analyzer::AuthFlowAnalyzer as ExposedAuthFlowAnalyzer`
+  --> src\analyzers\mod.rs:38:9
+   |
+38 | pub use modules::auth_flow_analyzer::AuthFlowAnalyzer as ExposedAuthFlowAnalyzer;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `modules::offline_first_readiness_analyzer::OfflineFirstReadinessAnalyzer as ExposedOfflineFirstReadinessAnalyzer`
+  --> src\analyzers\mod.rs:39:9
+   |
+39 | ...se modules::offline_first_readiness_analyzer::OfflineFirstReadinessAnalyzer as ExposedOfflineFirstReadinessAnalyzer;
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `modules::database_schema_analyzer::DatabaseSchemaAnalyzer as ExposedDatabaseSchemaAnalyzer`
+  --> src\analyzers\mod.rs:40:9
+   |
+40 | pub use modules::database_schema_analyzer::DatabaseSchemaAnalyzer as ExposedDatabaseSchemaAnalyzer;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `modules::business_logic_analyzer::BusinessLogicAnalyzer as ExposedBusinessLogicAnalyzer`
+  --> src\analyzers\mod.rs:41:9
+   |
+41 | pub use modules::business_logic_analyzer::BusinessLogicAnalyzer as ExposedBusinessLogicAnalyzer;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `modules::canvas_analyzer::CanvasAnalyzer as ExposedCanvasAnalyzer`
+  --> src\analyzers\mod.rs:42:9
+   |
+42 | pub use modules::canvas_analyzer::CanvasAnalyzer as ExposedCanvasAnalyzer;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `modules::discourse_analyzer::DiscourseAnalyzer as ExposedDiscourseAnalyzer`
+  --> src\analyzers\mod.rs:43:9
+   |
+43 | pub use modules::discourse_analyzer::DiscourseAnalyzer as ExposedDiscourseAnalyzer;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `GeneratorError` and `GeneratorResult`
+  --> src\generators\mod.rs:18:17
+   |
+18 | pub use error::{GeneratorError, GeneratorResult};
+   |                 ^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^
+
+warning: unused import: `api_doc_generator::generate_api_doc`
+  --> src\generators\mod.rs:21:9
+   |
+21 | pub use api_doc_generator::generate_api_doc;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `implementation_details_generator::generate_implementation_details`
+  --> src\generators\mod.rs:22:9
+   |
+22 | pub use implementation_details_generator::generate_implementation_details;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `testing_doc_generator::generate_testing_doc`
+  --> src\generators\mod.rs:23:9
+   |
+23 | pub use testing_doc_generator::generate_testing_doc;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `tech_debt_report_generator::generate_tech_debt_report`
+  --> src\generators\mod.rs:24:9
+   |
+24 | pub use tech_debt_report_generator::generate_tech_debt_report;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `summary_report_generator::generate_summary_report`
+  --> src\generators\mod.rs:25:9
+   |
+25 | pub use summary_report_generator::generate_summary_report;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `enhanced_central_hub_generator::generate_enhanced_central_hub`
+  --> src\generators\mod.rs:26:9
+   |
+26 | pub use enhanced_central_hub_generator::generate_enhanced_central_hub;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `sync_architecture_generator::generate_sync_architecture`
+  --> src\generators\mod.rs:27:9
+   |
+27 | pub use sync_architecture_generator::generate_sync_architecture;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `database_architecture_generator::generate_database_architecture`
+  --> src\generators\mod.rs:28:9
+   |
+28 | pub use database_architecture_generator::generate_database_architecture;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `generators::*`
+  --> src\main.rs:16:5
+   |
+16 | use generators::*;
+   |     ^^^^^^^^^^^^^
+
+warning: unused import: `utils::file_system::FileSystemUtils`
+  --> src\main.rs:20:114
+   |
+20 | ...egrator::integrate_analysis_results, utils::file_system::FileSystemUtils};
+   |                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `config`
+  --> src\main.rs:28:9
+   |
+28 |     let config = match Config::from_file("config.toml") {
+   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_config`
+
+warning: function `run_all_analyzers` is never used
+  --> src\analyzers\mod.rs:46:8
+   |
+46 | pub fn run_all_analyzers(
+   |        ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: struct `AstAnalyzer` is never constructed
+ --> src\analyzers\ast_analyzer.rs:3:12
+  |
+3 | pub struct AstAnalyzer;
+  |            ^^^^^^^^^^^
+
+warning: struct `UnifiedProjectAnalyzer` is never constructed
+   --> src\analyzers\unified_analyzer.rs:282:12
+    |
+282 | pub struct UnifiedProjectAnalyzer {
+    |            ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: multiple associated items are never used
+   --> src\analyzers\unified_analyzer.rs:289:12
+    |
+288 | impl UnifiedProjectAnalyzer {
+    | --------------------------- associated items in this implementation
+289 |     pub fn new(base_dir: PathBuf, fs_utils: Arc<FileSystemUtils>) -> Self {
+    |            ^^^
+...
+298 |     pub async fn analyze(&self) -> Result<AnalysisResult, Box<dyn std::error::Error + Send + Sync>> {
+    |                  ^^^^^^^
+...
+332 |     pub async fn analyze_models(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |                  ^^^^^^^^^^^^^^
+...
+367 |     pub async fn analyze_api_endpoints(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |                  ^^^^^^^^^^^^^^^^^^^^^
+...
+403 |     pub async fn analyze_components(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |                  ^^^^^^^^^^^^^^^^^^
+...
+430 |     pub async fn analyze_code_quality(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |                  ^^^^^^^^^^^^^^^^^^^^
+...
+447 |     pub async fn analyze_tests(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |                  ^^^^^^^^^^^^^
+...
+470 |     pub async fn analyze_integration(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |                  ^^^^^^^^^^^^^^^^^^^
+...
+487 |     pub async fn analyze_architecture(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |                  ^^^^^^^^^^^^^^^^^^^^
+...
+500 |     pub async fn analyze_sync_system(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |                  ^^^^^^^^^^^^^^^^^^^
+...
+511 |     pub async fn analyze_blockchain(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |                  ^^^^^^^^^^^^^^^^^^
+...
+531 |     pub async fn generate_recommendations(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+556 |     pub async fn update_project_status(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |                  ^^^^^^^^^^^^^^^^^^^^^
+...
+610 |     pub async fn generate_central_reference_hub(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+689 |     pub async fn generate_analyzer_reference(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `IntegratedMigrationAnalyzer` is never constructed
+  --> src\analyzers\integrated_migration_analyzer.rs:62:12
+   |
+62 | pub struct IntegratedMigrationAnalyzer {
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: multiple associated items are never used
+   --> src\analyzers\integrated_migration_analyzer.rs:71:12
+    |
+70  | impl IntegratedMigrationAnalyzer {
+    | -------------------------------- associated items in this implementation
+71  |     pub fn new(lms_dir: impl Into<PathBuf>, fs_utils: Arc<FileSystemUtils>) -> Self {
+    |            ^^^
+...
+82  |     pub fn with_canvas_dir(&mut self, dir: impl Into<PathBuf>) -> &mut Self {
+    |            ^^^^^^^^^^^^^^^
+...
+88  |     pub fn with_discourse_dir(&mut self, dir: impl Into<PathBuf>) -> &mut Self {
+    |            ^^^^^^^^^^^^^^^^^^
+...
+94  |     pub async fn analyze(&mut self) -> Result<IntegratedMigrationResult, Box<dyn std::error::Error + Send + Sync...
+    |                  ^^^^^^^
+...
+186 |     fn identify_common_entities(&mut self) {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+214 |     fn generate_migration_paths(&mut self) {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+229 |     fn identify_integration_points(&mut self) {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+255 |     fn generate_report(&self) {
+    |        ^^^^^^^^^^^^^^^
+
+warning: multiple methods are never used
+   --> src\analyzers\unified_analyzer_extensions.rs:7:18
+    |
+5   | impl UnifiedProjectAnalyzer {
+    | --------------------------- methods in this implementation
+6   |     /// Generate AI knowledge base
+7   |     pub async fn generate_ai_knowledge_base(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+41  |     fn generate_ai_knowledge_content(&self, result: &AnalysisResult) -> Result<String, Box<dyn std::error::Error...
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+108 |     fn generate_ai_guidance_content(&self, result: &AnalysisResult) -> Result<String, Box<dyn std::error::Error ...
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+160 |     pub async fn generate_metrics_visualizations(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+189 |     fn generate_metrics_dashboard_html(&self, result: &AnalysisResult) -> Result<String, Box<dyn std::error::Err...
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+336 |     fn generate_metrics_report_content(&self, result: &AnalysisResult) -> Result<String, Box<dyn std::error::Err...
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+381 |     pub async fn generate_project_dashboard(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+406 |     fn generate_project_dashboard_html(&self, result: &AnalysisResult) -> Result<String, Box<dyn std::error::Err...
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+594 |     fn update_dashboard_history(&self, result: &AnalysisResult) -> Result<(), Box<dyn std::error::Error + Send +...
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: fields `file_complexity`, `components`, `total_complexity`, `average_complexity`, and `file_count` are never read
+ --> src\analyzers\modules\ast_analyzer.rs:5:9
+  |
+4 | pub struct CodeMetrics {
+  |            ----------- fields in this struct
+5 |     pub file_complexity: HashMap<PathBuf, u32>,
+  |         ^^^^^^^^^^^^^^^
+6 |     pub components: Vec<ComponentInfo>,
+  |         ^^^^^^^^^^
+7 |     pub total_complexity: u32,
+  |         ^^^^^^^^^^^^^^^^
+8 |     pub average_complexity: f32,
+  |         ^^^^^^^^^^^^^^^^^^
+9 |     pub file_count: usize,
+  |         ^^^^^^^^^^
+
+warning: method `add_file_complexity` is never used
+  --> src\analyzers\modules\ast_analyzer.rs:25:12
+   |
+24 | impl CodeMetrics {
+   | ---------------- method in this implementation
+25 |     pub fn add_file_complexity(&mut self, path: PathBuf, complexity: u32) {
+   |            ^^^^^^^^^^^^^^^^^^^
+
+warning: fields `name`, `file_path`, `complexity`, `type_name`, `props`, and `lines_of_code` are never read
+  --> src\analyzers\modules\ast_analyzer.rs:31:9
+   |
+30 | pub struct ComponentInfo {
+   |            ------------- fields in this struct
+31 |     pub name: String,
+   |         ^^^^
+32 |     pub file_path: PathBuf,
+   |         ^^^^^^^^^
+33 |     pub complexity: u32,
+   |         ^^^^^^^^^^
+34 |     pub type_name: String,  // "React", "Vue", "Rust", etc.
+   |         ^^^^^^^^^
+35 |     pub props: Vec<PropInfo>,
+   |         ^^^^^
+36 |     pub lines_of_code: usize,
+   |         ^^^^^^^^^^^^^
+
+warning: fields `name`, `prop_type`, and `is_required` are never read
+  --> src\analyzers\modules\ast_analyzer.rs:40:9
+   |
+39 | pub struct PropInfo {
+   |            -------- fields in this struct
+40 |     pub name: String,
+   |         ^^^^
+41 |     pub prop_type: String,
+   |         ^^^^^^^^^
+42 |     pub is_required: bool,
+   |         ^^^^^^^^^^^
+
+warning: struct `AstAnalyzer` is never constructed
+  --> src\analyzers\modules\ast_analyzer.rs:45:12
+   |
+45 | pub struct AstAnalyzer;
+   |            ^^^^^^^^^^^
+
+warning: associated items `new` and `analyze_project_code` are never used
+  --> src\analyzers\modules\ast_analyzer.rs:48:12
+   |
+47 | impl AstAnalyzer {
+   | ---------------- associated items in this implementation
+48 |     pub fn new() -> Self {
+   |            ^^^
+...
+52 |     pub fn analyze_project_code(&self, _base_dir: &Path) -> CodeMetrics {
+   |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `analyze_conflicts` is never used
+ --> src\analyzers\modules\conflict_analyzer.rs:6:8
+  |
+6 | pub fn analyze_conflicts(project_path: &Path) -> Result<Vec<String>, Box<dyn Error>> {
+  |        ^^^^^^^^^^^^^^^^^
+
+warning: struct `TechDebtAnalyzer` is never constructed
+ --> src\analyzers\modules\tech_debt_analyzer.rs:8:12
+  |
+8 | pub struct TechDebtAnalyzer {
+  |            ^^^^^^^^^^^^^^^^
+
+warning: associated items `new`, `analyze_file`, `analyze_codebase`, `analyze_directory`, and `generate_report` are never used
+   --> src\analyzers\modules\tech_debt_analyzer.rs:32:12
+    |
+31  | impl TechDebtAnalyzer {
+    | --------------------- associated items in this implementation
+32  |     pub fn new(base_dir: PathBuf) -> Self {
+    |            ^^^
+...
+56  |     pub fn analyze_file(&self, file_path: &Path) -> Result<Vec<TechDebtItem>, String> {
+    |            ^^^^^^^^^^^^
+...
+252 |     pub fn analyze_codebase(&self) -> Result<Vec<TechDebtItem>, String> {
+    |            ^^^^^^^^^^^^^^^^
+...
+281 |     fn analyze_directory(&self, dir: &Path, results: &mut Vec<TechDebtItem>) -> Result<(), String> {
+    |        ^^^^^^^^^^^^^^^^^
+...
+310 |     pub fn generate_report(&self) -> Result<String, String> {
+    |            ^^^^^^^^^^^^^^^
+
+warning: function `extract_comment` is never used
+   --> src\analyzers\modules\tech_debt_analyzer.rs:464:4
+    |
+464 | fn extract_comment(line: &str) -> String {
+    |    ^^^^^^^^^^^^^^^
+
+warning: struct `DbSchema` is never constructed
+ --> src\analyzers\modules\db_schema_analyzer.rs:5:12
+  |
+5 | pub struct DbSchema {
+  |            ^^^^^^^^
+  |
+  = note: `DbSchema` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: struct `DbColumn` is never constructed
+  --> src\analyzers\modules\db_schema_analyzer.rs:12:12
+   |
+12 | pub struct DbColumn {
+   |            ^^^^^^^^
+   |
+   = note: `DbColumn` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: struct `DbSchemaAnalyzer` is never constructed
+  --> src\analyzers\modules\db_schema_analyzer.rs:20:12
+   |
+20 | pub struct DbSchemaAnalyzer {
+   |            ^^^^^^^^^^^^^^^^
+
+warning: associated items `new` and `analyze` are never used
+  --> src\analyzers\modules\db_schema_analyzer.rs:25:12
+   |
+24 | impl DbSchemaAnalyzer {
+   | --------------------- associated items in this implementation
+25 |     pub fn new(db_path: String) -> Self {
+   |            ^^^
+...
+29 |     pub fn analyze(&self) -> Result<DbSchema, Box<dyn std::error::Error + Send + Sync>> {
+   |            ^^^^^^^
+
+warning: struct `BlockchainAnalyzer` is never constructed
+  --> src\analyzers\modules\blockchain_analyzer.rs:16:12
+   |
+16 | pub struct BlockchainAnalyzer {
+   |            ^^^^^^^^^^^^^^^^^^
+
+warning: associated items `new`, `analyze`, `calculate_storage_size`, and `estimate_batch_efficiency` are never used
+  --> src\analyzers\modules\blockchain_analyzer.rs:21:12
+   |
+20 | impl BlockchainAnalyzer {
+   | ----------------------- associated items in this implementation
+21 |     pub fn new(base_dir: impl Into<PathBuf>) -> Self {
+   |            ^^^
+...
+27 |     pub fn analyze(&self) -> Result<BlockchainInfo, Box<dyn std::error::Error + Send + Sync>> {
+   |            ^^^^^^^
+...
+49 |     fn calculate_storage_size(&self) -> Result<usize, Box<dyn std::error::Error + Send + Sync>> {
+   |        ^^^^^^^^^^^^^^^^^^^^^^
+...
+62 |     fn estimate_batch_efficiency(&self) -> Result<f64, Box<dyn std::error::Error + Send + Sync>> {
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: variants `Other` and `RegexError` are never constructed
+   --> src\analyzers\modules\file_structure_analyzer.rs:419:5
+    |
+411 | pub enum FileStructureError {
+    |          ------------------ variants in this enum
+...
+419 |     Other(String),
+    |     ^^^^^
+...
+422 |     RegexError(String),
+    |     ^^^^^^^^^^
+    |
+    = note: `FileStructureError` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: struct `UnifiedProjectAnalyzer` is never constructed
+   --> src\analyzers\modules\unified_analyzer.rs:458:12
+    |
+458 | pub struct UnifiedProjectAnalyzer {
+    |            ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: multiple associated items are never used
+   --> src\analyzers\modules\unified_analyzer.rs:465:12
+    |
+464 | impl UnifiedProjectAnalyzer {
+    | --------------------------- associated items in this implementation
+465 |     pub fn new(base_dir: PathBuf, fs_utils: Arc<FileSystemUtils>) -> Self {
+    |            ^^^
+...
+474 |     pub async fn analyze(&self) -> Result<AnalysisResult, Box<dyn std::error::Error + Send + Sync>> {
+    |                  ^^^^^^^
+...
+508 |     async fn analyze_models(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |              ^^^^^^^^^^^^^^
+...
+519 |     async fn analyze_api_endpoints(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |              ^^^^^^^^^^^^^^^^^^^^^
+...
+530 |     async fn analyze_components(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |              ^^^^^^^^^^^^^^^^^^
+...
+541 |     async fn analyze_code_quality(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |              ^^^^^^^^^^^^^^^^^^^^
+...
+552 |     async fn analyze_tests(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |              ^^^^^^^^^^^^^
+...
+563 |     async fn analyze_integration(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |              ^^^^^^^^^^^^^^^^^^^
+...
+574 |     async fn analyze_architecture(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |              ^^^^^^^^^^^^^^^^^^^^
+...
+585 |     async fn analyze_sync_system(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |              ^^^^^^^^^^^^^^^^^^^
+...
+596 |     async fn analyze_blockchain(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |              ^^^^^^^^^^^^^^^^^^
+...
+607 |     async fn generate_recommendations(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+618 |     async fn update_project_status(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |              ^^^^^^^^^^^^^^^^^^^^^
+...
+629 |     pub async fn generate_central_reference_hub(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: fields `output`, `documentation`, `project`, and `analysis` are never read
+  --> src\config\mod.rs:10:9
+   |
+8  | pub struct Config {
+   |            ------ fields in this struct
+9  |     /// Output directories
+10 |     pub output: OutputConfig,
+   |         ^^^^^^
+11 |     /// Documentation generation options
+12 |     pub documentation: DocumentationConfig,
+   |         ^^^^^^^^^^^^^
+13 |     /// Project information
+14 |     pub project: ProjectConfig,
+   |         ^^^^^^^
+15 |     /// Analysis options
+16 |     pub analysis: AnalysisConfig,
+   |         ^^^^^^^^
+   |
+   = note: `Config` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `docs_dir`, `api_dir`, `architecture_dir`, `models_dir`, and `integration_dir` are never read
+  --> src\config\mod.rs:23:9
+   |
+21 | pub struct OutputConfig {
+   |            ------------ fields in this struct
+22 |     /// Main documentation directory
+23 |     pub docs_dir: String,
+   |         ^^^^^^^^
+24 |     /// API documentation directory
+25 |     pub api_dir: String,
+   |         ^^^^^^^
+26 |     /// Architecture documentation directory
+27 |     pub architecture_dir: String,
+   |         ^^^^^^^^^^^^^^^^
+28 |     /// Models documentation directory
+29 |     pub models_dir: String,
+   |         ^^^^^^^^^^
+30 |     /// Integration documentation directory
+31 |     pub integration_dir: String,
+   |         ^^^^^^^^^^^^^^^
+   |
+   = note: `OutputConfig` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `generate_high_priority`, `generate_medium_priority`, `exclude_ai_content`, `high_priority`, and `medium_priority` are never read
+  --> src\config\mod.rs:38:9
+   |
+36 | pub struct DocumentationConfig {
+   |            ------------------- fields in this struct
+37 |     /// Whether to generate high priority documentation
+38 |     pub generate_high_priority: bool,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+39 |     /// Whether to generate medium priority documentation
+40 |     pub generate_medium_priority: bool,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^
+41 |     /// Whether to exclude AI/Gemini-related content
+42 |     pub exclude_ai_content: bool,
+   |         ^^^^^^^^^^^^^^^^^^
+43 |     /// High priority documentation options
+44 |     pub high_priority: HighPriorityConfig,
+   |         ^^^^^^^^^^^^^
+45 |     /// Medium priority documentation options
+46 |     pub medium_priority: MediumPriorityConfig,
+   |         ^^^^^^^^^^^^^^^
+   |
+   = note: `DocumentationConfig` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `central_reference_hub`, `api_documentation`, `implementation_details`, `testing_documentation`, `technical_debt_report`, and `summary_report` are never read
+  --> src\config\mod.rs:53:9
+   |
+51 | pub struct HighPriorityConfig {
+   |            ------------------ fields in this struct
+52 |     /// Whether to generate central reference hub
+53 |     pub central_reference_hub: bool,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+54 |     /// Whether to generate API documentation
+55 |     pub api_documentation: bool,
+   |         ^^^^^^^^^^^^^^^^^
+56 |     /// Whether to generate implementation details
+57 |     pub implementation_details: bool,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+58 |     /// Whether to generate testing documentation
+59 |     pub testing_documentation: bool,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+60 |     /// Whether to generate technical debt report
+61 |     pub technical_debt_report: bool,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+62 |     /// Whether to generate summary report
+63 |     pub summary_report: bool,
+   |         ^^^^^^^^^^^^^^
+   |
+   = note: `HighPriorityConfig` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `synchronization_architecture` and `database_architecture` are never read
+  --> src\config\mod.rs:70:9
+   |
+68 | pub struct MediumPriorityConfig {
+   |            -------------------- fields in this struct
+69 |     /// Whether to generate synchronization architecture
+70 |     pub synchronization_architecture: bool,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+71 |     /// Whether to generate database architecture
+72 |     pub database_architecture: bool,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `MediumPriorityConfig` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `name`, `description`, `version`, and `repository` are never read
+  --> src\config\mod.rs:79:9
+   |
+77 | pub struct ProjectConfig {
+   |            ------------- fields in this struct
+78 |     /// Project name
+79 |     pub name: String,
+   |         ^^^^
+80 |     /// Project description
+81 |     pub description: String,
+   |         ^^^^^^^^^^^
+82 |     /// Project version
+83 |     pub version: String,
+   |         ^^^^^^^
+84 |     /// Project repository
+85 |     pub repository: String,
+   |         ^^^^^^^^^^
+   |
+   = note: `ProjectConfig` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `max_depth`, `include_extensions`, and `exclude_dirs` are never read
+  --> src\config\mod.rs:92:9
+   |
+90 | pub struct AnalysisConfig {
+   |            -------------- fields in this struct
+91 |     /// Maximum depth to search for files
+92 |     pub max_depth: usize,
+   |         ^^^^^^^^^
+93 |     /// File extensions to include in analysis
+94 |     pub include_extensions: Vec<String>,
+   |         ^^^^^^^^^^^^^^^^^^
+95 |     /// Directories to exclude from analysis
+96 |     pub exclude_dirs: Vec<String>,
+   |         ^^^^^^^^^^^^
+   |
+   = note: `AnalysisConfig` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: variants `DirectoryCreation`, `DataParsing`, and `ContentGeneration` are never constructed
+  --> src\generators\error.rs:8:5
+   |
+6  | pub enum GeneratorError {
+   |          -------------- variants in this enum
+7  |     /// Error when creating a directory
+8  |     DirectoryCreation(String),
+   |     ^^^^^^^^^^^^^^^^^
+...
+14 |     DataParsing(String),
+   |     ^^^^^^^^^^^
+15 |     /// Error when generating content
+16 |     ContentGeneration(String),
+   |     ^^^^^^^^^^^^^^^^^
+   |
+   = note: `GeneratorError` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: type alias `GeneratorResult` is never used
+  --> src\generators\error.rs:48:10
+   |
+48 | pub type GeneratorResult<T> = Result<T, GeneratorError>;
+   |          ^^^^^^^^^^^^^^^
+
+warning: function `generate_api_doc` is never used
+ --> src\generators\api_doc_generator.rs:8:8
+  |
+8 | pub fn generate_api_doc(result: &AnalysisResult, base_dir: &Path) -> Result<(), Box<dyn std::error::Error + Send +...
+  |        ^^^^^^^^^^^^^^^^
+
+warning: function `generate_implementation_details` is never used
+ --> src\generators\implementation_details_generator.rs:8:8
+  |
+8 | pub fn generate_implementation_details(result: &AnalysisResult, base_dir: &Path) -> Result<(), Box<dyn std::error:...
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `generate_testing_doc` is never used
+ --> src\generators\testing_doc_generator.rs:8:8
+  |
+8 | pub fn generate_testing_doc(result: &AnalysisResult, base_dir: &Path) -> Result<(), Box<dyn std::error::Error + Se...
+  |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `generate_tech_debt_report` is never used
+ --> src\generators\tech_debt_report_generator.rs:8:8
+  |
+8 | pub fn generate_tech_debt_report(result: &AnalysisResult, base_dir: &Path) -> Result<(), Box<dyn std::error::Error...
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `generate_summary_report` is never used
+ --> src\generators\summary_report_generator.rs:8:8
+  |
+8 | pub fn generate_summary_report(result: &AnalysisResult, base_dir: &Path) -> Result<(), Box<dyn std::error::Error +...
+  |        ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `generate_enhanced_central_hub` is never used
+ --> src\generators\enhanced_central_hub_generator.rs:8:8
+  |
+8 | pub fn generate_enhanced_central_hub(result: &AnalysisResult, base_dir: &Path) -> Result<(), Box<dyn std::error::E...
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `generate_sync_architecture` is never used
+ --> src\generators\sync_architecture_generator.rs:7:8
+  |
+7 | pub fn generate_sync_architecture(result: &AnalysisResult, base_dir: &Path) -> Result<(), Box<dyn std::error::Erro...
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `generate_database_architecture` is never used
+ --> src\generators\database_architecture_generator.rs:8:8
+  |
+8 | pub fn generate_database_architecture(_result: &AnalysisResult, base_dir: &Path) -> Result<(), Box<dyn std::error:...
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `FileSystemUtils` is never constructed
+ --> src\utils\file_system.rs:6:12
+  |
+6 | pub struct FileSystemUtils;
+  |            ^^^^^^^^^^^^^^^
+
+warning: associated items `new`, `find_files`, `find_files_by_pattern`, `read_file`, and `write_file` are never used
+  --> src\utils\file_system.rs:9:12
+   |
+8  | impl FileSystemUtils {
+   | -------------------- associated items in this implementation
+9  |     pub fn new() -> Self {
+   |            ^^^
+...
+13 |     pub fn find_files(&self, base_dir: &Path, extension: &str) -> Vec<PathBuf> {
+   |            ^^^^^^^^^^
+...
+31 |     pub fn find_files_by_pattern(&self, base_dir: &Path, pattern: &str) -> Vec<PathBuf> {
+   |            ^^^^^^^^^^^^^^^^^^^^^
+...
+50 |     pub fn read_file(&self, path: &Path) -> Option<String> {
+   |            ^^^^^^^^^
+...
+54 |     pub fn write_file(&self, path: &Path, content: &str) -> std::io::Result<()> {
+   |            ^^^^^^^^^^
+
+warning: `unified-analyzer` (bin "unified-analyzer") generated 97 warnings (24 duplicates) (run `cargo fix --bin "unified-analyzer"` to apply 27 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.11s
+     Running `target\debug\unified-analyzer.exe test_project`
+Unified Analyzer for LMS Project
+Loaded configuration from config.toml
+---- Starting Unified Analysis ----
+Starting Canvas analysis...
+Looking for Canvas directory at: test_project\canvas
+Found Canvas directory at: test_project\canvas
+Analyzing courses directory: test_project\canvas\app\views\courses
+No modules found in context_modules directory, checking course files...
+Extracting modules from course files in: test_project\canvas\app\views\courses
+Canvas analysis completed.
+Starting Discourse analysis...
+Looking for Discourse directory at: test_project\discourse
+Found Discourse directory at: test_project\discourse
+Analyzing topics directory: test_project\discourse\app\views\topics
+Discourse analysis completed.
+Error parsing JSON result: expected value at line 1 column 1
+Documentation generation completed.
+Unified analysis completed and output written to unified_output.json
