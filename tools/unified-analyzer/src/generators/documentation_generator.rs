@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 pub fn generate_documentation(unified_output: &Value, base_dir: &PathBuf) -> Result<()> {
     // Ensure docs directory exists
-    let docs_dir = base_dir.join("docs");
+    let docs_dir = PathBuf::from("C:\\Users\\Tim\\Desktop\\LMS\\docs");
     if !docs_dir.exists() {
         fs::create_dir_all(&docs_dir)
             .context("Failed to create docs directory")?;
@@ -89,7 +89,7 @@ fn generate_central_hub(_unified_output: &Value, base_dir: &PathBuf) -> Result<(
     content.push_str("- **Authentication/Authorization**: Security model and permission system\n");
     content.push_str("- **Offline-First Readiness**: Data synchronization and offline capabilities\n\n");
 
-    let path = base_dir.join("docs").join("index.md");
+    let path = PathBuf::from("C:\\Users\\Tim\\Desktop\\LMS\\docs").join("index.md");
     std::fs::write(&path, content).context("Failed to write central hub documentation")?;
     info!("Generated central reference hub at {}", path.display());
     Ok(())
@@ -164,7 +164,7 @@ fn generate_file_structure_doc(unified_output: &Value, base_dir: &PathBuf) -> Re
         content.push_str("No file structure information available.\n");
     }
 
-    let path = base_dir.join("docs").join("file_structure.md");
+    let path = PathBuf::from("C:\\Users\\Tim\\Desktop\\LMS\\docs").join("file_structure.md");
     std::fs::write(&path, content).context("Failed to write file structure documentation")?;
     info!("Generated file structure documentation at {}", path.display());
     Ok(())
@@ -228,7 +228,7 @@ fn generate_api_doc(unified_output: &Value, base_dir: &PathBuf) -> Result<()> {
         content.push_str("No API information available.\n");
     }
 
-    let path = base_dir.join("docs").join("api").join("overview.md");
+    let path = PathBuf::from("C:\\Users\\Tim\\Desktop\\LMS\\docs").join("api").join("overview.md");
     std::fs::write(&path, content).context("Failed to write API documentation")?;
     info!("Generated API documentation at {}", path.display());
     Ok(())
@@ -358,7 +358,7 @@ fn generate_database_schema_doc(unified_output: &Value, base_dir: &PathBuf) -> R
         content.push_str("No database schema information available.\n");
     }
 
-    let path = base_dir.join("docs").join("models").join("database_schema.md");
+    let path = PathBuf::from("C:\\Users\\Tim\\Desktop\\LMS\\docs").join("models").join("database_schema.md");
     std::fs::write(&path, content).context("Failed to write database schema documentation")?;
     info!("Generated database schema documentation at {}", path.display());
     Ok(())
@@ -523,7 +523,7 @@ fn generate_business_logic_doc(unified_output: &Value, base_dir: &PathBuf) -> Re
         content.push_str("No business logic information available.\n");
     }
 
-    let path = base_dir.join("docs").join("technical").join("business_logic.md");
+    let path = PathBuf::from("C:\\Users\\Tim\\Desktop\\LMS\\docs").join("technical").join("business_logic.md");
     std::fs::write(&path, content).context("Failed to write business logic documentation")?;
     info!("Generated business logic documentation at {}", path.display());
     Ok(())
@@ -638,7 +638,7 @@ fn generate_offline_readiness_doc(unified_output: &Value, base_dir: &PathBuf) ->
         content.push_str("No offline-first readiness information available.\n");
     }
 
-    let path = base_dir.join("docs").join("technical").join("offline_readiness.md");
+    let path = PathBuf::from("C:\\Users\\Tim\\Desktop\\LMS\\docs").join("technical").join("offline_readiness.md");
     std::fs::write(&path, content).context("Failed to write offline readiness documentation")?;
     info!("Generated offline readiness documentation at {}", path.display());
     Ok(())
@@ -753,7 +753,7 @@ fn generate_architecture_overview(_unified_output: &Value, base_dir: &PathBuf) -
     content.push_str("+----------------------------------+\n");
     content.push_str("```\n");
 
-    let path = base_dir.join("docs").join("architecture").join("overview.md");
+    let path = PathBuf::from("C:\\Users\\Tim\\Desktop\\LMS\\docs").join("architecture").join("overview.md");
     std::fs::write(&path, content).context("Failed to write architecture overview documentation")?;
     info!("Generated architecture overview at {}", path.display());
     Ok(())
@@ -861,7 +861,7 @@ fn generate_implementation_roadmap(_unified_output: &Value, base_dir: &PathBuf) 
     content.push_str("4. **Performance**: Ensuring good performance with potentially large local databases\n");
     content.push_str("5. **Security**: Maintaining proper security in a distributed system\n");
 
-    let path = base_dir.join("docs").join("integration").join("roadmap.md");
+    let path = PathBuf::from("C:\\Users\\Tim\\Desktop\\LMS\\docs").join("integration").join("roadmap.md");
     std::fs::write(&path, content).context("Failed to write implementation roadmap documentation")?;
     info!("Generated implementation roadmap at {}", path.display());
     Ok(())

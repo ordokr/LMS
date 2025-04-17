@@ -82,6 +82,55 @@ include_extensions = [".rs", ".js", ".ts", ".jsx", ".tsx", ".html", ".css", ".sc
 # Directories to exclude from analysis
 exclude_dirs = ["node_modules", "target", "dist", "build", ".git"]
 
+# Integration Advisor configuration
+[analysis.integration_advisor]
+enabled = true
+entity_mapping = true
+feature_detection = true
+code_quality = true
+conflict_detection = true
+integration_tracking = true
+recommendations = true
+
+# Entity Mapping configuration
+[analysis.entity_mapping]
+similarity_threshold = 0.5
+exact_match_bonus = 0.3
+field_match_weight = 0.7
+name_match_weight = 0.3
+
+# Feature Detection configuration
+[analysis.feature_detection]
+categories = ["course_mgmt", "assignment_mgmt", "grading", "discussions", "auth", "roles", "moderation", "tagging"]
+controller_weight = 0.5
+route_weight = 0.3
+view_weight = 0.2
+
+# Code Quality configuration
+[analysis.code_quality]
+usefulness_threshold_high = 80
+usefulness_threshold_medium = 50
+complexity_weight = 0.4
+loc_weight = 0.2
+comment_coverage_weight = 0.2
+cohesion_weight = 0.2
+
+# Conflict Detection configuration
+[analysis.conflict_detection]
+naming_conflict_threshold = 0.8
+semantic_conflict_threshold = 0.6
+
+# Integration Tracking configuration
+[analysis.integration_tracking]
+entity_weight = 0.5
+feature_weight = 0.5
+
+# Recommendations configuration
+[analysis.recommendations]
+max_recommendations = 20
+high_priority_threshold = 4
+medium_priority_threshold = 2
+
 # Performance configuration
 [performance]
 parallel_processing = true

@@ -47,3 +47,21 @@ pub mod unified_analyzer;
 	pub mod canvas_analyzer;
 	// Responsible for analyzing Discourse specifically
 	pub mod discourse_analyzer;
+
+// Integration Advisor Modules
+// Responsible for mapping entities between systems
+pub mod entity_mapper;
+// Responsible for detecting and mapping features between systems
+pub mod feature_detector;
+// Responsible for analyzing code quality and usefulness
+pub mod code_quality_scorer;
+// Responsible for detecting naming and semantic conflicts
+pub mod conflict_checker;
+// Responsible for tracking integration progress
+pub mod integration_tracker;
+// Responsible for generating development recommendations
+pub mod recommendation_system;
+// Responsible for HelixDB integration planning
+pub mod helix_db_integration;
+// Source system implementations for various platforms
+pub mod source_systems;

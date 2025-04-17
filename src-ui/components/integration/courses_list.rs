@@ -1,6 +1,41 @@
 use leptos::*;
 use crate::models::integration::CanvasCourse;
 
+/// Badge style for sync status
+#[derive(Clone, Debug)]
+pub enum SyncStatusBadge {
+    Success,
+    Warning,
+    Error,
+    Info,
+    Default,
+}
+
+impl SyncStatusBadge {
+    /// Get the CSS class for the badge
+    fn css_class(&self) -> &'static str {
+        match self {
+            SyncStatusBadge::Success => "status-badge status-success",
+            SyncStatusBadge::Warning => "status-badge status-warning",
+            SyncStatusBadge::Error => "status-badge status-error",
+            SyncStatusBadge::Info => "status-badge status-info",
+            SyncStatusBadge::Default => "status-badge status-default",
+        }
+    }
+    
+    /// Get the badge type for a sync status
+    fn from_status(status: &str) -> Self {
+        match status {
+            "Synced" => SyncStatusBadge::Success,
+            "PendingToCanvas" | "PendingToDiscourse" | "PendingSync" => SyncStatusBadge::Warning,
+            "Conflict" => SyncStatusBadge::Error,
+            "Error" => SyncStatusBadge::Error,
+            "Processing" => SyncStatusBadge::Info,
+            _ => SyncStatusBadge::Default,
+        }
+    }
+}
+
 #[component]
 pub fn CoursesList(
     #[prop(into)] courses: Signal<Vec<CanvasCourse>>,
@@ -57,14 +92,7 @@ pub fn CoursesList(
                                             .take(rows_per_page())
                                             .map(|course| {
                                                 let course_id = course.id.clone();
-                                                let status_class = match course.sync_status.as_str() {
-                                                    "Synced" => "status-success",
-                                                    "PendingToCanvas" | "PendingToDiscourse" => "status-warning",
-                                                    "Conflict" => "status-error",
-                                                    "Error" => "status-error",
-                                                    "LocalOnly" => "status-default",
-                                                    _ => "status-default",
-                                                };
+                                                let badge = SyncStatusBadge::from_status(&course.sync_status);
                                                 
                                                 view! {
                                                     <tr>
@@ -72,7 +100,8 @@ pub fn CoursesList(
                                                         <td>{&course.course_code}</td>
                                                         <td>{course.term.clone().unwrap_or_else(|| "N/A".to_string())}</td>
                                                         <td>
-                                                            <span class=format!("status-badge {}", status_class)>
+                                                            <span class={badge.css_class()}>
+                                                                <i class=get_status_icon(&course.sync_status)></i>
                                                                 {&course.sync_status}
                                                             </span>
                                                         </td>
@@ -81,9 +110,9 @@ pub fn CoursesList(
                                                                 <button 
                                                                     class="btn btn-sm btn-primary"
                                                                     on:click=move |_| sync_course.call(course_id.clone())
-                                                                    disabled=loading.get()
+                                                                    disabled=loading.get() || get_sync_disabled_status(&course.sync_status)
                                                                 >
-                                                                    "Sync"
+                                                                    {get_sync_button_text(&course.sync_status)}
                                                                 </button>
                                                                 
                                                                 <a 
@@ -92,6 +121,19 @@ pub fn CoursesList(
                                                                 >
                                                                     "View"
                                                                 </a>
+
+                                                                {if course.sync_status == "Conflict" {
+                                                                    view! {
+                                                                        <a 
+                                                                            href=format!("/conflicts/{}", course.id)
+                                                                            class="btn btn-sm btn-warning"
+                                                                        >
+                                                                            "Resolve Conflict"
+                                                                        </a>
+                                                                    }
+                                                                } else {
+                                                                    view! {}
+                                                                }}
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -154,6 +196,37 @@ pub fn CoursesList(
             }}
         </div>
     }
+}
+
+/// Get appropriate icon class for a sync status
+fn get_status_icon(status: &str) -> &'static str {
+    match status {
+        "Synced" => "fas fa-check-circle",
+        "PendingToCanvas" | "PendingToDiscourse" | "PendingSync" => "fas fa-sync",
+        "Conflict" => "fas fa-exclamation-triangle",
+        "Error" => "fas fa-times-circle",
+        "Processing" => "fas fa-spinner fa-spin",
+        _ => "fas fa-question-circle",
+    }
+}
+
+/// Get sync button text based on sync status
+fn get_sync_button_text(status: &str) -> &'static str {
+    match status {
+        "Synced" => "Sync Again",
+        "PendingToCanvas" => "Sync to Canvas",
+        "PendingToDiscourse" => "Sync to Discourse",
+        "PendingSync" => "Sync Now",
+        "Conflict" => "Sync After Resolve",
+        "Error" => "Retry Sync",
+        "Processing" => "Syncing...",
+        _ => "Sync",
+    }
+}
+
+/// Determine if sync button should be disabled
+fn get_sync_disabled_status(status: &str) -> bool {
+    matches!(status, "Processing" | "Conflict")
 }
 
 // Helper to get value from an event

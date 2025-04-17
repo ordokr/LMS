@@ -1,15 +1,15 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use chrono::Local;
 
 use crate::analyzers::unified_analyzer::AnalysisResult;
 
 /// Generate enhanced central reference hub with insights from AI documentation
-pub fn generate_enhanced_central_hub(result: &AnalysisResult, base_dir: &Path) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub fn generate_enhanced_central_hub(result: &AnalysisResult, _base_dir: &Path) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("Generating enhanced central reference hub...");
 
     // Ensure docs directory exists
-    let docs_dir = base_dir.join("docs");
+    let docs_dir = PathBuf::from("C:\\Users\\Tim\\Desktop\\LMS\\docs");
     if !docs_dir.exists() {
         fs::create_dir_all(&docs_dir)?;
     }
@@ -21,13 +21,13 @@ pub fn generate_enhanced_central_hub(result: &AnalysisResult, base_dir: &Path) -
     let mut content = String::new();
 
     // Header
-    content.push_str("# EduConnect LMS & Forum: Central Reference Hub\n\n");
+    content.push_str("# LMS & Forum: Central Reference Hub\n\n");
     content.push_str(&format!("_Last updated: {}_\n\n", Local::now().format("%Y-%m-%d")));
     content.push_str("<img alt=\"Status: Early Development\" src=\"https://img.shields.io/badge/status-early%20development-orange\">\n\n");
 
     // Project Vision and Mission
     content.push_str("## 🚀 Project Vision & Mission\n\n");
-    content.push_str("**EduConnect** is a modern learning management system that prioritizes offline-first functionality, enabling education to continue even in environments with limited or intermittent connectivity. It combines robust course management with integrated discussion forums to create a comprehensive learning ecosystem.\n\n");
+    content.push_str("**LMS** is a modern learning management system that prioritizes offline-first functionality, enabling education to continue even in environments with limited or intermittent connectivity. It combines robust course management with integrated discussion forums to create a comprehensive learning ecosystem.\n\n");
     content.push_str("### Core Principles\n\n");
     content.push_str("1. **Offline-First**: All core functionality works without an internet connection\n");
     content.push_str("2. **Integrated Experience**: Seamless integration between LMS and forum components\n");
@@ -104,7 +104,7 @@ pub fn generate_enhanced_central_hub(result: &AnalysisResult, base_dir: &Path) -
 
     // Technology Stack
     content.push_str("## 🔧 Technology Stack\n\n");
-    content.push_str("Ordo is built with modern technologies that prioritize performance, security, and offline capabilities:\n\n");
+    content.push_str("LMS is built with modern technologies that prioritize performance, security, and offline capabilities:\n\n");
 
     content.push_str("### Core Technologies\n\n");
     content.push_str("| Layer | Technology | Purpose |\n");
@@ -124,7 +124,7 @@ pub fn generate_enhanced_central_hub(result: &AnalysisResult, base_dir: &Path) -
     content.push_str("## 📚 Project Structure\n\n");
     content.push_str("The project follows a modular architecture with clear separation of concerns:\n\n");
     content.push_str("```plaintext\n");
-    content.push_str("Ordo/\n");
+    content.push_str("LMS/\n");
     content.push_str("├── src-tauri/         # Rust backend code\n");
     content.push_str("│   └── src/\n");
     content.push_str("│       ├── api/       # API endpoints\n");
@@ -152,7 +152,7 @@ pub fn generate_enhanced_central_hub(result: &AnalysisResult, base_dir: &Path) -
 
     // Architecture Principles
     content.push_str("## 🏗️ Architecture Principles\n\n");
-    content.push_str("Ordo follows these key architectural principles:\n\n");
+    content.push_str("LMS follows these key architectural principles:\n\n");
     content.push_str("1. **Clean Architecture**: Clear separation of concerns with domain-centric design\n");
     content.push_str("2. **SOLID Principles**: Single responsibility, Open-closed, Liskov substitution, Interface segregation, Dependency inversion\n");
     content.push_str("3. **Offline-First**: All core functionality works without an internet connection\n");
@@ -200,7 +200,7 @@ pub fn generate_enhanced_central_hub(result: &AnalysisResult, base_dir: &Path) -
 
     // Hybrid Storage Implementation
     content.push_str("### Hybrid Storage Implementation\n\n");
-    content.push_str("Ordo uses a hybrid storage approach combining SQLite and Redb. Here's how they work together:\n\n");
+    content.push_str("LMS uses a hybrid storage approach combining SQLite and Redb. Here's how they work together:\n\n");
     content.push_str("```rust\n");
     content.push_str("// Example: Database module structure\n");
     content.push_str("pub mod database {\n");
@@ -270,18 +270,18 @@ pub fn generate_enhanced_central_hub(result: &AnalysisResult, base_dir: &Path) -
 
     // Integration Architecture
     content.push_str("## 🔗 Integration Architecture\n\n");
-    content.push_str("Ordo integrates Canvas LMS and Discourse forum functionality into a unified application:\n\n");
+    content.push_str("LMS integrates Canvas LMS and Discourse forum functionality into a unified application:\n\n");
 
     // Integration Status
     content.push_str("### Integration Status\n\n");
     content.push_str("| Integration | Source | Target | Status |\n");
     content.push_str("|-------------|--------|--------|--------|\n");
-    content.push_str("| Canvas Course Management | Canvas | Ordo | In Progress |\n");
-    content.push_str("| Canvas Assignments | Canvas | Ordo | In Progress |\n");
-    content.push_str("| Canvas Discussions | Canvas | Ordo | Planned |\n");
-    content.push_str("| Discourse Forums | Discourse | Ordo | Planned |\n");
-    content.push_str("| Discourse User System | Discourse | Ordo | In Progress |\n");
-    content.push_str("| Blockchain Certification | Native | Ordo | In Progress |\n\n");
+    content.push_str("| Canvas Course Management | Canvas | LMS | In Progress |\n");
+    content.push_str("| Canvas Assignments | Canvas | LMS | In Progress |\n");
+    content.push_str("| Canvas Discussions | Canvas | LMS | Planned |\n");
+    content.push_str("| Discourse Forums | Discourse | LMS | Planned |\n");
+    content.push_str("| Discourse User System | Discourse | LMS | In Progress |\n");
+    content.push_str("| Blockchain Certification | Native | LMS | In Progress |\n\n");
 
     // Integration Strategy
     content.push_str("### Integration Strategy\n\n");
@@ -294,8 +294,8 @@ pub fn generate_enhanced_central_hub(result: &AnalysisResult, base_dir: &Path) -
 
     // Model Mapping
     content.push_str("### Model Mapping\n\n");
-    content.push_str("Key entity mappings between source systems and Ordo:\n\n");
-    content.push_str("| Canvas | Discourse | Ordo | Notes |\n");
+    content.push_str("Key entity mappings between source systems and LMS:\n\n");
+    content.push_str("| Canvas | Discourse | LMS | Notes |\n");
     content.push_str("|--------|-----------|------------|-------|\n");
     content.push_str("| Course | Category | Course | One-to-one mapping |\n");
     content.push_str("| Course Sections | Sub-categories | CourseSection | Optional |\n");
@@ -430,7 +430,7 @@ pub fn generate_enhanced_central_hub(result: &AnalysisResult, base_dir: &Path) -
 
     // Conclusion
     content.push_str("## 👋 Conclusion\n\n");
-    content.push_str("Ordo represents a significant advancement in learning management systems by prioritizing offline-first capabilities and integrating forum functionality directly into the core platform. By combining the best features of Canvas LMS and Discourse, while addressing their limitations, we're creating a more robust, performant, and accessible educational platform.\n\n");
+    content.push_str("LMS represents a significant advancement in learning management systems by prioritizing offline-first capabilities and integrating forum functionality directly into the core platform. By combining the best features of Canvas LMS and Discourse, while addressing their limitations, we're creating a more robust, performant, and accessible educational platform.\n\n");
     content.push_str("This central reference hub will be continuously updated as the project evolves. All documentation is automatically generated from the codebase analysis to ensure it remains accurate and up-to-date.\n");
 
     // Write to file

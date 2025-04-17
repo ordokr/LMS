@@ -12,7 +12,10 @@ pub fn save_draft(db: &Database, user_id: &str, content: &str) -> Result<(), Red
         let mut table = write_txn.open_table(drafts_table)?;
         table.insert(user_id, content)?;
     }
-    write_txn.commit()?;
+    if let Err(e) = write_txn.commit() {
+        eprintln!("Failed to commit transaction: {}", e);
+        return Err(e);
+    };
     Ok(())
 }
 

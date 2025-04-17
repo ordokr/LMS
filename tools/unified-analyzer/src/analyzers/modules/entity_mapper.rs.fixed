@@ -1,0 +1,661 @@
+use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
+use std::fs;
+use serde::{Deserialize, Serialize};
+use regex::Regex;
+use anyhow::{Result, anyhow};
+
+/// Represents a normalized entity extracted from source code
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NormalizedEntity {
+    /// Source system (canvas, discourse, ordo)
+    pub source: String,
+    /// Entity name
+    pub entity: String,
+    /// Fields and their types
+    pub fields: HashMap<String, String>,
+    /// Source file path
+    pub source_file: String,
+    /// Additional metadata
+    pub metadata: HashMap<String, String>,
+}
+
+/// Represents a mapping between entities from different systems
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EntityMapping {
+    /// Source entity (e.g., "canvas.Course")
+    pub source_entity: String,
+    /// Target entity (e.g., "ordo.Course")
+    pub target_entity: String,
+    /// Mapping confidence (0.0 to 1.0)
+    pub confidence: f32,
+    /// Field mappings (source_field -> target_field)
+    pub field_mappings: HashMap<String, String>,
+    /// Source fields not mapped to target
+    pub unmapped_source_fields: Vec<String>,
+    /// Target fields not mapped from source
+    pub unmapped_target_fields: Vec<String>,
+}
+
+/// Entity Mapper for extracting and mapping entities between systems
+pub struct EntityMapper {
+    /// Extracted entities by source system
+    entities: HashMap<String, Vec<NormalizedEntity>>,
+    /// Entity mappings between systems
+    mappings: Vec<EntityMapping>,
+}
+
+impl EntityMapper {
+    /// Create a new EntityMapper
+    pub fn new() -> Self {
+        Self {
+            entities: HashMap::new(),
+            mappings: Vec::new(),
+        }
+    }
+
+    /// Extract entities from Canvas codebase
+    pub fn extract_canvas_entities(&mut self, canvas_path: &Path) -> Result<()> {
+        println!("Extracting entities from Canvas codebase at: {}", canvas_path.display());
+        
+        // Look for ActiveRecord models in app/models directory
+        let models_dir = canvas_path.join("app").join("models");
+        
+        if !models_dir.exists() {
+            return Err(anyhow!("Canvas models directory not found at: {}", models_dir.display()));
+        }
+        
+        let mut entities = Vec::new();
+        
+        self.walk_directory(&models_dir, |file_path| {
+            if let Some(ext) = file_path.extension() {
+                if ext == "rb" {
+                    if let Ok(content) = fs::read_to_string(file_path) {
+                        if content.contains("ApplicationRecord") || content.contains("ActiveRecord::Base") {
+                            if let Some(entity) = self.parse_ruby_model(&content, file_path, "canvas") {
+                                println!("Found Canvas entity: {}", entity.entity);
+                                entities.push(entity);
+                            }
+                        }
+                    }
+                }
+            }
+        })?;
+        
+        self.entities.insert("canvas".to_string(), entities);
+        
+        println!("Extracted {} Canvas entities", 
+            self.entities.get("canvas").map(|e| e.len()).unwrap_or(0));
+        
+        Ok(())
+    }
+
+    /// Extract entities from Discourse codebase
+    pub fn extract_discourse_entities(&mut self, discourse_path: &Path) -> Result<()> {
+        println!("Extracting entities from Discourse codebase at: {}", discourse_path.display());
+        
+        // Look for ActiveRecord models in app/models directory
+        let models_dir = discourse_path.join("app").join("models");
+        
+        if !models_dir.exists() {
+            return Err(anyhow!("Discourse models directory not found at: {}", models_dir.display()));
+        }
+        
+        let mut entities = Vec::new();
+        
+        self.walk_directory(&models_dir, |file_path| {
+            if let Some(ext) = file_path.extension() {
+                if ext == "rb" {
+                    if let Ok(content) = fs::read_to_string(file_path) {
+                        if content.contains("ApplicationRecord") || content.contains("ActiveRecord::Base") {
+                            if let Some(entity) = self.parse_ruby_model(&content, file_path, "discourse") {
+                                println!("Found Discourse entity: {}", entity.entity);
+                                entities.push(entity);
+                            }
+                        }
+                    }
+                }
+            }
+        })?;
+        
+        self.entities.insert("discourse".to_string(), entities);
+        
+        println!("Extracted {} Discourse entities", 
+            self.entities.get("discourse").map(|e| e.len()).unwrap_or(0));
+        
+        Ok(())
+    }
+
+    /// Extract entities from Ordo codebase
+    pub fn extract_ordo_entities(&mut self, ordo_path: &Path) -> Result<()> {
+        println!("Extracting entities from Ordo codebase at: {}", ordo_path.display());
+        
+        // Look for Rust models in src directory
+        let src_dir = ordo_path.join("src");
+        let tauri_src_dir = ordo_path.join("src-tauri").join("src");
+        
+        if !src_dir.exists() && !tauri_src_dir.exists() {
+            return Err(anyhow!("Ordo source directories not found"));
+        }
+        
+        let mut entities = Vec::new();
+        
+        // Extract from src directory
+        if src_dir.exists() {
+            self.walk_directory(&src_dir, |file_path| {
+                if let Some(ext) = file_path.extension() {
+                    if ext == "rs" {
+                        if let Ok(content) = fs::read_to_string(file_path) {
+                            if content.contains("struct") && (content.contains("#[derive") || content.contains("impl")) {
+                                if let Some(entity) = self.parse_rust_model(&content, file_path, "ordo") {
+                                    println!("Found Ordo entity: {}", entity.entity);
+                                    entities.push(entity);
+                                }
+                            }
+                        }
+                    }
+                }
+            })?;
+        }
+        
+        // Extract from src-tauri/src directory
+        if tauri_src_dir.exists() {
+            self.walk_directory(&tauri_src_dir, |file_path| {
+                if let Some(ext) = file_path.extension() {
+                    if ext == "rs" {
+                        if let Ok(content) = fs::read_to_string(file_path) {
+                            if content.contains("struct") && (content.contains("#[derive") || content.contains("impl")) {
+                                if let Some(entity) = self.parse_rust_model(&content, file_path, "ordo") {
+                                    println!("Found Ordo entity: {}", entity.entity);
+                                    entities.push(entity);
+                                }
+                            }
+                        }
+                    }
+                }
+            })?;
+        }
+        
+        self.entities.insert("ordo".to_string(), entities);
+        
+        println!("Extracted {} Ordo entities", 
+            self.entities.get("ordo").map(|e| e.len()).unwrap_or(0));
+        
+        Ok(())
+    }
+
+    /// Get entities by source
+    pub fn get_entities_by_source(&self, source: &str) -> Vec<String> {
+        match self.entities.get(source) {
+            Some(entities) => entities.iter().map(|e| format!("{}.{}", source, e.entity)).collect(),
+            None => Vec::new(),
+        }
+    }
+
+    /// Get entity by fully qualified name
+    pub fn get_entity(&self, entity_name: &str) -> Option<&NormalizedEntity> {
+        let parts: Vec<&str> = entity_name.split('.').collect();
+        if parts.len() != 2 {
+            return None;
+        }
+        
+        let source = parts[0];
+        let name = parts[1];
+        
+        self.entities.get(source)?.iter().find(|e| e.entity == name)
+    }
+
+    /// Parse a Ruby model file to extract entity information
+    fn parse_ruby_model(&self, content: &str, file_path: &Path, source: &str) -> Option<NormalizedEntity> {
+        // Extract class name
+        let class_regex = Regex::new(r"class\s+(\w+)\s+<\s+ApplicationRecord").ok()?;
+        let class_name = class_regex.captures(content)?.get(1)?.as_str();
+        
+        // Extract fields from schema or attributes
+        let mut fields = HashMap::new();
+        
+        // Look for schema.define or create_table statements
+        let schema_regex = Regex::new(r"(?:create_table|add_column)\s+[\\"':]*([\\w]+)[\\"':]*,\s+[\\"':]*([\\w]+)[\\"':]*").ok()?;
+        for cap in schema_regex.captures_iter(content) {
+            if cap.len() >= 3 {
+                let field_name = cap.get(1)?.as_str();
+                let field_type = cap.get(2)?.as_str();
+                fields.insert(field_name.to_string(), field_type.to_string());
+            }
+        }
+        
+        // Look for attr_accessor, attr_reader, attr_writer
+        let attr_regex = Regex::new(r"attr_(?:accessor|reader|writer)\s+:(\w+)").ok()?;
+        for cap in attr_regex.captures_iter(content) {
+            let field_name = cap.get(1)?.as_str();
+            fields.insert(field_name.to_string(), "unknown".to_string());
+        }
+        
+        // If we couldn't find any fields, this might not be a model
+        if fields.is_empty() {
+            // Try to find has_many, belongs_to relationships
+            let relation_regex = Regex::new(r"(?:has_many|belongs_to|has_one)\s+:(\w+)").ok()?;
+            for cap in relation_regex.captures_iter(content) {
+                let field_name = cap.get(1)?.as_str();
+                fields.insert(field_name.to_string(), "relation".to_string());
+            }
+        }
+        
+        // Create metadata
+        let mut metadata = HashMap::new();
+        
+        // Check for validations
+        let validation_regex = Regex::new(r"validates\s+:(\w+)").ok()?;
+        let mut validations = HashSet::new();
+        for cap in validation_regex.captures_iter(content) {
+            validations.insert(cap.get(1)?.as_str().to_string());
+        }
+        if !validations.is_empty() {
+            metadata.insert("validations".to_string(), validations.into_iter().collect::<Vec<_>>().join(","));
+        }
+        
+        Some(NormalizedEntity {
+            source: source.to_string(),
+            entity: class_name.to_string(),
+            fields,
+            source_file: file_path.to_string_lossy().to_string(),
+            metadata,
+        })
+    }
+
+    /// Parse a Rust model file to extract entity information
+    fn parse_rust_model(&self, content: &str, file_path: &Path, source: &str) -> Option<NormalizedEntity> {
+        // Extract struct name
+        let struct_regex = Regex::new(r"(?:pub\s+)?struct\s+(\w+)").ok()?;
+        let struct_name = struct_regex.captures(content)?.get(1)?.as_str();
+        
+        // Extract fields from struct definition
+        let mut fields = HashMap::new();
+        
+        // Look for struct fields
+        let field_regex = Regex::new(r"(?:pub\s+)?(\w+):\s*([^,\n]+)").ok()?;
+        for cap in field_regex.captures_iter(content) {
+            if cap.len() >= 3 {
+                let field_name = cap.get(1)?.as_str();
+                let field_type = cap.get(2)?.as_str().trim();
+                fields.insert(field_name.to_string(), field_type.to_string());
+            }
+        }
+        
+        // Create metadata
+        let mut metadata = HashMap::new();
+        
+        // Check for derives
+        let derive_regex = Regex::new(r"#\[derive\(([^\)]+)\)\]").ok()?;
+        if let Some(cap) = derive_regex.captures(content) {
+            let derives = cap.get(1)?.as_str().split(',').map(|s| s.trim().to_string()).collect::<Vec<_>>();
+            metadata.insert("derives".to_string(), derives.join(","));
+        }
+        
+        Some(NormalizedEntity {
+            source: source.to_string(),
+            entity: struct_name.to_string(),
+            fields,
+            source_file: file_path.to_string_lossy().to_string(),
+            metadata,
+        })
+    }
+
+    /// Walk a directory recursively and apply a function to each file
+    fn walk_directory<F>(&self, dir: &Path, mut callback: F) -> Result<()>
+    where
+        F: FnMut(&Path),
+    {
+        if dir.is_dir() {
+            for entry in fs::read_dir(dir)? {
+                let entry = entry?;
+                let path = entry.path();
+                if path.is_dir() {
+                    self.walk_directory(&path, &mut callback)?;
+                } else {
+                    callback(&path);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Generate mappings between entities from different systems
+    pub fn generate_mappings(&mut self) -> Result<()> {
+        println!("Generating entity mappings...");
+        
+        let mut mappings = Vec::new();
+        
+        // Get entities from each source
+        let canvas_entities = self.entities.get("canvas").cloned().unwrap_or_default();
+        let discourse_entities = self.entities.get("discourse").cloned().unwrap_or_default();
+        let ordo_entities = self.entities.get("ordo").cloned().unwrap_or_default();
+        
+        // Map Canvas entities to Ordo
+        for canvas_entity in &canvas_entities {
+            if let Some(mapping) = self.map_entity(canvas_entity, &ordo_entities) {
+                mappings.push(mapping);
+            }
+        }
+        
+        // Map Discourse entities to Ordo
+        for discourse_entity in &discourse_entities {
+            if let Some(mapping) = self.map_entity(discourse_entity, &ordo_entities) {
+                mappings.push(mapping);
+            }
+        }
+        
+        self.mappings = mappings;
+        
+        println!("Generated {} entity mappings", self.mappings.len());
+        
+        Ok(())
+    }
+
+    /// Map a source entity to a target entity
+    fn map_entity(&self, source_entity: &NormalizedEntity, target_entities: &[NormalizedEntity]) -> Option<EntityMapping> {
+        // First try exact name match
+        let exact_match = target_entities.iter().find(|e| e.entity == source_entity.entity);
+        
+        if let Some(target) = exact_match {
+            // Calculate field mappings
+            let mut field_mappings = HashMap::new();
+            let mut unmapped_source_fields = Vec::new();
+            let mut unmapped_target_fields = Vec::new();
+            
+            // Map fields with exact name matches
+            for (source_field, source_type) in &source_entity.fields {
+                if let Some(target_type) = target.fields.get(source_field) {
+                    field_mappings.insert(source_field.clone(), source_field.clone());
+                } else {
+                    unmapped_source_fields.push(source_field.clone());
+                }
+            }
+            
+            // Find target fields not mapped from source
+            for target_field in target.fields.keys() {
+                if !field_mappings.values().any(|v| v == target_field) {
+                    unmapped_target_fields.push(target_field.clone());
+                }
+            }
+            
+            // Calculate confidence based on field overlap
+            let total_fields = source_entity.fields.len() + target.fields.len();
+            let mapped_fields = field_mappings.len() * 2; // Count both sides
+            let confidence = if total_fields > 0 {
+                mapped_fields as f32 / total_fields as f32
+            } else {
+                0.5 // Default confidence for entities with no fields
+            };
+            
+            return Some(EntityMapping {
+                source_entity: format!("{}.{}", source_entity.source, source_entity.entity),
+                target_entity: format!("{}.{}", target.source, target.entity),
+                confidence,
+                field_mappings,
+                unmapped_source_fields,
+                unmapped_target_fields,
+            });
+        }
+        
+        // If no exact match, try fuzzy matching based on field similarity
+        // This is a simplified approach - in a real implementation, you might use
+        // more sophisticated string similarity algorithms
+        
+        let mut best_match = None;
+        let mut best_score = 0.3; // Minimum threshold for a match
+        
+        for target in target_entities {
+            // Skip if names are completely different
+            if !self.names_are_similar(&source_entity.entity, &target.entity) {
+                continue;
+            }
+            
+            // Count matching fields
+            let mut matching_fields = 0;
+            for source_field in source_entity.fields.keys() {
+                if target.fields.contains_key(source_field) {
+                    matching_fields += 1;
+                }
+            }
+            
+            let total_fields = source_entity.fields.len() + target.fields.len();
+            let score = if total_fields > 0 {
+                (matching_fields * 2) as f32 / total_fields as f32
+            } else {
+                0.0
+            };
+            
+            if score > best_score {
+                best_score = score;
+                best_match = Some(target);
+            }
+        }
+        
+        if let Some(target) = best_match {
+            // Calculate field mappings similar to exact match case
+            let mut field_mappings = HashMap::new();
+            let mut unmapped_source_fields = Vec::new();
+            let mut unmapped_target_fields = Vec::new();
+            
+            for (source_field, _) in &source_entity.fields {
+                if target.fields.contains_key(source_field) {
+                    field_mappings.insert(source_field.clone(), source_field.clone());
+                } else {
+                    unmapped_source_fields.push(source_field.clone());
+                }
+            }
+            
+            for target_field in target.fields.keys() {
+                if !field_mappings.values().any(|v| v == target_field) {
+                    unmapped_target_fields.push(target_field.clone());
+                }
+            }
+            
+            return Some(EntityMapping {
+                source_entity: format!("{}.{}", source_entity.source, source_entity.entity),
+                target_entity: format!("{}.{}", target.source, target.entity),
+                confidence: best_score,
+                field_mappings,
+                unmapped_source_fields,
+                unmapped_target_fields,
+            });
+        }
+        
+        None
+    }
+
+    /// Check if two entity names are similar
+    fn names_are_similar(&self, name1: &str, name2: &str) -> bool {
+        // Simple similarity check - could be improved with more sophisticated algorithms
+        let name1_lower = name1.to_lowercase();
+        let name2_lower = name2.to_lowercase();
+        
+        // Exact match
+        if name1_lower == name2_lower {
+            return true;
+        }
+        
+        // Singular/plural forms
+        if name1_lower + "s" == name2_lower || name2_lower + "s" == name1_lower {
+            return true;
+        }
+        
+        // Common prefixes/suffixes
+        let common_prefixes = ["user", "course", "assignment", "discussion", "post", "topic", "message"];
+        for prefix in &common_prefixes {
+            if name1_lower.contains(prefix) && name2_lower.contains(prefix) {
+                return true;
+            }
+        }
+        
+        false
+    }
+
+    /// Get all extracted entities
+    pub fn get_entities(&self) -> &HashMap<String, Vec<NormalizedEntity>> {
+        &self.entities
+    }
+
+    /// Get all entity mappings
+    pub fn get_mappings(&self) -> &Vec<EntityMapping> {
+        &self.mappings
+    }
+
+    /// Get unmapped entities for a specific source
+    pub fn get_unmapped_entities(&self, source: &str) -> Vec<&NormalizedEntity> {
+        let entities = match self.entities.get(source) {
+            Some(entities) => entities,
+            None => return Vec::new(),
+        };
+        
+        entities.iter()
+            .filter(|entity| {
+                !self.mappings.iter().any(|mapping| {
+                    mapping.source_entity == format!("{}.{}", source, entity.entity)
+                })
+            })
+            .collect()
+    }
+
+    /// Generate a JSON report of entity mappings
+    pub fn generate_mapping_report(&self) -> Result<String> {
+        let report = serde_json::to_string_pretty(&self.mappings)?;
+        Ok(report)
+    }
+
+    /// Generate a Markdown report of entity mappings
+    pub fn generate_mapping_markdown(&self) -> String {
+        let mut markdown = String::new();
+        
+        markdown.push_str("# Entity Mapping Report\n\n");
+        
+        // Summary statistics
+        let canvas_count = self.entities.get("canvas").map(|e| e.len()).unwrap_or(0);
+        let discourse_count = self.entities.get("discourse").map(|e| e.len()).unwrap_or(0);
+        let ordo_count = self.entities.get("ordo").map(|e| e.len()).unwrap_or(0);
+        
+        markdown.push_str("## Summary\n\n");
+        markdown.push_str(&format!("- Canvas Entities: {}\n", canvas_count));
+        markdown.push_str(&format!("- Discourse Entities: {}\n", discourse_count));
+        markdown.push_str(&format!("- Ordo Entities: {}\n", ordo_count));
+        markdown.push_str(&format!("- Total Mappings: {}\n\n", self.mappings.len()));
+        
+        // Mapped entities
+        markdown.push_str("## Mapped Entities\n\n");
+        markdown.push_str("| Source Entity | Target Entity | Confidence | Mapped Fields | Unmapped Source Fields | Unmapped Target Fields |\n");
+        markdown.push_str("|--------------|--------------|------------|--------------|------------------------|------------------------|\n");
+        
+        for mapping in &self.mappings {
+            let mapped_fields = mapping.field_mappings.len();
+            let unmapped_source = mapping.unmapped_source_fields.len();
+            let unmapped_target = mapping.unmapped_target_fields.len();
+            
+            markdown.push_str(&format!(
+                "| {} | {} | {:.2} | {} | {} | {} |\n",
+                mapping.source_entity,
+                mapping.target_entity,
+                mapping.confidence,
+                mapped_fields,
+                unmapped_source,
+                unmapped_target
+            ));
+        }
+        
+        markdown.push_str("\n");
+        
+        // Unmapped Canvas entities
+        let unmapped_canvas = self.get_unmapped_entities("canvas");
+        if !unmapped_canvas.is_empty() {
+            markdown.push_str("## Unmapped Canvas Entities\n\n");
+            markdown.push_str("| Entity | Fields |\n");
+            markdown.push_str("|--------|--------|\n");
+            
+            for entity in unmapped_canvas {
+                let fields = entity.fields.keys().cloned().collect::<Vec<_>>().join(", ");
+                markdown.push_str(&format!("| {} | {} |\n", entity.entity, fields));
+            }
+            
+            markdown.push_str("\n");
+        }
+        
+        // Unmapped Discourse entities
+        let unmapped_discourse = self.get_unmapped_entities("discourse");
+        if !unmapped_discourse.is_empty() {
+            markdown.push_str("## Unmapped Discourse Entities\n\n");
+            markdown.push_str("| Entity | Fields |\n");
+            markdown.push_str("|--------|--------|\n");
+            
+            for entity in unmapped_discourse {
+                let fields = entity.fields.keys().cloned().collect::<Vec<_>>().join(", ");
+                markdown.push_str(&format!("| {} | {} |\n", entity.entity, fields));
+            }
+            
+            markdown.push_str("\n");
+        }
+        
+        markdown
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+    
+    #[test]
+    fn test_parse_ruby_model() {
+        let mapper = EntityMapper::new();
+        let content = r#"
+        class Course < ApplicationRecord
+          belongs_to :account
+          has_many :enrollments
+          has_many :users, through: :enrollments
+          
+          validates :name, presence: true
+          validates :course_code, uniqueness: true
+          
+          attr_accessor :start_date, :end_date
+        end
+        "#;
+        
+        let file_path = PathBuf::from("test/course.rb");
+        let entity = mapper.parse_ruby_model(content, &file_path, "canvas").unwrap();
+        
+        assert_eq!(entity.entity, "Course");
+        assert_eq!(entity.source, "canvas");
+        assert!(entity.fields.contains_key("account"));
+        assert!(entity.fields.contains_key("enrollments"));
+        assert!(entity.fields.contains_key("users"));
+        assert!(entity.fields.contains_key("start_date"));
+        assert!(entity.fields.contains_key("end_date"));
+        assert!(entity.metadata.contains_key("validations"));
+    }
+    
+    #[test]
+    fn test_parse_rust_model() {
+        let mapper = EntityMapper::new();
+        let content = r#"
+        #[derive(Debug, Clone, Serialize, Deserialize)]
+        pub struct Course {
+            pub id: i64,
+            pub name: String,
+            pub description: Option<String>,
+            pub account_id: i64,
+            pub created_at: DateTime<Utc>,
+            pub updated_at: DateTime<Utc>,
+        }
+        "#;
+        
+        let file_path = PathBuf::from("test/course.rs");
+        let entity = mapper.parse_rust_model(content, &file_path, "ordo").unwrap();
+        
+        assert_eq!(entity.entity, "Course");
+        assert_eq!(entity.source, "ordo");
+        assert!(entity.fields.contains_key("id"));
+        assert!(entity.fields.contains_key("name"));
+        assert!(entity.fields.contains_key("description"));
+        assert!(entity.fields.contains_key("account_id"));
+        assert!(entity.metadata.contains_key("derives"));
+    }
+}

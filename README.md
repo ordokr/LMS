@@ -17,7 +17,8 @@ All project documentation is automatically generated and maintained in the `docs
 
 The project includes comprehensive tools for analyzing, documenting, and visualizing the integration:
 
-- **Master Orchestration**: `tools/project-analyzer` - Unified Rust analysis tool
+- **Master Orchestration**: `tools/unified-analyzer` - Unified Rust analysis tool
+- **Source Systems**: Extensible architecture for analyzing multiple source systems (Canvas, Discourse, Moodle, WordPress)
 - **Conflict Detection**: `conflict_analyzer.rs` - Identifies conflicts between source and target code
 - **Technical Documentation**: `docs_generator.rs` - Generates documentation from code
 - **Summary Report**: `summary_generator.rs` - Provides an executive summary

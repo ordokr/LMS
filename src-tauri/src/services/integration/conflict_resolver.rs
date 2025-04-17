@@ -3,6 +3,7 @@ use crate::models::forum::post::Post;
 use crate::error::Error;
 use chrono::{DateTime, Utc};
 use log::{info, warn};
+use crate::sync::version_vector::{VersionVector, CausalRelation};
 
 /// Conflict resolution strategies when the same entity is modified in both systems
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -28,6 +29,78 @@ impl ConflictResolver {
     /// Create a new conflict resolver with the specified strategy
     pub fn new(strategy: ConflictStrategy) -> Self {
         Self { strategy }
+    }
+    
+    /// Resolve conflicts between a Canvas topic and a Discourse topic using version vectors
+    pub fn resolve_topic_conflict_with_version_vector(
+        &self, 
+        canvas_topic: &Topic, 
+        discourse_topic: &Topic,
+        canvas_vector: &VersionVector,
+        discourse_vector: &VersionVector
+    ) -> Result<Topic, Error> {
+        // First, determine the causal relation between the version vectors
+        match canvas_vector.causal_relation(discourse_vector) {
+            CausalRelation::Identical => {
+                // No conflict - versions are identical
+                info!("No conflict - topic versions are identical");
+                Ok(canvas_topic.clone()) // Either would work
+            },
+            CausalRelation::HappensBefore => {
+                // Canvas is an ancestor of Discourse - use Discourse
+                info!("Canvas topic is ancestor of Discourse topic: {}", canvas_topic.id);
+                Ok(discourse_topic.clone())
+            },
+            CausalRelation::HappensAfter => {
+                // Discourse is an ancestor of Canvas - use Canvas
+                info!("Discourse topic is ancestor of Canvas topic: {}", discourse_topic.id);
+                Ok(canvas_topic.clone())
+            },
+            CausalRelation::Concurrent => {
+                // True conflict - use conflict resolution strategy
+                warn!("Concurrent modifications detected for topic: Canvas ID: {:?}, Discourse ID: {:?}", 
+                      canvas_topic.canvas_discussion_id, discourse_topic.discourse_topic_id);
+                
+                // Apply the configured resolution strategy
+                self.resolve_topic_conflict(canvas_topic, discourse_topic)
+            }
+        }
+    }
+    
+    /// Resolve conflicts between a Canvas post and a Discourse post using version vectors
+    pub fn resolve_post_conflict_with_version_vector(
+        &self, 
+        canvas_post: &Post, 
+        discourse_post: &Post,
+        canvas_vector: &VersionVector,
+        discourse_vector: &VersionVector
+    ) -> Result<Post, Error> {
+        // First, determine the causal relation between the version vectors
+        match canvas_vector.causal_relation(discourse_vector) {
+            CausalRelation::Identical => {
+                // No conflict - versions are identical
+                info!("No conflict - post versions are identical");
+                Ok(canvas_post.clone()) // Either would work
+            },
+            CausalRelation::HappensBefore => {
+                // Canvas is an ancestor of Discourse - use Discourse
+                info!("Canvas post is ancestor of Discourse post: {}", canvas_post.id);
+                Ok(discourse_post.clone())
+            },
+            CausalRelation::HappensAfter => {
+                // Discourse is an ancestor of Canvas - use Canvas
+                info!("Discourse post is ancestor of Canvas post: {}", discourse_post.id);
+                Ok(canvas_post.clone())
+            },
+            CausalRelation::Concurrent => {
+                // True conflict - use conflict resolution strategy
+                warn!("Concurrent modifications detected for post: Canvas ID: {:?}, Discourse ID: {:?}", 
+                      canvas_post.canvas_entry_id, discourse_post.discourse_post_id);
+                
+                // Apply the configured resolution strategy
+                self.resolve_post_conflict(canvas_post, discourse_post)
+            }
+        }
     }
     
     /// Resolve conflicts between a Canvas topic and a Discourse topic

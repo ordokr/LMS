@@ -268,7 +268,20 @@ impl SyncEngine {
         let remote_vv = VersionVector::from_hashmap(batch.vector_clock);
         clock.merge(&remote_vv);
 
+        // Prune inactive entries if enabled
+        if self.compression_enabled {
+            let pruned = clock.prune_inactive_entries(self.prune_threshold);
+            if pruned > 0 {
+                debug!("Pruned {} inactive entries from vector clock", pruned);
+            }
+        }
+
         info!("Merged vector clock with remote: {:?}", clock);
+
+        // For large batches, use optimized batch processing
+        if batch.operations.len() > self.max_batch_size {
+            return self.apply_large_sync_batch(batch).await;
+        }
 
         // Process operations with conflict resolution
         for remote_op in batch.operations {
@@ -283,6 +296,84 @@ impl SyncEngine {
                 // Resolve conflicts
                 info!("Found {} conflicts for operation {}", conflicts.len(), remote_op.id);
                 self.resolve_conflicts(remote_op, conflicts).await?;
+            }
+        }
+
+        Ok(())
+    }
+
+    // Apply a large sync batch using optimized batch processing
+    async fn apply_large_sync_batch(&self, batch: SyncBatch) -> Result<(), AppError> {
+        info!("Processing large sync batch with {} operations", batch.operations.len());
+
+        // Split the batch into smaller chunks
+        for chunk in batch.operations.chunks(self.max_batch_size) {
+            // First, find all local operations that might conflict with this chunk
+            let mut potential_conflicts = Vec::new();
+
+            // Get unique entity types and IDs in this chunk
+            let mut entity_types = HashSet::new();
+            let mut entity_ids = HashSet::new();
+
+            for op in chunk {
+                entity_types.insert(op.entity_type.clone());
+                if let Some(id) = &op.entity_id {
+                    entity_ids.insert(id.clone());
+                }
+            }
+
+            // Query for potential conflicts
+            for entity_type in &entity_types {
+                let mut query = "SELECT * FROM sync_operations WHERE entity_type = ?".to_string();
+                let mut params = vec![entity_type.clone()];
+
+                if !entity_ids.is_empty() {
+                    query.push_str(" AND entity_id IN (");
+                    for (i, _) in entity_ids.iter().enumerate() {
+                        if i > 0 {
+                            query.push_str(", ?");
+                        } else {
+                            query.push_str("?");
+                        }
+                    }
+                    query.push_str(")");
+
+                    for id in &entity_ids {
+                        params.push(id.clone());
+                    }
+                }
+
+                // Execute the query
+                let rows = sqlx::query(&query)
+                    .bind_all(params)
+                    .fetch_all(&self.db)
+                    .await?;
+
+                // Convert rows to operations
+                for row in rows {
+                    let op = self.row_to_operation(row)?;
+                    potential_conflicts.push(op);
+                }
+            }
+
+            // Combine remote operations and potential conflicts
+            let mut all_operations = Vec::new();
+            all_operations.extend(chunk.to_vec());
+            all_operations.extend(potential_conflicts);
+
+            // Use batch conflict resolution
+            let resolved_ops = self.conflict_resolver.resolve_conflicts_batch(&all_operations);
+
+            // Store the resolved operations
+            for op in resolved_ops {
+                // Only store operations that aren't already in the database
+                let existing = sqlx::query!("SELECT id FROM sync_operations WHERE id = ?", op.id)
+                    .fetch_optional(&self.db)
+                    .await?;
+
+                if existing.is_none() {
+                    self.store_operation(&op).await?;
+                }
             }
         }
 
@@ -400,5 +491,48 @@ impl SyncEngine {
         .await?;
 
         Ok(())
+    }
+
+    // Helper method to convert a database row to a SyncOperation
+    fn row_to_operation(&self, row: sqlx::sqlite::SqliteRow) -> Result<SyncOperation, AppError> {
+        let id: String = row.try_get("id")?;
+        let device_id: String = row.try_get("device_id")?;
+        let user_id: i64 = row.try_get("user_id")?;
+        let operation_type_val: i64 = row.try_get("operation_type")?;
+        let entity_type: String = row.try_get("entity_type")?;
+        let entity_id: Option<String> = row.try_get("entity_id")?;
+        let payload_str: String = row.try_get("payload")?;
+        let timestamp: i64 = row.try_get("timestamp")?;
+        let vector_clock_str: String = row.try_get("vector_clock")?;
+        let synced: i64 = row.try_get("synced")?;
+        let synced_at: Option<i64> = row.try_get("synced_at")?;
+
+        let op_type = match operation_type_val {
+            0 => OperationType::Create,
+            1 => OperationType::Update,
+            2 => OperationType::Delete,
+            3 => OperationType::Reference,
+            _ => return Err(AppError::SyncError(format!("Unknown operation type: {}", operation_type_val))),
+        };
+
+        let vector_clock: HashMap<String, i64> = serde_json::from_str(&vector_clock_str)
+            .map_err(|e| AppError::SyncError(format!("Failed to deserialize vector clock: {}", e)))?;
+
+        let payload: serde_json::Value = serde_json::from_str(&payload_str)
+            .map_err(|e| AppError::SyncError(format!("Failed to deserialize payload: {}", e)))?;
+
+        Ok(SyncOperation {
+            id,
+            device_id,
+            user_id,
+            operation_type: op_type,
+            entity_type,
+            entity_id,
+            payload,
+            timestamp,
+            vector_clock,
+            synced: synced != 0,
+            synced_at,
+        })
     }
 }

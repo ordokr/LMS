@@ -2,6 +2,7 @@ pub mod operations;
 pub mod conflicts;
 pub mod engine;
 pub mod version_vector;
+pub mod version_vector_sync;
 
 #[cfg(test)]
 pub mod tests;

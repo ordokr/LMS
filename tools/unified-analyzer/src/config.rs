@@ -154,7 +154,20 @@ impl Config {
             "canvas_path" => self.paths.canvas_path.as_deref(),
             "discourse_path" => self.paths.discourse_path.as_deref(),
             "lms_path" => self.paths.lms_path.as_deref(),
+            "moodle_path" => None,
+            "wordpress_path" => None,
             _ => None,
+        }
+    }
+
+    pub fn set_path(&mut self, path_name: &str, path_value: String) {
+        match path_name {
+            "canvas_path" => self.paths.canvas_path = Some(path_value),
+            "discourse_path" => self.paths.discourse_path = Some(path_value),
+            "lms_path" => self.paths.lms_path = Some(path_value),
+            "moodle_path" => {}, // Not implemented yet
+            "wordpress_path" => {}, // Not implemented yet
+            _ => {},
         }
     }
 }

@@ -155,136 +155,39 @@ impl DbSchemaGenerator {
         let embedded_template = include_str!("templates/db_schema_template.html");
         let template = embedded_template.to_string();
 
-        // Generate table cards HTML
-        let mut table_cards_html = String::new();
+        // Generate Mermaid diagram
+        let mut mermaid_diagram = String::new();
+        mermaid_diagram.push_str("erDiagram\n");
+
+        // Add tables and columns
         for table in &output.database.tables {
-            table_cards_html.push_str(&format!(r#"<div class="col-md-6 table-item" data-table-name="{}">
-    <div class="table-card">
-        <div class="table-header">
-            {}
-        </div>
-        <div class="table-body">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>Column</th>
-                        <th>Type</th>
-                        <th>Constraints</th>
-                    </tr>
-                </thead>
-                <tbody>
-"#, table.name.to_lowercase(), table.name));
+            mermaid_diagram.push_str(&format!("    {} {{\n", table.name));
 
             for column in &table.columns {
-                let constraints = if column.name == "id" {
-                    r#"<span class="column-constraint primary-key">PRIMARY KEY</span>"#
-                } else if column.name.ends_with("_id") {
-                    r#"<span class="column-constraint foreign-key">FOREIGN KEY</span>"#
-                } else if column.name == "created_at" || column.name == "updated_at" {
-                    r#"<span class="column-constraint not-null">NOT NULL</span>"#
-                } else {
-                    ""
-                };
-
-                table_cards_html.push_str(&format!(r#"                    <tr>
-                        <td class="column-name">{}</td>
-                        <td class="column-type">{}</td>
-                        <td>{}</td>
-                    </tr>
-"#, column.name, column.data_type, constraints));
+                mermaid_diagram.push_str(&format!("        {} {}\n", column.data_type, column.name));
             }
 
-            table_cards_html.push_str(r#"                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-"#);
+            mermaid_diagram.push_str("    }\n");
         }
 
-        // Generate relationships HTML
+        // Add relationships
         let relationships = self.extract_relationships(&output.database.tables);
-        let mut relationships_html = String::new();
-
-        relationships_html.push_str(r#"<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Parent Table</th>
-            <th>Child Table</th>
-            <th>Relationship Type</th>
-            <th>Foreign Key</th>
-        </tr>
-    </thead>
-    <tbody>
-"#);
-
         for rel in &relationships {
-            relationships_html.push_str(&format!(r#"        <tr>
-            <td>{}</td>
-            <td>{}</td>
-            <td>{}</td>
-            <td>{}</td>
-        </tr>
-"#, rel.parent_table, rel.child_table, rel.relationship_type, rel.foreign_key));
+            mermaid_diagram.push_str(&format!("    {} 1--* {} : \"has\"\n",
+                rel.parent_table,
+                rel.child_table
+            ));
         }
 
-        relationships_html.push_str(r#"    </tbody>
-</table>"#);
+        // Check if placeholder exists in the template
+        let mermaid_placeholder = "<!-- MERMAID_DIAGRAM_PLACEHOLDER -->";
 
-        // Create schema data for D3.js
-        let mut tables_data = Vec::new();
-        for table in &output.database.tables {
-            let mut columns = Vec::new();
-            for col in &table.columns {
-                columns.push(serde_json::json!({
-                    "name": col.name,
-                    "type": col.data_type,
-                    "primary_key": col.name == "id",
-                    "foreign_key": col.name.ends_with("_id")
-                }));
-            }
-
-            tables_data.push(serde_json::json!({
-                "name": table.name,
-                "columns": columns
-            }));
+        if !template.contains(mermaid_placeholder) {
+            return Err(format!("Template is missing required placeholder: {}", mermaid_placeholder));
         }
 
-        let mut relationships_data = Vec::new();
-        for rel in &relationships {
-            relationships_data.push(serde_json::json!({
-                "source_table": rel.parent_table,
-                "target_table": rel.child_table,
-                "source_column": "id",
-                "target_column": rel.foreign_key
-            }));
-        }
-
-        let schema_data = serde_json::json!({
-            "tables": tables_data,
-            "relationships": relationships_data
-        });
-
-        // Check if placeholders exist in the template
-        let table_list_placeholder = "<!-- TABLE_LIST_PLACEHOLDER -->";
-        let relationships_list_placeholder = "<!-- RELATIONSHIPS_LIST_PLACEHOLDER -->";
-        let schema_data_placeholder = "<!-- SCHEMA_DATA_PLACEHOLDER -->";
-
-        if !template.contains(table_list_placeholder) {
-            return Err(format!("Template is missing required placeholder: {}", table_list_placeholder));
-        }
-        if !template.contains(relationships_list_placeholder) {
-            return Err(format!("Template is missing required placeholder: {}", relationships_list_placeholder));
-        }
-        if !template.contains(schema_data_placeholder) {
-            return Err(format!("Template is missing required placeholder: {}", schema_data_placeholder));
-        }
-
-        // Replace placeholders in template
-        let html = template
-            .replace(table_list_placeholder, &table_cards_html)
-            .replace(relationships_list_placeholder, &relationships_html)
-            .replace(schema_data_placeholder, &schema_data.to_string());
+        // Replace placeholder in template
+        let html = template.replace(mermaid_placeholder, &mermaid_diagram);
 
         Ok(html)
     }

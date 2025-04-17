@@ -1,12 +1,12 @@
-# Ordo LMS & Forum: Central Reference Hub
+# LMS & Forum: Central Reference Hub
 
-_Last updated: 2025-04-16_
+_Last updated: 2025-04-17_
 
 <img alt="Status: Early Development" src="https://img.shields.io/badge/status-early%20development-orange">
 
 ## 🚀 Project Vision & Mission
 
-**Ordo** is a modern learning management system that prioritizes offline-first functionality, enabling education to continue even in environments with limited or intermittent connectivity. It combines robust course management with integrated discussion forums to create a comprehensive learning ecosystem.
+**LMS** is a modern learning management system that prioritizes offline-first functionality, enabling education to continue even in environments with limited or intermittent connectivity. It combines robust course management with integrated discussion forums to create a comprehensive learning ecosystem.
 
 ### Core Principles
 
@@ -27,9 +27,9 @@ _Last updated: 2025-04-16_
 ## 📈 Project Status
 
 - **Phase**: development
-- **Completion**: 48.6%
-- **Last Active Area**: Models
-- **Last Updated**: 2025-04-16 23:46
+- **Completion**: 0.0%
+- **Last Active Area**: unknown
+- **Last Updated**: 2025-04-17 19:20
 
 ### Recent Activity
 
@@ -44,10 +44,10 @@ _Last updated: 2025-04-16_
 ```json
 {
   "foundation_complete": true,
-  "model_implementation": "100.0%",
-  "api_implementation": "100.0%",
-  "ui_implementation": "100.0%",
-  "test_coverage": "37.9%",
+  "model_implementation": "0.0%",
+  "api_implementation": "0.0%",
+  "ui_implementation": "0.0%",
+  "test_coverage": "0.0%",
   "technical_debt": "56%",
   "components": {
     "database": {
@@ -78,14 +78,14 @@ _Last updated: 2025-04-16_
 
 | Component | Status | Completion | Priority | Next Steps |
 |-----------|--------|------------|----------|------------|
-| Database | In Progress | 45% | High | 
+| Database | In Progress | 45% | High | Implement transaction handling for Redb |
 | Sync Engine | In Progress | 30% | High | Add version vector conflict resolution |
 | UI | Early Development | 15% | Medium | Complete course listing components |
 | API | Planning | 5% | Medium | Define core API contracts |
 
 ## 🔧 Technology Stack
 
-Ordo is built with modern technologies that prioritize performance, security, and offline capabilities:
+LMS is built with modern technologies that prioritize performance, security, and offline capabilities:
 
 ### Core Technologies
 
@@ -96,9 +96,8 @@ Ordo is built with modern technologies that prioritize performance, security, an
 | **Desktop Shell** | Tauri | Native cross-platform wrapper |
 | **Backend** | Rust | Performance-critical components |
 | **Backend** | Haskell | Type-safe business logic |
-| **Primary Database** | SQLite | Structured data storage and sync |
-| **Key-Value Store** | Redb | Real-time state, caching, and sync metadata |
-| **SQL Toolkit** | SQLx | Type-safe SQL |
+| **Database** | SQLite | Local data storage |
+| **ORM** | SQLx | Type-safe SQL |
 | **Search** | MeiliSearch | Full-text search capabilities |
 | **Authentication** | JWT | Secure user authentication |
 | **Sync Engine** | Custom Rust | Conflict resolution system |
@@ -108,7 +107,7 @@ Ordo is built with modern technologies that prioritize performance, security, an
 The project follows a modular architecture with clear separation of concerns:
 
 ```plaintext
-Ordo/
+LMS/
 ├── src-tauri/         # Rust backend code
 │   └── src/
 │       ├── api/       # API endpoints
@@ -136,7 +135,7 @@ Ordo/
 
 ## 🏗️ Architecture Principles
 
-Ordo follows these key architectural principles:
+LMS follows these key architectural principles:
 
 1. **Clean Architecture**: Clear separation of concerns with domain-centric design
 2. **SOLID Principles**: Single responsibility, Open-closed, Liskov substitution, Interface segregation, Dependency inversion
@@ -161,37 +160,23 @@ Current code quality metrics from static analysis:
 
 | Metric | Value | Target |
 |--------|-------|--------|
-| **Test Coverage** | 37.9% | >80% |
+| **Test Coverage** | 0.0% | >80% |
 
 ### Implementation Details
 
 | Component | Implemented | Total | Progress |
 |-----------|-------------|-------|----------|
-| **Models** | 319 | 319 | 100.0% |
-| **API Endpoints** | 220 | 220 | 100.0% |
-| **UI Components** | 91 | 91 | 100.0% |
+| **Models** | 0 | 0 | 0.0% |
+| **API Endpoints** | 0 | 0 | 0.0% |
+| **UI Components** | 0 | 0 | 0.0% |
 
 ## 🔧 Technical Implementation
 
 This section provides technical details about key components to help developers understand the implementation.
 
-### Database Schema
-
-Ordo uses a relational database schema to store all application data. The core entities include:
-
-- **User**: Represents system users (students, instructors, administrators)
-- **Course**: Contains course information and metadata
-- **Enrollment**: Joins users to courses with specific roles
-- **Assignment**: Course assignments with due dates and point values
-- **Submission**: Student submissions for assignments
-- **Discussion**: Course discussion topics
-- **DiscussionPost**: Individual posts within discussions
-
-For a visual representation of the database schema and relationships, see the [Database Schema Visualization](visualizations/db_schema/db_schema.md).
-
 ### Hybrid Storage Implementation
 
-Ordo uses a hybrid storage approach combining SQLite and Redb. Here's how they work together:
+LMS uses a hybrid storage approach combining SQLite and Redb. Here's how they work together:
 
 ```rust
 // Example: Database module structure
@@ -267,18 +252,18 @@ impl SyncEngine {
 
 ## 🔗 Integration Architecture
 
-Ordo integrates Canvas LMS and Discourse forum functionality into a unified application:
+LMS integrates Canvas LMS and Discourse forum functionality into a unified application:
 
 ### Integration Status
 
 | Integration | Source | Target | Status |
 |-------------|--------|--------|--------|
-| Canvas Course Management | Canvas | Ordo | In Progress |
-| Canvas Assignments | Canvas | Ordo | In Progress |
-| Canvas Discussions | Canvas | Ordo | Planned |
-| Discourse Forums | Discourse | Ordo | Planned |
-| Discourse User System | Discourse | Ordo | In Progress |
-| Blockchain Certification | Native | Ordo | In Progress |
+| Canvas Course Management | Canvas | LMS | In Progress |
+| Canvas Assignments | Canvas | LMS | In Progress |
+| Canvas Discussions | Canvas | LMS | Planned |
+| Discourse Forums | Discourse | LMS | Planned |
+| Discourse User System | Discourse | LMS | In Progress |
+| Blockchain Certification | Native | LMS | In Progress |
 
 ### Integration Strategy
 
@@ -292,9 +277,9 @@ The integration between Canvas and Discourse uses:
 
 ### Model Mapping
 
-Key entity mappings between source systems and Ordo:
+Key entity mappings between source systems and LMS:
 
-| Canvas | Discourse | Ordo | Notes |
+| Canvas | Discourse | LMS | Notes |
 |--------|-----------|------------|-------|
 | Course | Category | Course | One-to-one mapping |
 | Course Sections | Sub-categories | CourseSection | Optional |
@@ -340,7 +325,7 @@ Key entity mappings between source systems and Ordo:
 
 - [API Map](visualizations/api_map/api_map.html)
 - [Component Tree](visualizations/component_tree/component_tree.html)
-- [Database Schema](visualizations/db_schema/db_schema.html) ([Mermaid Version](visualizations/db_schema/db_schema.md))
+- [Database Schema](visualizations/db_schema/db_schema.html)
 - [Migration Roadmap](visualizations/migration_roadmap/migration_roadmap.html)
 
 ### Implementation Guides
@@ -416,7 +401,6 @@ This section contains structured information to help AI coding agents understand
 
 Current development focus areas:
 
-- **Testing**: Increase test coverage to at least 50%
 
 ### Immediate Next Steps
 
@@ -429,6 +413,6 @@ Current development focus areas:
 
 ## 👋 Conclusion
 
-Ordo represents a significant advancement in learning management systems by prioritizing offline-first capabilities and integrating forum functionality directly into the core platform. By combining the best features of Canvas LMS and Discourse, while addressing their limitations, we're creating a more robust, performant, and accessible educational platform.
+LMS represents a significant advancement in learning management systems by prioritizing offline-first capabilities and integrating forum functionality directly into the core platform. By combining the best features of Canvas LMS and Discourse, while addressing their limitations, we're creating a more robust, performant, and accessible educational platform.
 
 This central reference hub will be continuously updated as the project evolves. All documentation is automatically generated from the codebase analysis to ensure it remains accurate and up-to-date.

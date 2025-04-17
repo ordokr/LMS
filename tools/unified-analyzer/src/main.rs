@@ -11,6 +11,9 @@ use crate::analyzers::modules::{api_analyzer::ApiAnalyzer, auth_flow_analyzer::A
     offline_first_readiness_analyzer::OfflineFirstReadinessAnalyzer, react_analyzer::ReactAnalyzer,
     route_analyzer::RouteAnalyzer, template_analyzer::TemplateAnalyzer, db_schema_analyzer::DbSchemaAnalyzer,
     blockchain_analyzer::BlockchainAnalyzer, unified_analyzer::UnifiedProjectAnalyzer,
+    entity_mapper::EntityMapper, feature_detector::FeatureDetector, code_quality_scorer::CodeQualityScorer,
+    conflict_checker::ConflictChecker, integration_tracker::IntegrationTracker, recommendation_system::RecommendationSystem,
+    helix_db_integration::HelixDbIntegrationAnalyzer,
 };
 use crate::analyzers::{run_all_analyzers, run_ast_analyzer, run_project_structure_analyzer};
 use crate::analyzers::modules::tech_debt_runner::run_tech_debt_analyzer;
@@ -67,6 +70,13 @@ async fn main() -> Result<()> {
             "api-map" => command = "api-map",
             "db-schema" => command = "db-schema",
             "viz" => command = "viz",
+            "integration-advisor" => command = "integration-advisor",
+            "entity-mapping" => command = "entity-mapping",
+            "feature-detection" => command = "feature-detection",
+            "code-quality" => command = "code-quality",
+            "conflict-detection" => command = "conflict-detection",
+            "integration-tracking" => command = "integration-tracking",
+            "recommendations" => command = "recommendations",
             "--path" => {
                 if i + 1 < args.len() {
                     path = Some(PathBuf::from(&args[i + 1]));
@@ -78,6 +88,9 @@ async fn main() -> Result<()> {
             },
             "--cache" => {
                 config.performance.enable_caching = true;
+            },
+            "--no-cache" => {
+                config.performance.enable_caching = false;
             },
             "--incremental" => {
                 config.performance.incremental_analysis = true;
@@ -95,6 +108,36 @@ async fn main() -> Result<()> {
                     if let Ok(timeout) = args[i + 1].parse::<u64>() {
                         config.performance.timeout_seconds = timeout;
                     }
+                    i += 1;
+                }
+            },
+            "--canvas_path" => {
+                if i + 1 < args.len() {
+                    config.set_path("canvas_path", args[i + 1].clone());
+                    i += 1;
+                }
+            },
+            "--discourse_path" => {
+                if i + 1 < args.len() {
+                    config.set_path("discourse_path", args[i + 1].clone());
+                    i += 1;
+                }
+            },
+            "--lms_path" => {
+                if i + 1 < args.len() {
+                    config.set_path("lms_path", args[i + 1].clone());
+                    i += 1;
+                }
+            },
+            "--moodle_path" => {
+                if i + 1 < args.len() {
+                    config.set_path("moodle_path", args[i + 1].clone());
+                    i += 1;
+                }
+            },
+            "--wordpress_path" => {
+                if i + 1 < args.len() {
+                    config.set_path("wordpress_path", args[i + 1].clone());
                     i += 1;
                 }
             },
@@ -189,6 +232,38 @@ async fn main() -> Result<()> {
                 println!("Source database schema visualization generated successfully.");
             }
         },
+        "integration-advisor" => {
+            println!("Running Full Integration Advisor...");
+            run_full_integration_advisor(&base_dir, &config).await?
+        },
+        "entity-mapping" => {
+            println!("Running Entity Mapper...");
+            run_entity_mapper(&base_dir, &config).await?
+        },
+        "helix-db-integration" => {
+            println!("Running HelixDB Integration Analyzer...");
+            run_helix_db_integration(&base_dir, &config).await?
+        },
+        "feature-detection" => {
+            println!("Running Feature Detector...");
+            run_feature_detector(&base_dir, &config).await?
+        },
+        "code-quality" => {
+            println!("Running Code Quality Scorer...");
+            run_code_quality_scorer(&base_dir, &config).await?
+        },
+        "conflict-detection" => {
+            println!("Running Conflict Checker...");
+            run_conflict_checker(&base_dir, &config).await?
+        },
+        "integration-tracking" => {
+            println!("Running Integration Tracker...");
+            run_integration_tracker(&base_dir, &config).await?
+        },
+        "recommendations" => {
+            println!("Running Recommendation System...");
+            run_recommendation_system(&base_dir, &config).await?
+        },
         "viz" => {
             println!("Generating all visualizations...");
             generate_migration_roadmap(&base_dir).await?;
@@ -251,12 +326,30 @@ async fn main() -> Result<()> {
             println!("  source-db-schema Generate database schema visualization from Canvas and Discourse source code");
             println!("  viz             Generate all visualizations");
             println!("");
+            println!("Integration Advisor Commands:");
+            println!("  integration-advisor  Run the Full Integration Advisor");
+            println!("  entity-mapping       Run the Entity Mapper");
+            println!("  feature-detection    Run the Feature Detector");
+            println!("  code-quality         Run the Code Quality Scorer");
+            println!("  conflict-detection   Run the Conflict Checker");
+            println!("  integration-tracking Run the Integration Tracker");
+            println!("  recommendations      Run the Recommendation System");
+            println!("  helix-db-integration Run the HelixDB Integration Analyzer");
+            println!("");
             println!("Performance Options:");
             println!("  --parallel      Enable parallel processing");
             println!("  --cache         Enable caching of analysis results");
+            println!("  --no-cache      Disable caching of analysis results");
             println!("  --incremental   Enable incremental analysis (only analyze changed files)");
             println!("  --memory N      Set maximum memory usage in MB (default: 1024)");
             println!("  --timeout N     Set maximum analysis time in seconds (default: 3600)");
+            println!("");
+            println!("Path Options:");
+            println!("  --canvas_path PATH    Path to Canvas codebase");
+            println!("  --discourse_path PATH Path to Discourse codebase");
+            println!("  --lms_path PATH      Path to LMS codebase");
+            println!("  --moodle_path PATH   Path to Moodle codebase");
+            println!("  --wordpress_path PATH Path to WordPress codebase");
         }
     };
     Ok(())
@@ -562,7 +655,7 @@ async fn run_analysis(base_dir: &PathBuf, config: &Config) -> Result<()> {
     println!("\n{}", performance_report);
 
     // Save performance report
-    let report_path = base_dir.join("docs").join("performance_report.md");
+    let report_path = PathBuf::from("C:\\Users\\Tim\\Desktop\\LMS\\docs").join("performance_report.md");
     if let Err(e) = fs::write(&report_path, performance_report) {
         println!("Failed to write performance report: {}", e);
     }
@@ -604,30 +697,30 @@ async fn generate_migration_roadmap(base_dir: &PathBuf) -> Result<()> {
     let file = File::open(output_path).expect("Failed to open unified output file");
     let unified_output = serde_json::from_reader(file).expect("Failed to parse unified output");
 
-    // Create output directory in docs
-    let docs_dir = base_dir.join("docs");
-    std::fs::create_dir_all(&docs_dir).expect("Failed to create docs directory");
+    // Create output directory in the main docs folder
+    let root_docs_dir = PathBuf::from("C:\\Users\\Tim\\Desktop\\LMS\\docs");
+    std::fs::create_dir_all(&root_docs_dir).expect("Failed to create main docs directory");
 
-    // Create output directory in output/docs
+    // Create output directory in output/docs for temporary files
     let output_docs_dir = base_dir.join("output").join("docs");
     std::fs::create_dir_all(&output_docs_dir).expect("Failed to create output docs directory");
 
     // Generate migration roadmap
     let roadmap_generator = MigrationRoadmapGenerator::new();
 
-    // Generate in output/docs directory
+    // Generate in output/docs directory first
     roadmap_generator.generate(&unified_output, &output_docs_dir).expect("Failed to generate migration roadmap in output directory");
 
-    // Copy the generated files from output/docs to docs
+    // Copy the generated files from output/docs to root docs folder
     let output_vis_dir = output_docs_dir.join("visualizations").join("migration_roadmap");
-    let docs_vis_dir = docs_dir.join("visualizations").join("migration_roadmap");
+    let root_vis_dir = root_docs_dir.join("visualizations").join("migration_roadmap");
 
-    // Create the visualizations directory in docs
-    std::fs::create_dir_all(&docs_vis_dir).expect("Failed to create visualizations directory in docs");
+    // Create the visualizations directory in root docs folder
+    std::fs::create_dir_all(&root_vis_dir).expect("Failed to create visualizations directory in root docs folder");
 
     // Copy the HTML file
     let html_src = output_vis_dir.join("migration_roadmap.html");
-    let html_dst = docs_vis_dir.join("migration_roadmap.html");
+    let html_dst = root_vis_dir.join("migration_roadmap.html");
     if html_src.exists() {
         std::fs::copy(&html_src, &html_dst).expect("Failed to copy migration roadmap HTML file");
         println!("Copied migration roadmap HTML file to: {:?}", html_dst);
@@ -635,7 +728,7 @@ async fn generate_migration_roadmap(base_dir: &PathBuf) -> Result<()> {
 
     // Copy the Markdown file
     let md_src = output_vis_dir.join("migration_roadmap.md");
-    let md_dst = docs_vis_dir.join("migration_roadmap.md");
+    let md_dst = root_vis_dir.join("migration_roadmap.md");
     if md_src.exists() {
         std::fs::copy(&md_src, &md_dst).expect("Failed to copy migration roadmap Markdown file");
         println!("Copied migration roadmap Markdown file to: {:?}", md_dst);
@@ -659,30 +752,30 @@ async fn generate_component_tree(base_dir: &PathBuf) -> Result<()> {
     let file = File::open(output_path).expect("Failed to open unified output file");
     let unified_output = serde_json::from_reader(file).expect("Failed to parse unified output");
 
-    // Create output directory in docs
-    let docs_dir = base_dir.join("docs");
-    std::fs::create_dir_all(&docs_dir).expect("Failed to create docs directory");
+    // Create output directory in the main docs folder
+    let root_docs_dir = PathBuf::from("C:\\Users\\Tim\\Desktop\\LMS\\docs");
+    std::fs::create_dir_all(&root_docs_dir).expect("Failed to create main docs directory");
 
-    // Create output directory in output/docs
+    // Create output directory in output/docs for temporary files
     let output_docs_dir = base_dir.join("output").join("docs");
     std::fs::create_dir_all(&output_docs_dir).expect("Failed to create output docs directory");
 
     // Generate component tree visualization
     let component_tree_generator = ComponentTreeGenerator::new();
 
-    // Generate in output/docs directory
+    // Generate in output/docs directory first
     component_tree_generator.generate(&unified_output, &output_docs_dir).expect("Failed to generate component tree visualization in output directory");
 
-    // Copy the generated files from output/docs to docs
+    // Copy the generated files from output/docs to root docs folder
     let output_vis_dir = output_docs_dir.join("visualizations").join("component_tree");
-    let docs_vis_dir = docs_dir.join("visualizations").join("component_tree");
+    let root_vis_dir = root_docs_dir.join("visualizations").join("component_tree");
 
-    // Create the visualizations directory in docs
-    std::fs::create_dir_all(&docs_vis_dir).expect("Failed to create visualizations directory in docs");
+    // Create the visualizations directory in root docs folder
+    std::fs::create_dir_all(&root_vis_dir).expect("Failed to create visualizations directory in root docs folder");
 
     // Copy the HTML file
     let html_src = output_vis_dir.join("component_tree.html");
-    let html_dst = docs_vis_dir.join("component_tree.html");
+    let html_dst = root_vis_dir.join("component_tree.html");
     if html_src.exists() {
         std::fs::copy(&html_src, &html_dst).expect("Failed to copy component tree HTML file");
         println!("Copied component tree HTML file to: {:?}", html_dst);
@@ -690,7 +783,7 @@ async fn generate_component_tree(base_dir: &PathBuf) -> Result<()> {
 
     // Copy the Markdown file
     let md_src = output_vis_dir.join("component_tree.md");
-    let md_dst = docs_vis_dir.join("component_tree.md");
+    let md_dst = root_vis_dir.join("component_tree.md");
     if md_src.exists() {
         std::fs::copy(&md_src, &md_dst).expect("Failed to copy component tree Markdown file");
         println!("Copied component tree Markdown file to: {:?}", md_dst);
@@ -714,30 +807,30 @@ async fn generate_api_map(base_dir: &PathBuf) -> Result<()> {
     let file = File::open(output_path).expect("Failed to open unified output file");
     let unified_output = serde_json::from_reader(file).expect("Failed to parse unified output");
 
-    // Create output directory in docs
-    let docs_dir = base_dir.join("docs");
-    std::fs::create_dir_all(&docs_dir).expect("Failed to create docs directory");
+    // Create output directory in the main docs folder
+    let root_docs_dir = PathBuf::from("C:\\Users\\Tim\\Desktop\\LMS\\docs");
+    std::fs::create_dir_all(&root_docs_dir).expect("Failed to create main docs directory");
 
-    // Create output directory in output/docs
+    // Create output directory in output/docs for temporary files
     let output_docs_dir = base_dir.join("output").join("docs");
     std::fs::create_dir_all(&output_docs_dir).expect("Failed to create output docs directory");
 
-    // Generate API map visualization in both directories
+    // Generate API map visualization
     let api_map_generator = ApiMapGenerator::new();
 
-    // Generate in output/docs directory
+    // Generate in output/docs directory first
     api_map_generator.generate(&unified_output, &output_docs_dir).expect("Failed to generate API map visualization in output directory");
 
-    // Copy the generated files from output/docs to docs
+    // Copy the generated files from output/docs to root docs folder
     let output_vis_dir = output_docs_dir.join("visualizations").join("api_map");
-    let docs_vis_dir = docs_dir.join("visualizations").join("api_map");
+    let root_vis_dir = root_docs_dir.join("visualizations").join("api_map");
 
-    // Create the visualizations directory in docs
-    std::fs::create_dir_all(&docs_vis_dir).expect("Failed to create visualizations directory in docs");
+    // Create the visualizations directory in root docs folder
+    std::fs::create_dir_all(&root_vis_dir).expect("Failed to create visualizations directory in root docs folder");
 
     // Copy the HTML file
     let html_src = output_vis_dir.join("api_map.html");
-    let html_dst = docs_vis_dir.join("api_map.html");
+    let html_dst = root_vis_dir.join("api_map.html");
     if html_src.exists() {
         std::fs::copy(&html_src, &html_dst).expect("Failed to copy API map HTML file");
         println!("Copied API map HTML file to: {:?}", html_dst);
@@ -745,7 +838,7 @@ async fn generate_api_map(base_dir: &PathBuf) -> Result<()> {
 
     // Copy the Markdown file
     let md_src = output_vis_dir.join("api_map.md");
-    let md_dst = docs_vis_dir.join("api_map.md");
+    let md_dst = root_vis_dir.join("api_map.md");
     if md_src.exists() {
         std::fs::copy(&md_src, &md_dst).expect("Failed to copy API map Markdown file");
         println!("Copied API map Markdown file to: {:?}", md_dst);
@@ -769,30 +862,30 @@ async fn generate_db_schema(base_dir: &PathBuf) -> Result<()> {
     let file = File::open(output_path).expect("Failed to open unified output file");
     let unified_output = serde_json::from_reader(file).expect("Failed to parse unified output");
 
-    // Create output directory in docs
-    let docs_dir = base_dir.join("docs");
-    std::fs::create_dir_all(&docs_dir).expect("Failed to create docs directory");
+    // Create output directory in the main docs folder
+    let root_docs_dir = PathBuf::from("C:\\Users\\Tim\\Desktop\\LMS\\docs");
+    std::fs::create_dir_all(&root_docs_dir).expect("Failed to create main docs directory");
 
-    // Create output directory in output/docs
+    // Create output directory in output/docs for temporary files
     let output_docs_dir = base_dir.join("output").join("docs");
     std::fs::create_dir_all(&output_docs_dir).expect("Failed to create output docs directory");
 
     // Generate database schema visualization
     let db_schema_generator = DbSchemaGenerator::new();
 
-    // Generate in output/docs directory
+    // Generate in output/docs directory first
     db_schema_generator.generate(&unified_output, &output_docs_dir).expect("Failed to generate database schema visualization in output directory");
 
-    // Copy the generated files from output/docs to docs
+    // Copy the generated files from output/docs to root docs folder
     let output_vis_dir = output_docs_dir.join("visualizations").join("db_schema");
-    let docs_vis_dir = docs_dir.join("visualizations").join("db_schema");
+    let root_vis_dir = root_docs_dir.join("visualizations").join("db_schema");
 
-    // Create the visualizations directory in docs
-    std::fs::create_dir_all(&docs_vis_dir).expect("Failed to create visualizations directory in docs");
+    // Create the visualizations directory in root docs folder
+    std::fs::create_dir_all(&root_vis_dir).expect("Failed to create visualizations directory in root docs folder");
 
     // Copy the HTML file
     let html_src = output_vis_dir.join("db_schema.html");
-    let html_dst = docs_vis_dir.join("db_schema.html");
+    let html_dst = root_vis_dir.join("db_schema.html");
     if html_src.exists() {
         std::fs::copy(&html_src, &html_dst).expect("Failed to copy database schema HTML file");
         println!("Copied database schema HTML file to: {:?}", html_dst);
@@ -800,7 +893,7 @@ async fn generate_db_schema(base_dir: &PathBuf) -> Result<()> {
 
     // Copy the Markdown file
     let md_src = output_vis_dir.join("db_schema.md");
-    let md_dst = docs_vis_dir.join("db_schema.md");
+    let md_dst = root_vis_dir.join("db_schema.md");
     if md_src.exists() {
         std::fs::copy(&md_src, &md_dst).expect("Failed to copy database schema Markdown file");
         println!("Copied database schema Markdown file to: {:?}", md_dst);
@@ -916,5 +1009,641 @@ async fn update_central_hub(base_dir: &PathBuf) -> Result<()> {
     }
 
     println!("Central reference hub updated successfully.");
+    Ok(())
+}
+
+async fn run_full_integration_advisor(base_dir: &PathBuf, config: &Config) -> Result<()> {
+    println!("---- Starting Full Integration Advisor ----");
+
+    // Create the reports directory if it doesn't exist
+    let reports_dir = base_dir.join("docs").join("unified-analyzer").join("reports");
+    fs::create_dir_all(&reports_dir)?;
+    println!("Reports will be saved to: {}", reports_dir.display());
+
+    // Get paths to Canvas, Discourse, and Ordo codebases
+    let canvas_path = match config.get_path("canvas_path") {
+        Some(path) => PathBuf::from(path),
+        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\canvas"),
+    };
+
+    let discourse_path = match config.get_path("discourse_path") {
+        Some(path) => PathBuf::from(path),
+        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\discourse"),
+    };
+
+    let ordo_path = match config.get_path("lms_path") {
+        Some(path) => PathBuf::from(path),
+        None => base_dir.clone(),
+    };
+
+    // Initialize components
+    // Use caching unless explicitly disabled
+    let mut entity_mapper = if !config.performance.enable_caching {
+        println!("Caching disabled for entity mapper");
+        EntityMapper::new_without_cache()
+    } else {
+        println!("Caching enabled for entity mapper");
+        EntityMapper::new()
+    };
+    let mut feature_detector = FeatureDetector::new();
+    let mut code_quality_scorer = CodeQualityScorer::new();
+    let mut conflict_checker = ConflictChecker::new();
+    let mut integration_tracker = IntegrationTracker::new();
+    let mut recommendation_system = RecommendationSystem::new();
+    let mut helix_db_analyzer = HelixDbIntegrationAnalyzer::new();
+
+    // Extract entities
+    println!("Extracting entities...");
+    entity_mapper.extract_canvas_entities(&canvas_path)?;
+    entity_mapper.extract_discourse_entities(&discourse_path)?;
+    entity_mapper.extract_ordo_entities(&ordo_path)?;
+    entity_mapper.generate_mappings()?;
+
+    // Extract features
+    println!("Extracting features...");
+    feature_detector.analyze(&ordo_path.to_string_lossy())?;
+
+    // Analyze code quality
+    println!("Analyzing code quality...");
+    code_quality_scorer.analyze_codebase(&canvas_path, "canvas")?;
+    code_quality_scorer.analyze_codebase(&discourse_path, "discourse")?;
+
+    // Detect conflicts
+    println!("Detecting conflicts...");
+    conflict_checker.detect_conflicts(&entity_mapper)?;
+
+    // Track integration progress
+    println!("Tracking integration progress...");
+    integration_tracker.track_progress(&entity_mapper, &feature_detector)?;
+
+    // Generate recommendations
+    println!("Generating recommendations...");
+    recommendation_system.generate_recommendations(
+        &entity_mapper,
+        &feature_detector,
+        &code_quality_scorer,
+        &conflict_checker,
+        &integration_tracker
+    )?;
+
+    // Run HelixDB integration analyzer
+    println!("Analyzing HelixDB integration...");
+    helix_db_analyzer.extract_canvas_schema(&canvas_path)?;
+    helix_db_analyzer.extract_discourse_schema(&discourse_path)?;
+    helix_db_analyzer.extract_ordo_schema(&ordo_path)?;
+
+    // Extract Moodle schema if path is provided
+    let moodle_path = match config.get_path("moodle_path") {
+        Some(path) => Some(PathBuf::from(path)),
+        None => None,
+    };
+
+    if let Some(path) = &moodle_path {
+        println!("Extracting Moodle database schema...");
+        helix_db_analyzer.extract_moodle_schema(path)?;
+    }
+
+    // Extract WordPress schema if path is provided
+    let wordpress_path = match config.get_path("wordpress_path") {
+        Some(path) => Some(PathBuf::from(path)),
+        None => None,
+    };
+
+    if let Some(path) = &wordpress_path {
+        println!("Extracting WordPress database schema...");
+        helix_db_analyzer.extract_wordpress_schema(path)?;
+    }
+
+    helix_db_analyzer.generate_mappings()?;
+
+    // Generate reports
+    println!("Generating reports...");
+    generate_entity_mapping_report(&entity_mapper, &ordo_path)?;
+    generate_feature_mapping_report(&feature_detector, &ordo_path)?;
+    generate_code_quality_report(&code_quality_scorer, &ordo_path)?;
+    generate_conflict_report(&conflict_checker, &ordo_path)?;
+    generate_integration_progress_report(&integration_tracker, &ordo_path)?;
+    generate_recommendation_report(&recommendation_system, &ordo_path)?;
+    generate_helix_db_integration_report(&helix_db_analyzer, &ordo_path)?;
+
+    println!("---- Full Integration Advisor Completed ----");
+
+    Ok(())
+}
+
+async fn run_entity_mapper(base_dir: &PathBuf, config: &Config) -> Result<()> {
+    println!("---- Running Entity Mapper ----");
+
+    // Get paths to Canvas, Discourse, and Ordo codebases
+    let canvas_path = match config.get_path("canvas_path") {
+        Some(path) => PathBuf::from(path),
+        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\canvas"),
+    };
+
+    let discourse_path = match config.get_path("discourse_path") {
+        Some(path) => PathBuf::from(path),
+        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\discourse"),
+    };
+
+    let ordo_path = match config.get_path("lms_path") {
+        Some(path) => PathBuf::from(path),
+        None => base_dir.clone(),
+    };
+
+    // Initialize entity mapper
+    // Use caching unless explicitly disabled
+    let mut entity_mapper = if !config.performance.enable_caching {
+        println!("Caching disabled for entity mapper");
+        EntityMapper::new_without_cache()
+    } else {
+        println!("Caching enabled for entity mapper");
+        EntityMapper::new()
+    };
+
+    // Extract entities
+    println!("Extracting entities...");
+    entity_mapper.extract_canvas_entities(&canvas_path)?;
+    entity_mapper.extract_discourse_entities(&discourse_path)?;
+    entity_mapper.extract_ordo_entities(&ordo_path)?;
+    entity_mapper.generate_mappings()?;
+
+    // Generate report
+    println!("Generating entity mapping report...");
+    generate_entity_mapping_report(&entity_mapper, &ordo_path)?;
+
+    println!("---- Entity Mapper Completed ----");
+
+    Ok(())
+}
+
+async fn run_feature_detector(base_dir: &PathBuf, config: &Config) -> Result<()> {
+    println!("---- Running Feature Detector ----");
+
+    // Get paths to Canvas, Discourse, and Ordo codebases
+    let _canvas_path = match config.get_path("canvas_path") {
+        Some(path) => PathBuf::from(path),
+        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\canvas"),
+    };
+
+    let _discourse_path = match config.get_path("discourse_path") {
+        Some(path) => PathBuf::from(path),
+        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\discourse"),
+    };
+
+    let ordo_path = match config.get_path("lms_path") {
+        Some(path) => PathBuf::from(path),
+        None => base_dir.clone(),
+    };
+
+    // Initialize feature detector
+    let mut feature_detector = FeatureDetector::new();
+
+    // Extract features
+    println!("Extracting features...");
+    feature_detector.analyze(&ordo_path.to_string_lossy())?;
+
+    // Generate report
+    println!("Generating feature mapping report...");
+    generate_feature_mapping_report(&feature_detector, &ordo_path)?;
+
+    println!("---- Feature Detector Completed ----");
+
+    Ok(())
+}
+
+async fn run_code_quality_scorer(base_dir: &PathBuf, config: &Config) -> Result<()> {
+    println!("---- Running Code Quality Scorer ----");
+
+    // Get paths to Canvas and Discourse codebases
+    let canvas_path = match config.get_path("canvas_path") {
+        Some(path) => PathBuf::from(path),
+        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\canvas"),
+    };
+
+    let discourse_path = match config.get_path("discourse_path") {
+        Some(path) => PathBuf::from(path),
+        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\discourse"),
+    };
+
+    // Initialize code quality scorer
+    let mut code_quality_scorer = CodeQualityScorer::new();
+
+    // Analyze code quality
+    println!("Analyzing code quality...");
+    code_quality_scorer.analyze_codebase(&canvas_path, "canvas")?;
+    code_quality_scorer.analyze_codebase(&discourse_path, "discourse")?;
+
+    // Generate report
+    println!("Generating code quality report...");
+    generate_code_quality_report(&code_quality_scorer, &base_dir)?;
+
+    println!("---- Code Quality Scorer Completed ----");
+
+    Ok(())
+}
+
+async fn run_conflict_checker(base_dir: &PathBuf, config: &Config) -> Result<()> {
+    println!("---- Running Conflict Checker ----");
+
+    // Get paths to Canvas, Discourse, and Ordo codebases
+    let canvas_path = match config.get_path("canvas_path") {
+        Some(path) => PathBuf::from(path),
+        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\canvas"),
+    };
+
+    let discourse_path = match config.get_path("discourse_path") {
+        Some(path) => PathBuf::from(path),
+        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\discourse"),
+    };
+
+    let ordo_path = match config.get_path("lms_path") {
+        Some(path) => PathBuf::from(path),
+        None => base_dir.clone(),
+    };
+
+    // Initialize entity mapper and conflict checker
+    // Use caching unless explicitly disabled
+    let mut entity_mapper = if !config.performance.enable_caching {
+        println!("Caching disabled for entity mapper");
+        EntityMapper::new_without_cache()
+    } else {
+        println!("Caching enabled for entity mapper");
+        EntityMapper::new()
+    };
+    let mut conflict_checker = ConflictChecker::new();
+
+    // Extract entities
+    println!("Extracting entities...");
+    entity_mapper.extract_canvas_entities(&canvas_path)?;
+    entity_mapper.extract_discourse_entities(&discourse_path)?;
+    entity_mapper.extract_ordo_entities(&ordo_path)?;
+    entity_mapper.generate_mappings()?;
+
+    // Detect conflicts
+    println!("Detecting conflicts...");
+    conflict_checker.detect_conflicts(&entity_mapper)?;
+
+    // Generate report
+    println!("Generating conflict report...");
+    generate_conflict_report(&conflict_checker, &base_dir)?;
+
+    println!("---- Conflict Checker Completed ----");
+
+    Ok(())
+}
+
+async fn run_integration_tracker(base_dir: &PathBuf, config: &Config) -> Result<()> {
+    println!("---- Running Integration Tracker ----");
+
+    // Get paths to Canvas, Discourse, and Ordo codebases
+    let canvas_path = match config.get_path("canvas_path") {
+        Some(path) => PathBuf::from(path),
+        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\canvas"),
+    };
+
+    let discourse_path = match config.get_path("discourse_path") {
+        Some(path) => PathBuf::from(path),
+        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\discourse"),
+    };
+
+    let ordo_path = match config.get_path("lms_path") {
+        Some(path) => PathBuf::from(path),
+        None => base_dir.clone(),
+    };
+
+    // Initialize entity mapper, feature detector, and integration tracker
+    // Use caching unless explicitly disabled
+    let mut entity_mapper = if !config.performance.enable_caching {
+        println!("Caching disabled for entity mapper");
+        EntityMapper::new_without_cache()
+    } else {
+        println!("Caching enabled for entity mapper");
+        EntityMapper::new()
+    };
+    let mut feature_detector = FeatureDetector::new();
+    let mut integration_tracker = IntegrationTracker::new();
+
+    // Extract entities
+    println!("Extracting entities...");
+    entity_mapper.extract_canvas_entities(&canvas_path)?;
+    entity_mapper.extract_discourse_entities(&discourse_path)?;
+    entity_mapper.extract_ordo_entities(&ordo_path)?;
+    entity_mapper.generate_mappings()?;
+
+    // Extract features
+    println!("Extracting features...");
+    feature_detector.analyze(&ordo_path.to_string_lossy())?;
+
+    // Track integration progress
+    println!("Tracking integration progress...");
+    integration_tracker.track_progress(&entity_mapper, &feature_detector)?;
+
+    // Generate report
+    println!("Generating integration progress report...");
+    generate_integration_progress_report(&integration_tracker, &base_dir)?;
+
+    println!("---- Integration Tracker Completed ----");
+
+    Ok(())
+}
+
+async fn run_recommendation_system(base_dir: &PathBuf, config: &Config) -> Result<()> {
+    println!("---- Running Recommendation System ----");
+
+    // Get paths to Canvas, Discourse, and Ordo codebases
+    let canvas_path = match config.get_path("canvas_path") {
+        Some(path) => PathBuf::from(path),
+        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\canvas"),
+    };
+
+    let discourse_path = match config.get_path("discourse_path") {
+        Some(path) => PathBuf::from(path),
+        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\discourse"),
+    };
+
+    let ordo_path = match config.get_path("lms_path") {
+        Some(path) => PathBuf::from(path),
+        None => base_dir.clone(),
+    };
+
+    // Initialize all components
+    // Use caching unless explicitly disabled
+    let mut entity_mapper = if !config.performance.enable_caching {
+        println!("Caching disabled for entity mapper");
+        EntityMapper::new_without_cache()
+    } else {
+        println!("Caching enabled for entity mapper");
+        EntityMapper::new()
+    };
+    let mut feature_detector = FeatureDetector::new();
+    let mut code_quality_scorer = CodeQualityScorer::new();
+    let mut conflict_checker = ConflictChecker::new();
+    let mut integration_tracker = IntegrationTracker::new();
+    let mut recommendation_system = RecommendationSystem::new();
+
+    // Extract entities
+    println!("Extracting entities...");
+    entity_mapper.extract_canvas_entities(&canvas_path)?;
+    entity_mapper.extract_discourse_entities(&discourse_path)?;
+    entity_mapper.extract_ordo_entities(&ordo_path)?;
+    entity_mapper.generate_mappings()?;
+
+    // Extract features
+    println!("Extracting features...");
+    feature_detector.analyze(&ordo_path.to_string_lossy())?;
+
+    // Analyze code quality
+    println!("Analyzing code quality...");
+    code_quality_scorer.analyze_codebase(&canvas_path, "canvas")?;
+    code_quality_scorer.analyze_codebase(&discourse_path, "discourse")?;
+
+    // Detect conflicts
+    println!("Detecting conflicts...");
+    conflict_checker.detect_conflicts(&entity_mapper)?;
+
+    // Track integration progress
+    println!("Tracking integration progress...");
+    integration_tracker.track_progress(&entity_mapper, &feature_detector)?;
+
+    // Generate recommendations
+    println!("Generating recommendations...");
+    recommendation_system.generate_recommendations(
+        &entity_mapper,
+        &feature_detector,
+        &code_quality_scorer,
+        &conflict_checker,
+        &integration_tracker
+    )?;
+
+    // Generate report
+    println!("Generating recommendation report...");
+    generate_recommendation_report(&recommendation_system, &base_dir)?;
+
+    println!("---- Recommendation System Completed ----");
+
+    Ok(())
+}
+
+// Helper functions for generating reports
+fn generate_entity_mapping_report(entity_mapper: &EntityMapper, output_dir: &PathBuf) -> Result<()> {
+    // Create output directory if it doesn't exist
+    let reports_dir = output_dir.join("docs").join("unified-analyzer").join("reports");
+    fs::create_dir_all(&reports_dir)?;
+
+    // Generate JSON report
+    let json_report = entity_mapper.generate_mapping_report()?;
+    let json_path = reports_dir.join("entity_mappings.json");
+    fs::write(&json_path, json_report)?;
+    println!("Entity mapping JSON report saved to: {}", json_path.display());
+
+    // Generate Markdown report
+    let markdown_report = entity_mapper.generate_mapping_markdown();
+    let markdown_path = reports_dir.join("entity_mappings.md");
+    fs::write(&markdown_path, markdown_report)?;
+    println!("Entity mapping Markdown report saved to: {}", markdown_path.display());
+
+    Ok(())
+}
+
+fn generate_feature_mapping_report(feature_detector: &FeatureDetector, output_dir: &PathBuf) -> Result<()> {
+    // Create output directory if it doesn't exist
+    let reports_dir = output_dir.join("docs").join("unified-analyzer").join("reports");
+    fs::create_dir_all(&reports_dir)?;
+
+    // Generate JSON report
+    let json_report = feature_detector.generate_mapping_report()?;
+    let json_path = reports_dir.join("feature_mappings.json");
+    fs::write(&json_path, json_report)?;
+    println!("Feature mapping JSON report saved to: {}", json_path.display());
+
+    // Generate Markdown report
+    let markdown_report = feature_detector.generate_mapping_markdown();
+    let markdown_path = reports_dir.join("feature_mappings.md");
+    fs::write(&markdown_path, markdown_report)?;
+    println!("Feature mapping Markdown report saved to: {}", markdown_path.display());
+
+    Ok(())
+}
+
+fn generate_code_quality_report(code_quality_scorer: &CodeQualityScorer, output_dir: &PathBuf) -> Result<()> {
+    // Create output directory if it doesn't exist
+    let reports_dir = output_dir.join("docs").join("unified-analyzer").join("reports");
+    fs::create_dir_all(&reports_dir)?;
+
+    // Generate JSON report
+    let json_report = code_quality_scorer.generate_metrics_report()?;
+    let json_path = reports_dir.join("code_quality.json");
+    fs::write(&json_path, json_report)?;
+    println!("Code quality JSON report saved to: {}", json_path.display());
+
+    // Generate Markdown report
+    let markdown_report = code_quality_scorer.generate_quality_markdown();
+    let markdown_path = reports_dir.join("code_quality.md");
+    fs::write(&markdown_path, markdown_report)?;
+    println!("Code quality Markdown report saved to: {}", markdown_path.display());
+
+    Ok(())
+}
+
+fn generate_conflict_report(conflict_checker: &ConflictChecker, output_dir: &PathBuf) -> Result<()> {
+    // Create output directory if it doesn't exist
+    let reports_dir = output_dir.join("docs").join("unified-analyzer").join("reports");
+    fs::create_dir_all(&reports_dir)?;
+
+    // Generate JSON report
+    let json_report = conflict_checker.generate_conflicts_report()?;
+    let json_path = reports_dir.join("conflicts.json");
+    fs::write(&json_path, json_report)?;
+    println!("Conflict JSON report saved to: {}", json_path.display());
+
+    // Generate Markdown report
+    let markdown_report = conflict_checker.generate_conflicts_markdown();
+    let markdown_path = reports_dir.join("conflicts.md");
+    fs::write(&markdown_path, markdown_report)?;
+    println!("Conflict Markdown report saved to: {}", markdown_path.display());
+
+    Ok(())
+}
+
+fn generate_integration_progress_report(integration_tracker: &IntegrationTracker, output_dir: &PathBuf) -> Result<()> {
+    // Create output directory if it doesn't exist
+    let reports_dir = output_dir.join("docs").join("unified-analyzer").join("reports");
+    fs::create_dir_all(&reports_dir)?;
+
+    // Generate JSON report
+    let json_report = integration_tracker.generate_progress_report()?;
+    let json_path = reports_dir.join("integration_progress.json");
+    fs::write(&json_path, json_report)?;
+    println!("Integration progress JSON report saved to: {}", json_path.display());
+
+    // Generate Markdown report
+    let markdown_report = integration_tracker.generate_progress_markdown();
+    let markdown_path = reports_dir.join("integration_progress.md");
+    fs::write(&markdown_path, markdown_report)?;
+    println!("Integration progress Markdown report saved to: {}", markdown_path.display());
+
+    Ok(())
+}
+
+fn generate_recommendation_report(recommendation_system: &RecommendationSystem, output_dir: &PathBuf) -> Result<()> {
+    // Create output directory if it doesn't exist
+    let reports_dir = output_dir.join("docs").join("unified-analyzer").join("reports");
+    fs::create_dir_all(&reports_dir)?;
+
+    // Generate JSON report
+    let json_report = recommendation_system.generate_recommendations_report()?;
+    let json_path = reports_dir.join("recommendations.json");
+    fs::write(&json_path, json_report)?;
+    println!("Recommendations JSON report saved to: {}", json_path.display());
+
+    // Generate Markdown report
+    let markdown_report = recommendation_system.generate_recommendations_markdown();
+    let markdown_path = reports_dir.join("recommendations.md");
+    fs::write(&markdown_path, &markdown_report)?;
+    println!("Recommendations Markdown report saved to: {}", markdown_path.display());
+
+    // Generate next steps file
+    let next_steps_path = output_dir.join("docs").join("unified-analyzer").join("next_steps.md");
+    fs::write(&next_steps_path, &markdown_report)?;
+    println!("Next steps saved to: {}", next_steps_path.display());
+
+    Ok(())
+}
+
+async fn run_helix_db_integration(base_dir: &PathBuf, config: &Config) -> Result<()> {
+    println!("---- Running HelixDB Integration Analyzer ----");
+
+    // Get paths to various codebases
+    let canvas_path = match config.get_path("canvas_path") {
+        Some(path) => PathBuf::from(path),
+        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\canvas"),
+    };
+
+    let discourse_path = match config.get_path("discourse_path") {
+        Some(path) => PathBuf::from(path),
+        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\discourse"),
+    };
+
+    let ordo_path = match config.get_path("lms_path") {
+        Some(path) => PathBuf::from(path),
+        None => base_dir.clone(),
+    };
+
+    let moodle_path = match config.get_path("moodle_path") {
+        Some(path) => Some(PathBuf::from(path)),
+        None => None,
+    };
+
+    let wordpress_path = match config.get_path("wordpress_path") {
+        Some(path) => Some(PathBuf::from(path)),
+        None => None,
+    };
+
+    // Initialize HelixDB integration analyzer
+    let mut helix_db_analyzer = if !config.performance.enable_caching {
+        println!("Caching disabled for HelixDB integration analyzer");
+        HelixDbIntegrationAnalyzer::new_without_cache()
+    } else {
+        println!("Caching enabled for HelixDB integration analyzer");
+        HelixDbIntegrationAnalyzer::new()
+    };
+
+    // Extract database schemas
+    println!("Extracting Canvas database schema...");
+    helix_db_analyzer.extract_canvas_schema(&canvas_path)?;
+
+    println!("Extracting Discourse database schema...");
+    helix_db_analyzer.extract_discourse_schema(&discourse_path)?;
+
+    println!("Extracting Ordo database schema...");
+    helix_db_analyzer.extract_ordo_schema(&ordo_path)?;
+
+    // Extract Moodle schema if path is provided
+    if let Some(path) = &moodle_path {
+        println!("Extracting Moodle database schema...");
+        helix_db_analyzer.extract_moodle_schema(path)?;
+    }
+
+    // Extract WordPress schema if path is provided
+    if let Some(path) = &wordpress_path {
+        println!("Extracting WordPress database schema...");
+        helix_db_analyzer.extract_wordpress_schema(path)?;
+    }
+
+    // Generate mappings
+    println!("Generating database mappings...");
+    helix_db_analyzer.generate_mappings()?;
+
+    // Generate reports
+    println!("Generating HelixDB integration reports...");
+    generate_helix_db_integration_report(&helix_db_analyzer, &base_dir)?;
+
+    println!("---- HelixDB Integration Analyzer Completed ----");
+
+    Ok(())
+}
+
+fn generate_helix_db_integration_report(helix_db_analyzer: &HelixDbIntegrationAnalyzer, output_dir: &PathBuf) -> Result<()> {
+    // Create output directory if it doesn't exist
+    let reports_dir = output_dir.join("docs").join("unified-analyzer").join("reports");
+    fs::create_dir_all(&reports_dir)?;
+
+    // Generate JSON report
+    let json_report = helix_db_analyzer.generate_mapping_report()?;
+    let json_path = reports_dir.join("helix_db_integration.json");
+    fs::write(&json_path, json_report)?;
+    println!("HelixDB integration JSON report saved to: {}", json_path.display());
+
+    // Generate Markdown report
+    let markdown_report = helix_db_analyzer.generate_mapping_markdown();
+    let markdown_path = reports_dir.join("helix_db_integration.md");
+    fs::write(&markdown_path, &markdown_report)?;
+    println!("HelixDB integration Markdown report saved to: {}", markdown_path.display());
+
+    // Generate integration plan file
+    let plan_path = output_dir.join("docs").join("unified-analyzer").join("helix_db_integration_plan.md");
+    fs::write(&plan_path, &markdown_report)?;
+    println!("HelixDB integration plan saved to: {}", plan_path.display());
+
     Ok(())
 }
