@@ -1,0 +1,153 @@
+name: Unified Analyzer CI/CD
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'tools/unified-analyzer/**'
+      - '.github/workflows/unified-analyzer-ci.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'tools/unified-analyzer/**'
+      - '.github/workflows/unified-analyzer-ci.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+    
+    - name: Cache Rust dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          tools/unified-analyzer/target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+    
+    - name: Build
+      working-directory: tools/unified-analyzer
+      run: cargo build --release
+    
+    - name: Run tests
+      working-directory: tools/unified-analyzer
+      run: cargo test --release
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: unified-analyzer
+        path: |
+          tools/unified-analyzer/target/release/unified-analyzer.exe
+          tools/unified-analyzer/unified-analyze.bat
+          tools/unified-analyzer/config.toml
+          tools/unified-analyzer/docs/
+  
+  analyze-test-project:
+    name: Analyze Test Project
+    needs: build
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: unified-analyzer
+        path: unified-analyzer
+    
+    - name: Make executable
+      run: |
+        chmod +x unified-analyzer/unified-analyzer.exe
+        chmod +x unified-analyzer/unified-analyze.bat
+    
+    - name: Run quick analysis on test project
+      run: |
+        mkdir -p test_project/docs
+        cd unified-analyzer
+        ./unified-analyze.bat --quick --path ../test_project
+    
+    - name: Generate visualizations
+      run: |
+        cd unified-analyzer
+        ./unified-analyze.bat --viz --path ../test_project
+    
+    - name: Upload analysis results
+      uses: actions/upload-artifact@v3
+      with:
+        name: analysis-results
+        path: |
+          test_project/unified_output.json
+          test_project/docs/
+  
+  deploy:
+    name: Deploy
+    needs: [build, analyze-test-project]
+    runs-on: windows-latest
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: unified-analyzer
+        path: unified-analyzer
+    
+    - name: Make executable
+      run: |
+        chmod +x unified-analyzer/unified-analyzer.exe
+        chmod +x unified-analyzer/unified-analyze.bat
+    
+    - name: Create deployment package
+      run: |
+        mkdir -p deployment
+        cp -r unified-analyzer/* deployment/
+        cp -r docs deployment/
+    
+    - name: Upload deployment package
+      uses: actions/upload-artifact@v3
+      with:
+        name: unified-analyzer-deployment
+        path: deployment/
+    
+    - name: Create GitHub Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ github.run_number }}
+        release_name: Unified Analyzer v${{ github.run_number }}
+        draft: false
+        prerelease: false
+    
+    - name: Zip deployment package
+      run: |
+        Compress-Archive -Path deployment/* -DestinationPath unified-analyzer-v${{ github.run_number }}.zip
+    
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./unified-analyzer-v${{ github.run_number }}.zip
+        asset_name: unified-analyzer-v${{ github.run_number }}.zip
+        asset_content_type: application/zip

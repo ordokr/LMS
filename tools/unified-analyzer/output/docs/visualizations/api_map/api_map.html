@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Map</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1, h2, h3, h4 {
+            color: #2c3e50;
+        }
+        .header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px 0;
+            margin-bottom: 30px;
+        }
+        .filters {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border: 1px solid #e9ecef;
+        }
+        .filter-group {
+            margin-bottom: 15px;
+        }
+        .filter-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .filter-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        .filter-option {
+            padding: 5px 10px;
+            background-color: #e9ecef;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .filter-option:hover {
+            background-color: #dee2e6;
+        }
+        .filter-option.active {
+            background-color: #3498db;
+            color: white;
+        }
+        .search-box {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+        }
+        .category {
+            margin-bottom: 30px;
+        }
+        .method-group {
+            margin-bottom: 20px;
+        }
+        .method-header {
+            padding: 10px 15px;
+            font-weight: bold;
+            border-radius: 5px 5px 0 0;
+            color: white;
+        }
+        .method-get {
+            background-color: #28a745;
+        }
+        .method-post {
+            background-color: #007bff;
+        }
+        .method-put {
+            background-color: #fd7e14;
+        }
+        .method-patch {
+            background-color: #6f42c1;
+        }
+        .method-delete {
+            background-color: #dc3545;
+        }
+        .endpoint {
+            border: 1px solid #dee2e6;
+            border-top: none;
+            background-color: white;
+        }
+        .endpoint-header {
+            padding: 10px 15px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .endpoint-header:hover {
+            background-color: #f8f9fa;
+        }
+        .endpoint-path {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+        }
+        .endpoint-details {
+            padding: 15px;
+            border-top: 1px solid #dee2e6;
+            display: none;
+        }
+        .endpoint.active .endpoint-details {
+            display: block;
+        }
+        .badge {
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        .auth-required {
+            background-color: #dc3545;
+            color: white;
+        }
+        .auth-optional {
+            background-color: #6c757d;
+            color: white;
+        }
+        .params-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        .params-table th, .params-table td {
+            padding: 8px;
+            border: 1px solid #dee2e6;
+        }
+        .params-table th {
+            background-color: #f8f9fa;
+        }
+        .api-graph {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            background-color: white;
+        }
+        .nav-tabs {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>API Map</h1>
+            <p class="lead">Interactive visualization of the API endpoints</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <ul class="nav nav-tabs" id="apiTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="list-tab" data-bs-toggle="tab" data-bs-target="#list" type="button" role="tab" aria-controls="list" aria-selected="true">List View</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="graph-tab" data-bs-toggle="tab" data-bs-target="#graph" type="button" role="tab" aria-controls="graph" aria-selected="false">Graph View</button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="apiTabsContent">
+            <div class="tab-pane fade show active" id="list" role="tabpanel" aria-labelledby="list-tab">
+                <div class="filters">
+                    <h3>Filters</h3>
+                    <div class="filter-group">
+                        <label class="filter-label">Search</label>
+                        <input type="text" class="search-box" id="searchBox" placeholder="Search endpoints...">
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">HTTP Method</label>
+                        <div class="filter-options" id="methodFilters">
+                            <div class="filter-option active" data-method="all">All</div>
+                            <div class="filter-option" data-method="get">GET</div>
+
+                        </div>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">Authentication</label>
+                        <div class="filter-options" id="authFilters">
+                            <div class="filter-option active" data-auth="all">All</div>
+                            <div class="filter-option" data-auth="required">Required</div>
+                            <div class="filter-option" data-auth="optional">Optional</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="category" id="coursescontroller">
+    <h2>CoursesController</h2>
+    <div class="method-group">
+        <div class="method-header method-get">
+            GET Endpoints
+        </div>
+        <div class="endpoint" data-method="get" data-auth="required">
+            <div class="endpoint-header">
+                <span class="endpoint-path">/api/v1/courses</span>
+                <span class="badge auth-required">Auth Required</span>
+            </div>
+            <div class="endpoint-details">
+                <p>Get all courses</p>
+                <h4>Controller</h4>
+                <p>CoursesController</p>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="category" id="userscontroller">
+    <h2>UsersController</h2>
+    <div class="method-group">
+        <div class="method-header method-get">
+            GET Endpoints
+        </div>
+        <div class="endpoint" data-method="get" data-auth="required">
+            <div class="endpoint-header">
+                <span class="endpoint-path">/api/v1/users</span>
+                <span class="badge auth-required">Auth Required</span>
+            </div>
+            <div class="endpoint-details">
+                <p>Get all users</p>
+                <h4>Controller</h4>
+                <p>UsersController</p>
+            </div>
+        </div>
+        <div class="endpoint" data-method="get" data-auth="required">
+            <div class="endpoint-header">
+                <span class="endpoint-path">/api/v1/users/{id}</span>
+                <span class="badge auth-required">Auth Required</span>
+            </div>
+            <div class="endpoint-details">
+                <p>Get a specific user</p>
+                <h4>Parameters</h4>
+                <table class="params-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>id</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <h4>Controller</h4>
+                <p>UsersController</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+            </div>
+
+            <div class="tab-pane fade" id="graph" role="tabpanel" aria-labelledby="graph-tab">
+                <div class="api-graph" id="apiGraph"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Toggle endpoint details
+        document.querySelectorAll('.endpoint-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const endpoint = header.parentElement;
+                endpoint.classList.toggle('active');
+            });
+        });
+
+        // Filter endpoints
+        const endpoints = document.querySelectorAll('.endpoint');
+
+        // Method filters
+        document.querySelectorAll('#methodFilters .filter-option').forEach(option => {
+            option.addEventListener('click', () => {
+                // Update active state
+                document.querySelectorAll('#methodFilters .filter-option').forEach(opt => {
+                    opt.classList.remove('active');
+                });
+                option.classList.add('active');
+
+                // Apply filters
+                applyFilters();
+            });
+        });
+
+        // Auth filters
+        document.querySelectorAll('#authFilters .filter-option').forEach(option => {
+            option.addEventListener('click', () => {
+                // Update active state
+                document.querySelectorAll('#authFilters .filter-option').forEach(opt => {
+                    opt.classList.remove('active');
+                });
+                option.classList.add('active');
+
+                // Apply filters
+                applyFilters();
+            });
+        });
+
+        // Search box
+        const searchBox = document.getElementById('searchBox');
+        searchBox.addEventListener('input', () => {
+            applyFilters();
+        });
+
+        function applyFilters() {
+            const methodFilter = document.querySelector('#methodFilters .filter-option.active').getAttribute('data-method');
+            const authFilter = document.querySelector('#authFilters .filter-option.active').getAttribute('data-auth');
+            const searchText = searchBox.value.toLowerCase();
+
+            endpoints.forEach(endpoint => {
+                const method = endpoint.getAttribute('data-method');
+                const auth = endpoint.getAttribute('data-auth');
+                const path = endpoint.querySelector('.endpoint-path').textContent.toLowerCase();
+                const details = endpoint.querySelector('.endpoint-details').textContent.toLowerCase();
+
+                const methodMatch = methodFilter === 'all' || method === methodFilter;
+                const authMatch = authFilter === 'all' || auth === authFilter;
+                const searchMatch = searchText === '' || path.includes(searchText) || details.includes(searchText);
+
+                if (methodMatch && authMatch && searchMatch) {
+                    endpoint.style.display = 'block';
+                } else {
+                    endpoint.style.display = 'none';
+                }
+            });
+        }
+
+        // Initialize D3.js graph when switching to graph tab
+        document.getElementById('graph-tab').addEventListener('click', initGraph);
+
+        function initGraph() {
+            // Only initialize if not already initialized
+            if (document.querySelector('#apiGraph svg')) return;
+
+            const width = document.getElementById('apiGraph').clientWidth;
+            const height = document.getElementById('apiGraph').clientHeight;
+
+            // Create SVG
+            const svg = d3.select('#apiGraph')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+
+            // Create nodes and links
+            const nodes = [];
+            const links = [];
+
+            // Add client node
+            nodes.push({
+                id: 'client',
+                name: 'Client',
+                group: 0
+            });
+
+            // Add API endpoints and controllers
+            let nodeId = 1;
+            const nodeMap = new Map();
+            nodeMap.set('client', 0);
+
+            endpoints.forEach(endpoint => {
+                const path = endpoint.querySelector('.endpoint-path').textContent;
+                const method = endpoint.getAttribute('data-method');
+                const controller = endpoint.querySelector('.endpoint-details h4:contains("Controller")');
+
+                // Add endpoint node
+                const endpointId = `${method}-${path.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                if (!nodeMap.has(endpointId)) {
+                    nodeMap.set(endpointId, nodeId++);
+                    nodes.push({
+                        id: endpointId,
+                        name: `${method.toUpperCase()} ${path}`,
+                        group: 1
+                    });
+
+                    // Link client to endpoint
+                    links.push({
+                        source: nodeMap.get('client'),
+                        target: nodeMap.get(endpointId),
+                        value: 1
+                    });
+                }
+
+                // Add controller node if available
+                if (controller) {
+                    const controllerName = controller.nextElementSibling.textContent;
+                    if (!nodeMap.has(controllerName)) {
+                        nodeMap.set(controllerName, nodeId++);
+                        nodes.push({
+                            id: controllerName,
+                            name: controllerName,
+                            group: 2
+                        });
+                    }
+
+                    // Link endpoint to controller
+                    links.push({
+                        source: nodeMap.get(endpointId),
+                        target: nodeMap.get(controllerName),
+                        value: 1
+                    });
+                }
+            });
+
+            // Create force simulation
+            const simulation = d3.forceSimulation(nodes)
+                .force('link', d3.forceLink(links).id(d => d.id).distance(100))
+                .force('charge', d3.forceManyBody().strength(-300))
+                .force('center', d3.forceCenter(width / 2, height / 2));
+
+            // Create links
+            const link = svg.append('g')
+                .selectAll('line')
+                .data(links)
+                .enter().append('line')
+                .attr('stroke', '#999')
+                .attr('stroke-opacity', 0.6)
+                .attr('stroke-width', function(d) { return Math.sqrt(d.value); });
+
+            // Create nodes
+            const node = svg.append('g')
+                .selectAll('circle')
+                .data(nodes)
+                .enter().append('circle')
+                .attr('r', 8)
+                .attr('fill', function(d) { return d.group === 0 ? '#2c3e50' : d.group === 1 ? '#3498db' : '#e74c3c'; })
+                .call(d3.drag()
+                    .on('start', dragstarted)
+                    .on('drag', dragged)
+                    .on('end', dragended));
+
+            // Add labels
+            const label = svg.append('g')
+                .selectAll('text')
+                .data(nodes)
+                .enter().append('text')
+                .attr('dx', 12)
+                .attr('dy', '0.35em')
+                .text(function(d) { return d.name; });
+
+            // Add tooltips
+            node.append('title')
+                .text(function(d) { return d.name; });
+
+            // Update positions on tick
+            simulation.on('tick', function() {
+                link
+                    .attr('x1', function(d) { return d.source.x; })
+                    .attr('y1', function(d) { return d.source.y; })
+                    .attr('x2', function(d) { return d.target.x; })
+                    .attr('y2', function(d) { return d.target.y; });
+
+                node
+                    .attr('cx', function(d) { return d.x; })
+                    .attr('cy', function(d) { return d.y; });
+
+                label
+                    .attr('x', function(d) { return d.x; })
+                    .attr('y', function(d) { return d.y; });
+            });
+
+            // Drag functions
+            function dragstarted(event, d) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+
+            function dragged(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            }
+
+            function dragended(event, d) {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
+        }
+
+        // Helper function for jQuery-like selector
+        HTMLElement.prototype.contains = function(text) {
+            return this.textContent.includes(text);
+        };
+    </script>
+</body>
+</html>

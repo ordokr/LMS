@@ -24,6 +24,7 @@ mod metrics;
 mod error;
 // mod analyzers; // Analyzers have been moved to tools/unified-analyzer
 mod ai;
+mod examples; // Examples for demonstrating features
 
 use axum::{
     routing::{get, post},

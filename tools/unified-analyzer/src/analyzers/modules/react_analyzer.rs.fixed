@@ -1,0 +1,450 @@
+use std::collections::HashMap;
+use std::path::PathBuf;
+use regex::Regex;
+use lazy_static::lazy_static;
+
+use crate::analyzers::analyzer::Analyzer;
+use crate::analyzers::analyzer::AnalyzerResult;
+
+#[derive(Debug, Clone)]
+pub struct ReactAnalyzer {
+    components: Vec<ReactComponent>,
+    routes: Vec<ReactRoute>,
+    hooks: Vec<ReactHook>,
+    redux_stores: HashMap<String, ReactReduxStore>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ReactComponent {
+    pub name: String,
+    pub file_path: String,
+    pub props: Vec<String>,
+    pub state: Vec<String>,
+    pub hooks: Vec<String>,
+    pub children: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ReactRoute {
+    pub path: String,
+    pub component: String,
+    pub exact: bool,
+    pub auth_required: bool,
+    pub file_path: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct ReactHook {
+    pub name: String,
+    pub file_path: String,
+    pub dependencies: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ReactReduxStore {
+    pub name: String,
+    pub file_path: String,
+    pub actions: Vec<String>,
+    pub reducers: Vec<String>,
+    pub selectors: Vec<String>,
+}
+
+impl ReactAnalyzer {
+    pub fn new() -> Self {
+        Self {
+            components: Vec::new(),
+            routes: Vec::new(),
+            hooks: Vec::new(),
+            redux_stores: HashMap::new(),
+        }
+    }
+}
+
+impl Analyzer for ReactAnalyzer {
+    fn analyze(&self, base_dir: &str) -> Result<AnalyzerResult, String> {
+        let mut analyzer = ReactAnalyzer::new();
+        
+        // Find all JavaScript and TypeScript files
+        let js_files = self.find_files(base_dir, &["js", "jsx", "ts", "tsx"]);
+        
+        for file_path in js_files {
+            if let Ok(content) = std::fs::read_to_string(&file_path) {
+                let file_path_str = file_path.to_string_lossy().to_string();
+                
+                // Extract components
+                analyzer.extract_components(&content, &file_path_str);
+                
+                // Extract routes
+                analyzer.extract_routes(&content, &file_path_str);
+                
+                // Extract hooks
+                analyzer.extract_hooks(&content, &file_path_str);
+                
+                // Extract Redux stores
+                analyzer.extract_redux_stores(&content, &file_path_str);
+            }
+        }
+        
+        Ok(AnalyzerResult::React {
+            components: analyzer.components,
+            routes: analyzer.routes,
+            hooks: analyzer.hooks,
+            redux_stores: analyzer.redux_stores,
+        })
+    }
+    
+    fn find_files(&self, base_dir: &str, extensions: &[&str]) -> Vec<PathBuf> {
+        let mut files = Vec::new();
+        
+        if let Ok(entries) = std::fs::read_dir(base_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                
+                if path.is_dir() {
+                    // Skip node_modules and other common directories
+                    if let Some(dir_name) = path.file_name().and_then(|n| n.to_str()) {
+                        if dir_name == "node_modules" || dir_name == "build" || dir_name == "dist" {
+                            continue;
+                        }
+                    }
+                    
+                    // Recursively search subdirectories
+                    let mut subdir_files = self.find_files(&path.to_string_lossy(), extensions);
+                    files.append(&mut subdir_files);
+                } else if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                    if extensions.contains(&ext) {
+                        files.push(path);
+                    }
+                }
+            }
+        }
+        
+        files
+    }
+}
+
+impl ReactAnalyzer {
+    fn extract_components(&mut self, content: &str, file_path: &str) {
+        lazy_static! {
+            // Match functional components
+            static ref FUNC_COMPONENT_REGEX: Regex = Regex::new(
+                r"(?:export\s+)?(?:const|function)\s+([A-Z]\w+)\s*=?\s*(?:\([^)]*\)|[^=]*=>\s*)"
+            ).unwrap();
+            
+            // Match class components
+            static ref CLASS_COMPONENT_REGEX: Regex = Regex::new(
+                r"class\s+([A-Z]\w+)\s+extends\s+(?:React\.)?Component"
+            ).unwrap();
+            
+            // Match props destructuring
+            static ref PROPS_REGEX: Regex = Regex::new(
+                r"(?:const|let)\s+\{\s*([\w\s,]+)\s*\}\s*=\s*props"
+            ).unwrap();
+            
+            // Match useState hooks
+            static ref USE_STATE_REGEX: Regex = Regex::new(
+                r"const\s+\[\s*(\w+),\s*set(\w+)\s*\]\s*=\s*useState"
+            ).unwrap();
+            
+            // Match useEffect hooks
+            static ref USE_EFFECT_REGEX: Regex = Regex::new(
+                r"useEffect\(\s*\(\)\s*=>\s*\{[^}]*\},\s*\[([\w\s,]*)\]"
+            ).unwrap();
+        }
+        
+        // Extract functional components
+        for cap in FUNC_COMPONENT_REGEX.captures_iter(content) {
+            if let Some(component_name) = cap.get(1) {
+                let name = component_name.as_str().to_string();
+                
+                // Skip if not a component (components start with uppercase)
+                if !name.chars().next().map_or(false, |c| c.is_uppercase()) {
+                    continue;
+                }
+                
+                let mut component = ReactComponent {
+                    name: name.clone(),
+                    file_path: file_path.to_string(),
+                    props: Vec::new(),
+                    state: Vec::new(),
+                    hooks: Vec::new(),
+                    children: Vec::new(),
+                };
+                
+                // Extract props
+                for props_cap in PROPS_REGEX.captures_iter(content) {
+                    if let Some(props_match) = props_cap.get(1) {
+                        let props = props_match.as_str()
+                            .split(',')
+                            .map(|s| s.trim().to_string())
+                            .filter(|s| !s.is_empty())
+                            .collect::<Vec<String>>();
+                        
+                        component.props.extend(props);
+                    }
+                }
+                
+                // Extract state from useState hooks
+                for state_cap in USE_STATE_REGEX.captures_iter(content) {
+                    if let Some(state_name) = state_cap.get(1) {
+                        component.state.push(state_name.as_str().to_string());
+                    }
+                }
+                
+                // Extract hooks
+                if content.contains("useEffect") {
+                    component.hooks.push("useEffect".to_string());
+                }
+                if content.contains("useContext") {
+                    component.hooks.push("useContext".to_string());
+                }
+                if content.contains("useReducer") {
+                    component.hooks.push("useReducer".to_string());
+                }
+                if content.contains("useCallback") {
+                    component.hooks.push("useCallback".to_string());
+                }
+                if content.contains("useMemo") {
+                    component.hooks.push("useMemo".to_string());
+                }
+                if content.contains("useRef") {
+                    component.hooks.push("useRef".to_string());
+                }
+                
+                // Extract children components
+                for other_cap in FUNC_COMPONENT_REGEX.captures_iter(content) {
+                    if let Some(other_name) = other_cap.get(1) {
+                        let other = other_name.as_str().to_string();
+                        if other != name && content.contains(&format!("<{}", other)) {
+                            component.children.push(other);
+                        }
+                    }
+                }
+                
+                self.components.push(component);
+            }
+        }
+        
+        // Extract class components
+        for cap in CLASS_COMPONENT_REGEX.captures_iter(content) {
+            if let Some(component_name) = cap.get(1) {
+                let name = component_name.as_str().to_string();
+                
+                let mut component = ReactComponent {
+                    name: name.clone(),
+                    file_path: file_path.to_string(),
+                    props: Vec::new(),
+                    state: Vec::new(),
+                    hooks: Vec::new(),
+                    children: Vec::new(),
+                };
+                
+                // Extract state from class components
+                if let Some(state_section) = content.find("this.state = {") {
+                    let state_end = content[state_section..].find("}");
+                    if let Some(end_pos) = state_end {
+                        let state_block = &content[state_section..state_section + end_pos];
+                        let state_lines = state_block.lines();
+                        
+                        for line in state_lines {
+                            if let Some(colon_pos) = line.find(':') {
+                                let state_name = line[..colon_pos].trim();
+                                if !state_name.is_empty() && state_name != "this.state = {" {
+                                    component.state.push(state_name.to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Extract children components
+                for other_cap in CLASS_COMPONENT_REGEX.captures_iter(content) {
+                    if let Some(other_name) = other_cap.get(1) {
+                        let other = other_name.as_str().to_string();
+                        if other != name && content.contains(&format!("<{}", other)) {
+                            component.children.push(other);
+                        }
+                    }
+                }
+                
+                self.components.push(component);
+            }
+        }
+    }
+    
+    fn extract_hooks(&mut self, content: &str, file_path: &str) {
+        lazy_static! {
+            // Match custom hooks
+            static ref HOOK_REGEX: Regex = Regex::new(
+                r"(?:export\s+)?(?:const|function)\s+(use\w+)\s*=?\s*\([^)]*\)"
+            ).unwrap();
+            
+            // Match hook dependencies
+            static ref HOOK_DEP_REGEX: Regex = Regex::new(
+                r"useEffect\(\s*\(\)\s*=>\s*\{[^}]*\},\s*\[([\w\s,]*)\]"
+            ).unwrap();
+        }
+        
+        // Extract custom hooks
+        for cap in HOOK_REGEX.captures_iter(content) {
+            if let Some(hook_name) = cap.get(1) {
+                let name = hook_name.as_str().to_string();
+                
+                // Skip if not a hook (hooks start with "use")
+                if !name.starts_with("use") {
+                    continue;
+                }
+                
+                let mut hook = ReactHook {
+                    name: name.clone(),
+                    file_path: file_path.to_string(),
+                    dependencies: Vec::new(),
+                };
+                
+                // Extract dependencies
+                for dep_cap in HOOK_DEP_REGEX.captures_iter(content) {
+                    if let Some(deps_match) = dep_cap.get(1) {
+                        let deps = deps_match.as_str()
+                            .split(',')
+                            .map(|s| s.trim().to_string())
+                            .filter(|s| !s.is_empty())
+                            .collect::<Vec<String>>();
+                        
+                        hook.dependencies.extend(deps);
+                    }
+                }
+                
+                self.hooks.push(hook);
+            }
+        }
+    }
+
+    fn extract_routes(&mut self, content: &str, file_path: &str) {
+        lazy_static! {
+            // Match React Router routes
+            static ref ROUTE_REGEX: Regex = Regex::new(
+                r#"<Route\s+(?:[^>]*\s+)?path=["']([^"']+)["'](?:[^>]*\s+)?component=\{([^}]+)\}"#
+            ).unwrap();
+
+            // Match exact prop
+            static ref EXACT_REGEX: Regex = Regex::new(
+                r#"<Route\s+(?:[^>]*\s+)?exact(?:\s+|=\{true\}|[^>]*)"#
+            ).unwrap();
+
+            // Match private/protected routes
+            static ref PROTECTED_ROUTE_REGEX: Regex = Regex::new(
+                r#"<(?:Private|Protected|Auth)Route"#
+            ).unwrap();
+        }
+
+        // Extract routes
+        for cap in ROUTE_REGEX.captures_iter(content) {
+            if let (Some(path), Some(component)) = (cap.get(1), cap.get(2)) {
+                let path_str = path.as_str().to_string();
+                let component_str = component.as_str().trim().to_string();
+
+                // Check if route is exact
+                let exact = EXACT_REGEX.is_match(cap.get(0).unwrap().as_str());
+
+                // Check if route is protected
+                let auth_required = PROTECTED_ROUTE_REGEX.is_match(content) ||
+                                   content.contains("isAuthenticated") ||
+                                   content.contains("requireAuth");
+
+                self.routes.push(ReactRoute {
+                    path: path_str,
+                    component: component_str,
+                    exact,
+                    auth_required,
+                    file_path: file_path.to_string(),
+                });
+            }
+        }
+    }
+
+    fn extract_redux_stores(&mut self, content: &str, file_path: &str) {
+        lazy_static! {
+            // Match Redux action types
+            static ref ACTION_TYPE_REGEX: Regex = Regex::new(
+                r#"(?:export\s+)?const\s+([A-Z_]+)\s*=\s*["'](\w+)["']\s*;"#
+            ).unwrap();
+
+            // Match Redux action creators
+            static ref ACTION_CREATOR_REGEX: Regex = Regex::new(
+                r#"(?:export\s+)?(?:const|function)\s+(\w+Action)\s*=\s*\([^)]*\)\s*=>"#
+            ).unwrap();
+
+            // Match Redux reducers
+            static ref REDUCER_REGEX: Regex = Regex::new(
+                r#"(?:export\s+)?(?:const|function)\s+(\w+Reducer)\s*=\s*\(state\s*=\s*initialState,\s*action\)\s*=>"#
+            ).unwrap();
+
+            // Match Redux selectors
+            static ref SELECTOR_REGEX: Regex = Regex::new(
+                r#"(?:export\s+)?(?:const|function)\s+(\w+Selector|select\w+)\s*=\s*\(state\)\s*=>"#
+            ).unwrap();
+        }
+
+        // Check if this is a Redux file
+        if content.contains("createStore") ||
+           content.contains("combineReducers") ||
+           content.contains("useDispatch") ||
+           content.contains("useSelector") ||
+           content.contains("mapStateToProps") {
+
+            // Try to determine store name from file path
+            let file_name = PathBuf::from(file_path)
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("unknown")
+                .to_string();
+
+            let store_name = if file_name.ends_with("Reducer") {
+                file_name.replace("Reducer", "Store")
+            } else if file_name.ends_with("Slice") {
+                file_name.replace("Slice", "Store")
+            } else {
+                format!("{}{}", file_name, "Store")
+            };
+
+            let mut redux_store = ReactReduxStore {
+                name: store_name.clone(),
+                file_path: file_path.to_string(),
+                actions: Vec::new(),
+                reducers: Vec::new(),
+                selectors: Vec::new(),
+            };
+
+            // Extract action types and creators
+            for cap in ACTION_TYPE_REGEX.captures_iter(content) {
+                if let Some(action_type) = cap.get(1) {
+                    redux_store.actions.push(action_type.as_str().to_string());
+                }
+            }
+
+            for cap in ACTION_CREATOR_REGEX.captures_iter(content) {
+                if let Some(action_creator) = cap.get(1) {
+                    redux_store.actions.push(action_creator.as_str().to_string());
+                }
+            }
+
+            // Extract reducers
+            for cap in REDUCER_REGEX.captures_iter(content) {
+                if let Some(reducer) = cap.get(1) {
+                    redux_store.reducers.push(reducer.as_str().to_string());
+                }
+            }
+
+            // Extract selectors
+            for cap in SELECTOR_REGEX.captures_iter(content) {
+                if let Some(selector) = cap.get(1) {
+                    redux_store.selectors.push(selector.as_str().to_string());
+                }
+            }
+
+            if !redux_store.actions.is_empty() || !redux_store.reducers.is_empty() || !redux_store.selectors.is_empty() {
+                self.redux_stores.insert(store_name, redux_store);
+            }
+        }
+    }
+}

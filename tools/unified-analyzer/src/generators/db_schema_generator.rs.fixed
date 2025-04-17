@@ -1,0 +1,299 @@
+use std::path::PathBuf;
+use std::fs;
+use std::collections::{HashMap, HashSet};
+use serde::{Serialize, Deserialize};
+
+use crate::output_schema::{UnifiedAnalysisOutput, DatabaseTableInfo, ColumnInfo};
+
+pub struct DbSchemaGenerator;
+
+impl DbSchemaGenerator {
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn generate(&self, output: &UnifiedAnalysisOutput, output_dir: &PathBuf) -> Result<(), String> {
+        println!("Generating database schema visualization...");
+
+        // Create output directory if it doesn't exist
+        if !output_dir.exists() {
+            fs::create_dir_all(output_dir).map_err(|e| format!("Failed to create output directory: {}", e))?;
+        }
+
+        // Generate database schema as Markdown with Mermaid diagram
+        let markdown = self.generate_markdown(output)?;
+        let md_path = output_dir.join("db_schema.md");
+        fs::write(&md_path, markdown)
+            .map_err(|e| format!("Failed to write database schema markdown: {}", e))?;
+
+        // Generate database schema as HTML
+        let html = self.generate_html(output)?;
+        let html_path = output_dir.join("db_schema.html");
+        fs::write(&html_path, html)
+            .map_err(|e| format!("Failed to write database schema HTML: {}", e))?;
+
+        println!("Database schema visualization generated at:");
+        println!("  - Markdown: {}", md_path.display());
+        println!("  - HTML: {}", html_path.display());
+
+        Ok(())
+    }
+
+    fn generate_markdown(&self, output: &UnifiedAnalysisOutput) -> Result<String, String> {
+        let mut markdown = String::new();
+
+        // Header
+        markdown.push_str("# Database Schema Visualization\n\n");
+        markdown.push_str("This document provides a visualization of the database schema, including tables, columns, relationships, and indexes.\n\n");
+
+        // Generate ERD diagram using Mermaid
+        markdown.push_str("## Entity-Relationship Diagram\n\n");
+        markdown.push_str("```mermaid\nerDiagram\n");
+
+        // Add tables and columns
+        for table in &output.database.tables {
+            markdown.push_str(&format!("    {} {{\n", table.name));
+            
+            for column in &table.columns {
+                let pk_indicator = if column.name == "id" || column.name.ends_with("_id") { "PK " } else { "" };
+                markdown.push_str(&format!("        {} {} {}\n", column.data_type, column.name, pk_indicator));
+            }
+            
+            markdown.push_str("    }\n");
+        }
+
+        // Add relationships
+        let relationships = self.extract_relationships(&output.database.tables);
+        for rel in &relationships {
+            markdown.push_str(&format!("    {} ||--o{{ {} : \"{}\"\n", 
+                rel.parent_table, 
+                rel.child_table, 
+                rel.relationship_type
+            ));
+        }
+
+        markdown.push_str("```\n\n");
+
+        // Table details
+        markdown.push_str("## Table Details\n\n");
+        
+        for table in &output.database.tables {
+            markdown.push_str(&format!("### {}\n\n", table.name));
+            
+            // Create table for columns
+            markdown.push_str("| Column | Type | Constraints | Description |\n");
+            markdown.push_str("|--------|------|-------------|-------------|\n");
+            
+            for column in &table.columns {
+                let constraints = if column.name == "id" {
+                    "PRIMARY KEY"
+                } else if column.name.ends_with("_id") {
+                    "FOREIGN KEY"
+                } else if column.name == "created_at" || column.name == "updated_at" {
+                    "NOT NULL"
+                } else {
+                    ""
+                };
+                
+                let description = if column.name == "id" {
+                    "Unique identifier"
+                } else if column.name.ends_with("_id") {
+                    &format!("Reference to {}", column.name.replace("_id", "s"))
+                } else if column.name == "created_at" {
+                    "Creation timestamp"
+                } else if column.name == "updated_at" {
+                    "Last update timestamp"
+                } else {
+                    ""
+                };
+                
+                markdown.push_str(&format!("| {} | {} | {} | {} |\n", 
+                    column.name, 
+                    column.data_type, 
+                    constraints, 
+                    description
+                ));
+            }
+            
+            markdown.push_str("\n");
+        }
+
+        // Relationships
+        markdown.push_str("## Relationships\n\n");
+        markdown.push_str("| Parent Table | Child Table | Relationship Type | Foreign Key |\n");
+        markdown.push_str("|-------------|------------|-------------------|-------------|\n");
+        
+        for rel in &relationships {
+            markdown.push_str(&format!("| {} | {} | {} | {} |\n", 
+                rel.parent_table, 
+                rel.child_table, 
+                rel.relationship_type, 
+                rel.foreign_key
+            ));
+        }
+
+        Ok(markdown)
+    }
+
+    fn generate_html(&self, output: &UnifiedAnalysisOutput) -> Result<String, String> {
+        // Load template file
+        let template_path = "src/generators/templates/db_schema_template.html";
+        let template = match fs::read_to_string(template_path) {
+            Ok(content) => content,
+            Err(_) => {
+                // Fallback to embedded template if file not found
+                include_str!("templates/db_schema_template.html").to_string()
+            }
+        };
+        
+        // Generate table cards HTML
+        let mut table_cards_html = String::new();
+        for table in &output.database.tables {
+            table_cards_html.push_str(&format!(r#"<div class="col-md-6 table-item" data-table-name="{}">
+    <div class="table-card">
+        <div class="table-header">
+            {}
+        </div>
+        <div class="table-body">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Column</th>
+                        <th>Type</th>
+                        <th>Constraints</th>
+                    </tr>
+                </thead>
+                <tbody>
+"#, table.name.to_lowercase(), table.name));
+
+            for column in &table.columns {
+                let constraints = if column.name == "id" {
+                    r#"<span class="column-constraint primary-key">PRIMARY KEY</span>"#
+                } else if column.name.ends_with("_id") {
+                    r#"<span class="column-constraint foreign-key">FOREIGN KEY</span>"#
+                } else if column.name == "created_at" || column.name == "updated_at" {
+                    r#"<span class="column-constraint not-null">NOT NULL</span>"#
+                } else {
+                    ""
+                };
+                
+                table_cards_html.push_str(&format!(r#"                    <tr>
+                        <td class="column-name">{}</td>
+                        <td class="column-type">{}</td>
+                        <td>{}</td>
+                    </tr>
+"#, column.name, column.data_type, constraints));
+            }
+
+            table_cards_html.push_str(r#"                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+"#);
+        }
+        
+        // Generate relationships HTML
+        let relationships = self.extract_relationships(&output.database.tables);
+        let mut relationships_html = String::new();
+        
+        relationships_html.push_str(r#"<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Parent Table</th>
+            <th>Child Table</th>
+            <th>Relationship Type</th>
+            <th>Foreign Key</th>
+        </tr>
+    </thead>
+    <tbody>
+"#);
+        
+        for rel in &relationships {
+            relationships_html.push_str(&format!(r#"        <tr>
+            <td>{}</td>
+            <td>{}</td>
+            <td>{}</td>
+            <td>{}</td>
+        </tr>
+"#, rel.parent_table, rel.child_table, rel.relationship_type, rel.foreign_key));
+        }
+        
+        relationships_html.push_str(r#"    </tbody>
+</table>"#);
+        
+        // Create schema data for D3.js
+        let mut tables_data = Vec::new();
+        for table in &output.database.tables {
+            let mut columns = Vec::new();
+            for col in &table.columns {
+                columns.push(serde_json::json!({
+                    "name": col.name,
+                    "type": col.data_type,
+                    "primary_key": col.name == "id",
+                    "foreign_key": col.name.ends_with("_id")
+                }));
+            }
+            
+            tables_data.push(serde_json::json!({
+                "name": table.name,
+                "columns": columns
+            }));
+        }
+        
+        let mut relationships_data = Vec::new();
+        for rel in &relationships {
+            relationships_data.push(serde_json::json!({
+                "source_table": rel.parent_table,
+                "target_table": rel.child_table,
+                "source_column": "id",
+                "target_column": rel.foreign_key
+            }));
+        }
+        
+        let schema_data = serde_json::json!({
+            "tables": tables_data,
+            "relationships": relationships_data
+        });
+        
+        // Replace placeholders in template
+        let html = template
+            .replace("<!-- TABLE_LIST_PLACEHOLDER -->", &table_cards_html)
+            .replace("<!-- RELATIONSHIPS_LIST_PLACEHOLDER -->", &relationships_html)
+            .replace("<!-- SCHEMA_DATA_PLACEHOLDER -->", &schema_data.to_string());
+
+        Ok(html)
+    }
+    
+    struct Relationship {
+        parent_table: String,
+        child_table: String,
+        relationship_type: String,
+        foreign_key: String
+    }
+    
+    fn extract_relationships(&self, tables: &[DatabaseTableInfo]) -> Vec<Relationship> {
+        let mut relationships = Vec::new();
+        
+        // Extract relationships based on foreign key columns
+        for table in tables {
+            for column in &table.columns {
+                if column.name.ends_with("_id") {
+                    let parent_table = column.name.replace("_id", "");
+                    
+                    // Check if the parent table exists
+                    if tables.iter().any(|t| t.name.to_lowercase() == parent_table) {
+                        relationships.push(Relationship {
+                            parent_table: parent_table,
+                            child_table: table.name.clone(),
+                            relationship_type: "has many".to_string(),
+                            foreign_key: column.name.clone()
+                        });
+                    }
+                }
+            }
+        }
+        
+        relationships
+    }
+}

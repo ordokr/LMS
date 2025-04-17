@@ -1,5 +1,7 @@
+[workspace]
+
 [package]
-name = "lms-core"
+name = "lms-tauri"
 version = "0.1.0"
 description = "Learning Management System with integrated forum"
 authors = ["Tim Vail"]
@@ -103,3 +105,25 @@ name = "blockchain_bench"
 harness = false
 # This line makes cargo only build the benchmark when the bench feature is enabled
 required-features = ["bench"]
+
+[[bin]]
+name = "test-redb-transactions"
+path = "src/bin/test_redb_transactions.rs"
+
+[[bin]]
+name = "simple-redb-test"
+path = "src/bin/simple_redb_test.rs"
+
+[[bin]]
+name = "minimal-redb-test"
+path = "src/bin/minimal_redb_test.rs"
+
+[[bin]]
+name = "redb-transaction-test"
+path = "src/bin/redb_transaction_test.rs"
+
+# Specify a specific version of base64 that doesn't have the issue
+[dependencies.base64]
+version = "0.22.1"
+features = []
+default-features = true

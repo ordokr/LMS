@@ -1,9 +1,17 @@
 // Responsible for analyzing Abstract Syntax Trees
 pub mod ast_analyzer;
+// Tests for AST analyzer
+#[cfg(test)]
+mod ast_analyzer_tests;
 // Responsible for analyzing and detecting conflicts
 pub mod conflict_analyzer;
 // Responsible for analyzing and detecting technical debt
 pub mod tech_debt_analyzer;
+// Runner for tech debt analyzer
+pub mod tech_debt_runner;
+// Tests for tech debt analyzer
+#[cfg(test)]
+mod tech_debt_analyzer_tests;
 // Responsible for analyzing and extracting database schema information
 pub mod db_schema_analyzer;
 // Responsible for analyzing blockchain-related code

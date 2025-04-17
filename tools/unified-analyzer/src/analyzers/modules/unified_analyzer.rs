@@ -5,7 +5,6 @@ use tokio::sync::Mutex;
 use serde::{Serialize, Deserialize};
 use chrono::{DateTime, Utc};
 
-use crate::analyzers::modules::db_schema_analyzer::DbSchema;
 use crate::utils::file_system::FileSystemUtils;
 
 // Analysis result for the entire codebase
@@ -457,6 +456,7 @@ pub struct Recommendation {
 // The unified project analyzer
 pub struct UnifiedProjectAnalyzer {
     base_dir: PathBuf,
+    #[allow(dead_code)]
     fs_utils: Arc<FileSystemUtils>,
     result: Arc<Mutex<AnalysisResult>>,
 }

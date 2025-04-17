@@ -1,5 +1,6 @@
 use std::path::Path;
 
+#[allow(dead_code)]
 pub struct AstAnalyzer;
 
 impl AstAnalyzer {
@@ -57,6 +58,7 @@ impl AstAnalyzer {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct CodeMetrics {
     pub lines: usize,
     pub functions: usize,
@@ -66,6 +68,7 @@ pub struct CodeMetrics {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ComponentInfo {
     pub name: String,
     pub props: Vec<String>,

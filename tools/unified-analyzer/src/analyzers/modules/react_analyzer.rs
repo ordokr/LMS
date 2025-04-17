@@ -347,17 +347,17 @@ impl ReactAnalyzer {
         lazy_static! {
             // Match React Router routes
             static ref ROUTE_REGEX: Regex = Regex::new(
-                r"<Route\s+(?:[^>]*\s+)?path=['"]([^'"]+)['"](?:[^>]*\s+)?component=\{([^}]+)\}"
+                r#"<Route\s+(?:[^>]*\s+)?path=["']([^"']+)["'](?:[^>]*\s+)?component=\{([^}]+)\}"#
             ).unwrap();
 
             // Match exact prop
             static ref EXACT_REGEX: Regex = Regex::new(
-                r"<Route\s+(?:[^>]*\s+)?exact(?:\s+|=\{true\}|[^>]*)"
+                r#"<Route\s+(?:[^>]*\s+)?exact(?:\s+|=\{true\}|[^>]*)"#
             ).unwrap();
 
             // Match private/protected routes
             static ref PROTECTED_ROUTE_REGEX: Regex = Regex::new(
-                r"<(?:Private|Protected|Auth)Route"
+                r#"<(?:Private|Protected|Auth)Route"#
             ).unwrap();
         }
 
@@ -390,22 +390,22 @@ impl ReactAnalyzer {
         lazy_static! {
             // Match Redux action types
             static ref ACTION_TYPE_REGEX: Regex = Regex::new(
-                r"(?:export\s+)?const\s+([A-Z_]+)\s*=\s*['"](\w+)['"]\s*;"
+                r#"(?:export\s+)?const\s+([A-Z_]+)\s*=\s*["'](\w+)["']\s*;"#
             ).unwrap();
 
             // Match Redux action creators
             static ref ACTION_CREATOR_REGEX: Regex = Regex::new(
-                r"(?:export\s+)?(?:const|function)\s+(\w+Action)\s*=\s*\([^)]*\)\s*=>"
+                r#"(?:export\s+)?(?:const|function)\s+(\w+Action)\s*=\s*\([^)]*\)\s*=>"#
             ).unwrap();
 
             // Match Redux reducers
             static ref REDUCER_REGEX: Regex = Regex::new(
-                r"(?:export\s+)?(?:const|function)\s+(\w+Reducer)\s*=\s*\(state\s*=\s*initialState,\s*action\)\s*=>"
+                r#"(?:export\s+)?(?:const|function)\s+(\w+Reducer)\s*=\s*\(state\s*=\s*initialState,\s*action\)\s*=>"#
             ).unwrap();
 
             // Match Redux selectors
             static ref SELECTOR_REGEX: Regex = Regex::new(
-                r"(?:export\s+)?(?:const|function)\s+(\w+Selector|select\w+)\s*=\s*\(state\)\s*=>"
+                r#"(?:export\s+)?(?:const|function)\s+(\w+Selector|select\w+)\s*=\s*\(state\)\s*=>"#
             ).unwrap();
         }
 

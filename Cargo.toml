@@ -5,7 +5,10 @@ edition = "2021"
 rust-version = "1.76.0" # Latest stable as of April 2025
 
 [dependencies]
-leptos = { version = "0.6", features = ["serde", "nightly"] }
+serde_json = "1.0"
+leptos = { version = "0.1", features = ["serde", "nightly"] }
+leptos_axum = { version = "0.1", optional = true }
+leptos_wasi = { version = "0.1", optional = true }
 reqwest = { version = "0.11", features = ["blocking", "json", "default"] }
 axum = { version = "0.6", optional = true }
 sqlx = { version = "0.7.0", features = ["runtime-tokio", "sqlite", "postgres", "macros"] }
@@ -17,9 +20,10 @@ members = [
     "tools",
     "blockchain-wasm",
     "modules/analyzer",
-    "src/tools/migration_utility",
-    "src/services/migration"
-]
+    "src/tools/migration_utility"
+    # "src/services/migration" - Removed as this path doesn't exist
+    # "src-tauri" - Removed as it has its own workspace
+, "redb-test-project"]
 [workspace.package]
 edition = "2021"
 authors = ["LMS Team"]
@@ -62,3 +66,9 @@ crate-type = ["cdylib"]
 # [[bin]]
 # name = "project-analyzer"
 # path = "src/bin/project_analyzer.rs"
+
+[[bin]]
+name = "redb-transaction-example"
+path = "src-tauri/src/bin/redb_transaction_example.rs"
+
+# Removed patch as it was causing issues

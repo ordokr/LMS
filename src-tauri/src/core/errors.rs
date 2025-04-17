@@ -11,30 +11,32 @@ use thiserror::Error;
 pub enum AppError {
     #[error("Authentication error: {0}")]
     AuthError(String),
-    
+
     #[error("Authorization error: {0}")]
     AuthorizationError(String),
-    
+
     #[error("Database error: {0}")]
     DatabaseError(String),
-    
+
     #[error("Not found: {0}")]
     NotFound(String),
-    
+
     #[error("Invalid input: {0}")]
     ValidationError(String),
-    
+
     #[error("Sync error: {0}")]
     SyncError(String),
-    
+
     #[error("Server error: {0}")]
     ServerError(String),
-    
+
     #[error("External service error: {0}")]
     ExternalServiceError(String),
 
     #[error("Internal server error: {0}")]
     InternalError(String),
+
+    #[error("Bad request: {0}")]
     BadRequest(String),
 }
 
@@ -55,8 +57,10 @@ impl IntoResponse for AppError {
             AppError::SyncError(_) => StatusCode::CONFLICT,
             AppError::ServerError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::ExternalServiceError(_) => StatusCode::BAD_GATEWAY,
+            AppError::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
         };
-        
+
         let error_code = match self {
             AppError::AuthError(_) => "AUTH_ERROR",
             AppError::AuthorizationError(_) => "AUTHORIZATION_ERROR",
@@ -66,13 +70,15 @@ impl IntoResponse for AppError {
             AppError::SyncError(_) => "SYNC_ERROR",
             AppError::ServerError(_) => "SERVER_ERROR",
             AppError::ExternalServiceError(_) => "EXTERNAL_SERVICE_ERROR",
+            AppError::InternalError(_) => "INTERNAL_ERROR",
+            AppError::BadRequest(_) => "BAD_REQUEST",
         };
-        
+
         let body = Json(ErrorResponse {
             error: self.to_string(),
             error_code: error_code.to_string(),
         });
-        
+
         (status, body).into_response()
     }
 }

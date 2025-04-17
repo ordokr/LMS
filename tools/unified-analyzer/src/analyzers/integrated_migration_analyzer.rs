@@ -11,9 +11,29 @@ use crate::analyzers::modules::discourse_analyzer::DiscourseAnalyzer;
 pub struct IntegratedMigrationResult {
     pub canvas_models: Vec<String>,
     pub discourse_models: Vec<String>,
-    pub common_entities: Vec<String>,
+    pub common_entities: std::collections::HashMap<String, CommonEntity>,
     pub migration_paths: Vec<MigrationPath>,
     pub integration_points: Vec<IntegrationPoint>,
+}
+
+// Common entity between Canvas and Discourse
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommonEntity {
+    pub name: String,
+    pub canvas_path: String,
+    pub discourse_path: String,
+    pub mapping_complexity: String,
+}
+
+impl Default for CommonEntity {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            canvas_path: String::new(),
+            discourse_path: String::new(),
+            mapping_complexity: "medium".to_string(),
+        }
+    }
 }
 
 // Migration path between LMS and forum entities
@@ -23,6 +43,7 @@ pub struct MigrationPath {
     pub target_entity: String,
     pub complexity: String,
     pub mapping_strategy: String,
+    pub entity_name: String,
 }
 
 // Points of integration between systems
@@ -33,6 +54,7 @@ pub struct IntegrationPoint {
     pub discourse_component: String,
     pub data_flow: String,
     pub sync_pattern: String,
+    pub entity_name: String,
 }
 
 impl Default for MigrationPath {
@@ -42,6 +64,7 @@ impl Default for MigrationPath {
             target_entity: String::new(),
             complexity: "medium".to_string(),
             mapping_strategy: "direct".to_string(),
+            entity_name: String::new(),
         }
     }
 }
@@ -54,6 +77,7 @@ impl Default for IntegrationPoint {
             discourse_component: String::new(),
             data_flow: "bidirectional".to_string(),
             sync_pattern: "event-based".to_string(),
+            entity_name: String::new(),
         }
     }
 }
@@ -163,13 +187,13 @@ impl IntegratedMigrationAnalyzer {
         }
 
         // Find common entities
-        self.identify_common_entities();
+        self.find_common_entities().await?;
 
         // Generate migration paths
-        self.generate_migration_paths();
+        self.identify_migration_paths().await?;
 
         // Identify integration points
-        self.identify_integration_points();
+        self.identify_integration_points().await?;
 
         println!("Integration analysis complete!");
         println!("Identified {} common entities", self.result.common_entities.len());
@@ -183,7 +207,7 @@ impl IntegratedMigrationAnalyzer {
     }
 
     // Identify common entities between Canvas and Discourse
-    fn identify_common_entities(&mut self) {
+    pub async fn find_common_entities(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // Placeholder implementation - in a real analyzer, this would have more complex logic
         let canvas_lower: Vec<String> = self.result.canvas_models
             .iter()
@@ -205,28 +229,40 @@ impl IntegratedMigrationAnalyzer {
 
             if (canvas_lower.contains(&entity_lower) || canvas_lower.contains(&format!("{}s", entity_lower))) &&
                (discourse_lower.contains(&entity_lower) || discourse_lower.contains(&format!("{}s", entity_lower))) {
-                self.result.common_entities.push(entity.to_string());
+                let common_entity = CommonEntity {
+                    name: entity.to_string(),
+                    canvas_path: format!("canvas/app/models/{}.rb", entity.to_lowercase()),
+                    discourse_path: format!("discourse/app/models/{}.rb", entity.to_lowercase()),
+                    mapping_complexity: "medium".to_string(),
+                };
+
+                self.result.common_entities.insert(entity.to_string(), common_entity);
             }
         }
+
+        Ok(())
     }
 
     // Generate migration paths between entities
-    fn generate_migration_paths(&mut self) {
+    pub async fn identify_migration_paths(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // In a real implementation, this would have more complex logic
-        for entity in &self.result.common_entities {
+        for (entity_name, _entity_info) in &self.result.common_entities {
             let path = MigrationPath {
-                source_entity: format!("Canvas{}", entity),
-                target_entity: format!("Discourse{}", entity),
+                source_entity: format!("Canvas{}", entity_name),
+                target_entity: format!("Discourse{}", entity_name),
                 complexity: "medium".to_string(),
                 mapping_strategy: "direct-mapping".to_string(),
+                entity_name: entity_name.clone(),
             };
 
             self.result.migration_paths.push(path);
         }
+
+        Ok(())
     }
 
     // Identify integration points
-    fn identify_integration_points(&mut self) {
+    pub async fn identify_integration_points(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // In a real implementation, this would have more complex logic
 
         // Common integration points in LMS to forum integrations
@@ -245,10 +281,13 @@ impl IntegratedMigrationAnalyzer {
                 discourse_component: discourse_comp.to_string(),
                 data_flow: flow.to_string(),
                 sync_pattern: pattern.to_string(),
+                entity_name: "User".to_string(), // Default to User for testing
             };
 
             self.result.integration_points.push(point);
         }
+
+        Ok(())
     }
 
     // Generate an integration report

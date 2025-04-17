@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, collections::HashMap, fs, io, path::{Path, PathBuf}};
+use std::{borrow::Cow, collections::HashMap, path::{Path, PathBuf}};
 use walkdir::WalkDir;
 use regex::Regex;
 use lazy_static::lazy_static;
@@ -402,12 +402,33 @@ impl FileStructureAnalyzer {
             .collect()
     }
 
+    /// Compile a regex pattern and return a Regex object
+    #[allow(dead_code)]
+    fn compile_regex(&self, pattern: &str) -> Result<Regex, FileStructureError> {
+        Regex::new(pattern).map_err(|e| {
+            FileStructureError::RegexError(format!("Failed to compile regex: {}", e))
+        })
+    }
+
     fn get_file_content(&self, file_path: &Path) -> Result<String, FileStructureError> {
-        std::fs::read_to_string(file_path).map_err(|e| FileStructureError::IoError(e))
+        match std::fs::read_to_string(file_path) {
+            Ok(content) => Ok(content),
+            Err(e) => {
+                if e.kind() == std::io::ErrorKind::NotFound {
+                    Err(FileStructureError::IoError(e))
+                } else if e.kind() == std::io::ErrorKind::PermissionDenied {
+                    Err(FileStructureError::IoError(e))
+                } else {
+                    // Use the Other variant for unexpected errors
+                    Err(FileStructureError::Other(format!("Unexpected error reading file: {}", e)))
+                }
+            }
+        }
     }
 }
 
 #[derive(Debug, thiserror::Error)]
+#[allow(dead_code)]
 pub enum FileStructureError {
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),

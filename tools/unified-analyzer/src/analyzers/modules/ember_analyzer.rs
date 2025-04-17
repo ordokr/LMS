@@ -3,7 +3,7 @@ use std::{
     collections::HashMap,
     fs,
     io,
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 use serde::{Serialize, Deserialize};
 use walkdir::WalkDir;
@@ -72,7 +72,7 @@ impl EmberAnalyzer {
     pub fn analyze(&self, base_dir: &PathBuf) -> Result<String, String> {
         let mut analyzer = EmberAnalyzer::default();
         let discourse_dir = base_dir.join("discourse");
-        
+
         if !discourse_dir.exists() {
             return Ok(String::from("Discourse directory not found"));
         }
@@ -90,7 +90,7 @@ impl EmberAnalyzer {
                                 Ok(content) => content,
                                 Err(_) => continue,
                             };
-                            
+
                             if file_name_str.ends_with("model.js") {
                                 let _ = analyzer.extract_model(file_name_str, &content);
                             } else if file_name_str.ends_with("controller.js") {
@@ -247,6 +247,7 @@ impl EmberAnalyzer {
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn extract_template_bindings(&self, content: &str) -> Vec<String> {
         lazy_static::lazy_static! {
             static ref BINDING_REGEX: Regex = Regex::new(r#"\{\{(?P<binding>\S+)\}\}"#).unwrap();

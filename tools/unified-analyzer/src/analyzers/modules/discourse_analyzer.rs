@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     fs,
-    io::{self, Error},
-    path::{Path, PathBuf},
+    io::{self},
+    path::PathBuf,
 };
 use walkdir::WalkDir;
 use regex::Regex;
@@ -50,7 +50,7 @@ impl DiscourseAnalyzer {
 
     pub fn analyze(&self, project_path: &str) -> Result<String, DiscourseError> {
         let mut result = DiscourseAnalyzer::default();
-        let discourse_dir = PathBuf::from(project_path).join("discourse");
+        let discourse_dir = PathBuf::from(project_path);
 
         println!("Looking for Discourse directory at: {}", discourse_dir.display());
 

@@ -4,35 +4,6 @@
 
 This document is the primary entry point for AI assistants working on the Canvas-Discourse LMS integration project. Start here to understand the project structure, documentation resources, and current development priorities.
 
-## Documentation Resources
-
-### Primary Documentation (Start Here)
-- **Central Reference Hub**: [docs/central_reference_hub.md](docs/central_reference_hub.md)  
-  The one source of truth for all project components and integration status.
-- **Integration Reference**: [docs/canvas_discourse_integration.md](docs/canvas_discourse_integration.md)  
-  Comprehensive guide to the Canvas-Discourse integration.
-
-### Technical Implementation
-- **Technical Implementation Details**: [rag_knowledge_base/integration/technical_implementation.md](rag_knowledge_base/integration/technical_implementation.md)  
-  Automatically generated documentation from the source code.
-- **Implementation Status**: [rag_knowledge_base/integration/status_and_plan.md](rag_knowledge_base/integration/status_and_plan.md)  
-  Current implementation status and roadmap.
-
-### Project Architecture
-- **System Architecture**: [docs/system_architecture.md](docs/system_architecture.md)  
-  Overview of the system design and components.
-- **Relationship Map**: [docs/relationship_map.md](docs/relationship_map.md)  
-  Diagram of entity relationships across systems.
-
-### Source Code Port
-- **Port Status**: [docs/port/porting_status_dashboard.md](docs/port/porting_status_dashboard.md)  
-  Current status of the Canvas and Discourse port.
-- **Port Strategy**: [docs/port/porting_strategy.md](docs/port/porting_strategy.md)  
-  Strategy for porting Canvas and Discourse functionality.
-- **Model Mapping**: [docs/port/model_mapping.md](docs/port/model_mapping.md)  
-  Mapping of data models between systems.
-- **Integration Challenges**: [docs/port/integration_challenges.md](docs/port/integration_challenges.md)  
-  Challenges and solutions for the integration.
 
 ## Blockchain Capabilities
 
@@ -51,54 +22,12 @@ The LMS now includes a blockchain implementation for academic record integrity. 
 
 5. **Performance Metrics**: The blockchain tracks performance metrics. When suggesting optimizations, consider how to measure their impact.
 
-## Analysis Tools
 
-The project includes several analysis tools that provide insights into the code:
-
-1. **Unified Project Analyzer**: `src-tauri/src/analyzers/unified_analyzer.rs`  
-   Main tool for analyzing project components and generating documentation.
-
-2. **Analysis Runner**: `src-tauri/src/analyzers/analysis_runner.rs`  
-   Comprehensive analysis system that executes the analysis process.
-
-3. **Analysis Commands**: `src-tauri/src/analyzers/analysis_commands.rs`  
-   Command interface for running analysis from Tauri or CLI.
-
-4. **Gemini AI Analyzer**: `src-tauri/src/ai/gemini_analyzer.rs`  
-   AI integration for generating insights about the codebase.
-
-To update all documentation based on the current state of the project, run:
-```bash
-cargo run --bin analyze full
-```
-
-## Project Structure
-
-```plaintext
-LMS/
-├── src-tauri/         # Rust backend code
-│   └── src/
-│       ├── api/       # API endpoints
-│       ├── core/      # Core business logic
-│       ├── db/        # Database interactions
-│       └── models/    # Data models
-├── src/               # Frontend code
-├── services/          # Integration services
-│   └── integration/   # Canvas-Discourse integration
-├── rag_knowledge_base/ # RAG documentation
-│   └── integration/   # Integration-specific docs
-├── docs/              # Generated documentation
-│   ├── port/          # Port documentation
-│   └── technical/     # Technical documentation
-└── analysis_summary/  # Analysis results
-    └── conflicts/     # Port conflict analysis
-```
-
-## Known Issues with Source Code Ports
+## Known Issues with Source Code Migrations
 
 When working with this project, be aware of these common issues between the source and target systems:
 
-1. **Model Duplication**: Multiple definitions of core models may exist due to the porting process
+1. **Model Duplication**: Multiple definitions of core models may exist due to the migration process
    - Example: Both Canvas and Discourse have their own User models
    - Location: `src-tauri/src/models/user.rs` vs. imported models
 
@@ -115,8 +44,6 @@ When working with this project, be aware of these common issues between the sour
    - Canvas uses snake_case
    - Discourse uses camelCase in some JavaScript components
    - Our system standardizes on snake_case for backend, camelCase for frontend
-
-Refer to the [Port Conflicts Report](analysis_summary/conflicts/port_conflicts.md) for details on known issues.
 
 ## Analysis and Documentation Pipeline
 

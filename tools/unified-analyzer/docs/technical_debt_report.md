@@ -1,5 +1,5 @@
 # Technical Debt Report
-_Generated on 2025-04-14_
+_Generated on 2025-04-17_
 
 ## Overview
 
@@ -9,10 +9,7 @@ This report identifies areas of technical debt in the LMS project and provides r
 
 | Metric | Value | Target |
 |--------|-------|--------|
-| maintainability | 4.2 | 4.5 |
-| complexity | 3.5 | 3.0 |
-| documentation | 3.8 | 4.0 |
-| Test Coverage | 65.0% | 80.0% |
+| Test Coverage | 0.0% | 80.0% |
 
 ## Technical Debt by Area
 

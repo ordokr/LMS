@@ -1,0 +1,47 @@
+use axum::{Router, routing::{get, post}, extract::{State, Path, Json}, http::StatusCode};
+use serde::{Serialize, Deserialize};
+use std::sync::Arc;
+use crate::app_state::AppState;
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct DiscoursePost {
+    pub id: String,
+    pub topic_id: String,
+    pub user_id: String,
+    pub content: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct PostMigration {
+    pub discourse_post_id: String,
+    pub ordo_post_id: String,
+}
+
+static POST_MAPPINGS: once_cell::sync::Lazy<std::sync::Mutex<Vec<PostMigration>>> = once_cell::sync::Lazy::new(|| std::sync::Mutex::new(vec![]));
+
+// POST /api/integration/map_post
+async fn map_post(
+    Json(mapping): Json<PostMigration>,
+    _state: Arc<AppState>,
+) -> (StatusCode, Json<PostMigration>) {
+    let mut mappings = POST_MAPPINGS.lock().unwrap();
+    mappings.push(mapping.clone());
+    (StatusCode::CREATED, Json(mapping))
+}
+
+// GET /api/integration/post/:discourse_post_id
+async fn get_post_mapping(
+    Path(discourse_post_id): Path<String>,
+    _state: Arc<AppState>,
+) -> Json<Option<PostMigration>> {
+    let mappings = POST_MAPPINGS.lock().unwrap();
+    let found = mappings.iter().find(|m| m.discourse_post_id == discourse_post_id).cloned();
+    Json(found)
+}
+
+pub fn post_migration_routes(state: Arc<AppState>) -> Router {
+    Router::new()
+        .route("/integration/map_post", post(map_post))
+        .route("/integration/post/:discourse_post_id", get(get_post_mapping))
+        .with_state(state)
+}

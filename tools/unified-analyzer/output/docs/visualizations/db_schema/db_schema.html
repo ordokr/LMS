@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Schema Visualization</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        .header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px 0;
+            margin-bottom: 30px;
+        }
+        .schema-diagram {
+            width: 100%;
+            height: 600px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-top: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .table-card {
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .table-header {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 15px;
+            font-weight: bold;
+        }
+        .table-body {
+            padding: 15px;
+            background-color: white;
+        }
+        .column-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        .column-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .column-item:last-child {
+            border-bottom: none;
+        }
+        .primary-key {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .foreign-key {
+            color: #3498db;
+            font-weight: bold;
+        }
+        .search-box {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .nav-tabs {
+            margin-bottom: 20px;
+        }
+        .nav-tabs .nav-link {
+            font-weight: bold;
+        }
+        .nav-tabs .nav-link.active {
+            background-color: #2c3e50;
+            color: white;
+            border-color: #2c3e50;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>Database Schema Visualization</h1>
+            <p class="lead">Interactive visualization of database tables and relationships</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <ul class="nav nav-tabs" id="schemaTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="diagram-tab" data-bs-toggle="tab" data-bs-target="#diagram" type="button" role="tab" aria-controls="diagram" aria-selected="true">Diagram</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tables-tab" data-bs-toggle="tab" data-bs-target="#tables" type="button" role="tab" aria-controls="tables" aria-selected="false">Tables</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="relationships-tab" data-bs-toggle="tab" data-bs-target="#relationships" type="button" role="tab" aria-controls="relationships" aria-selected="false">Relationships</button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="schemaTabsContent">
+            <div class="tab-pane fade show active" id="diagram" role="tabpanel" aria-labelledby="diagram-tab">
+                <div class="schema-diagram" id="schemaDiagram"></div>
+            </div>
+
+            <div class="tab-pane fade" id="tables" role="tabpanel" aria-labelledby="tables-tab">
+                <input type="text" class="search-box" id="tableSearchBox" placeholder="Search tables...">
+                <div class="row" id="tablesList">
+                    <div class="col-md-6 table-item" data-table-name="users">
+    <div class="table-card">
+        <div class="table-header">
+            users
+        </div>
+        <div class="table-body">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Column</th>
+                        <th>Type</th>
+                        <th>Constraints</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="column-name">id</td>
+                        <td class="column-type">integer</td>
+                        <td><span class="column-constraint primary-key">PRIMARY KEY</span></td>
+                    </tr>
+                    <tr>
+                        <td class="column-name">name</td>
+                        <td class="column-type">string</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="column-name">email</td>
+                        <td class="column-type">string</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="column-name">created_at</td>
+                        <td class="column-type">timestamp</td>
+                        <td><span class="column-constraint not-null">NOT NULL</span></td>
+                    </tr>
+                    <tr>
+                        <td class="column-name">updated_at</td>
+                        <td class="column-type">timestamp</td>
+                        <td><span class="column-constraint not-null">NOT NULL</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<div class="col-md-6 table-item" data-table-name="courses">
+    <div class="table-card">
+        <div class="table-header">
+            courses
+        </div>
+        <div class="table-body">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Column</th>
+                        <th>Type</th>
+                        <th>Constraints</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="column-name">id</td>
+                        <td class="column-type">integer</td>
+                        <td><span class="column-constraint primary-key">PRIMARY KEY</span></td>
+                    </tr>
+                    <tr>
+                        <td class="column-name">name</td>
+                        <td class="column-type">string</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="column-name">description</td>
+                        <td class="column-type">text</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="column-name">user_id</td>
+                        <td class="column-type">integer</td>
+                        <td><span class="column-constraint foreign-key">FOREIGN KEY</span></td>
+                    </tr>
+                    <tr>
+                        <td class="column-name">created_at</td>
+                        <td class="column-type">timestamp</td>
+                        <td><span class="column-constraint not-null">NOT NULL</span></td>
+                    </tr>
+                    <tr>
+                        <td class="column-name">updated_at</td>
+                        <td class="column-type">timestamp</td>
+                        <td><span class="column-constraint not-null">NOT NULL</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<div class="col-md-6 table-item" data-table-name="enrollments">
+    <div class="table-card">
+        <div class="table-header">
+            enrollments
+        </div>
+        <div class="table-body">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Column</th>
+                        <th>Type</th>
+                        <th>Constraints</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="column-name">id</td>
+                        <td class="column-type">integer</td>
+                        <td><span class="column-constraint primary-key">PRIMARY KEY</span></td>
+                    </tr>
+                    <tr>
+                        <td class="column-name">user_id</td>
+                        <td class="column-type">integer</td>
+                        <td><span class="column-constraint foreign-key">FOREIGN KEY</span></td>
+                    </tr>
+                    <tr>
+                        <td class="column-name">course_id</td>
+                        <td class="column-type">integer</td>
+                        <td><span class="column-constraint foreign-key">FOREIGN KEY</span></td>
+                    </tr>
+                    <tr>
+                        <td class="column-name">role</td>
+                        <td class="column-type">string</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="column-name">created_at</td>
+                        <td class="column-type">timestamp</td>
+                        <td><span class="column-constraint not-null">NOT NULL</span></td>
+                    </tr>
+                    <tr>
+                        <td class="column-name">updated_at</td>
+                        <td class="column-type">timestamp</td>
+                        <td><span class="column-constraint not-null">NOT NULL</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="relationships" role="tabpanel" aria-labelledby="relationships-tab">
+                <div class="row" id="relationshipsList">
+                    <table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Parent Table</th>
+            <th>Child Table</th>
+            <th>Relationship Type</th>
+            <th>Foreign Key</th>
+        </tr>
+    </thead>
+    <tbody>
+    </tbody>
+</table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Database schema data
+        const schema = {"relationships":[],"tables":[{"columns":[{"foreign_key":false,"name":"id","primary_key":true,"type":"integer"},{"foreign_key":false,"name":"name","primary_key":false,"type":"string"},{"foreign_key":false,"name":"email","primary_key":false,"type":"string"},{"foreign_key":false,"name":"created_at","primary_key":false,"type":"timestamp"},{"foreign_key":false,"name":"updated_at","primary_key":false,"type":"timestamp"}],"name":"users"},{"columns":[{"foreign_key":false,"name":"id","primary_key":true,"type":"integer"},{"foreign_key":false,"name":"name","primary_key":false,"type":"string"},{"foreign_key":false,"name":"description","primary_key":false,"type":"text"},{"foreign_key":true,"name":"user_id","primary_key":false,"type":"integer"},{"foreign_key":false,"name":"created_at","primary_key":false,"type":"timestamp"},{"foreign_key":false,"name":"updated_at","primary_key":false,"type":"timestamp"}],"name":"courses"},{"columns":[{"foreign_key":false,"name":"id","primary_key":true,"type":"integer"},{"foreign_key":true,"name":"user_id","primary_key":false,"type":"integer"},{"foreign_key":true,"name":"course_id","primary_key":false,"type":"integer"},{"foreign_key":false,"name":"role","primary_key":false,"type":"string"},{"foreign_key":false,"name":"created_at","primary_key":false,"type":"timestamp"},{"foreign_key":false,"name":"updated_at","primary_key":false,"type":"timestamp"}],"name":"enrollments"}]};
+
+        // Set up search functionality
+        document.getElementById('tableSearchBox').addEventListener('input', function() {
+            const searchText = this.value.toLowerCase();
+            const tableCards = document.querySelectorAll('.table-card');
+            
+            tableCards.forEach(card => {
+                const tableName = card.querySelector('.table-header').textContent.toLowerCase();
+                const columns = Array.from(card.querySelectorAll('.column-item')).map(item => item.textContent.toLowerCase());
+                
+                if (tableName.includes(searchText) || columns.some(col => col.includes(searchText))) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+
+        // Set up D3.js diagram
+        function initDiagram() {
+            const width = document.getElementById('schemaDiagram').clientWidth;
+            const height = document.getElementById('schemaDiagram').clientHeight;
+            
+            // Create SVG
+            const svg = d3.select('#schemaDiagram')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            // Create nodes for tables
+            const nodes = schema.tables.map(table => ({
+                id: table.name,
+                name: table.name,
+                columns: table.columns
+            }));
+            
+            // Create links for relationships
+            const links = [];
+            schema.relationships.forEach(rel => {
+                links.push({
+                    source: rel.source_table,
+                    target: rel.target_table,
+                    sourceColumn: rel.source_column,
+                    targetColumn: rel.target_column
+                });
+            });
+            
+            // Create force simulation
+            const simulation = d3.forceSimulation(nodes)
+                .force('link', d3.forceLink(links).id(d => d.id).distance(150))
+                .force('charge', d3.forceManyBody().strength(-500))
+                .force('center', d3.forceCenter(width / 2, height / 2));
+            
+            // Create links
+            const link = svg.append('g')
+                .selectAll('line')
+                .data(links)
+                .enter().append('line')
+                .attr('stroke', '#999')
+                .attr('stroke-opacity', 0.6)
+                .attr('stroke-width', 1);
+            
+            // Create nodes
+            const node = svg.append('g')
+                .selectAll('g')
+                .data(nodes)
+                .enter().append('g')
+                .call(d3.drag()
+                    .on('start', dragstarted)
+                    .on('drag', dragged)
+                    .on('end', dragended));
+            
+            // Add rectangles for tables
+            node.append('rect')
+                .attr('width', d => Math.max(100, d.name.length * 8))
+                .attr('height', d => 30 + d.columns.length * 20)
+                .attr('rx', 5)
+                .attr('ry', 5)
+                .attr('fill', '#fff')
+                .attr('stroke', '#3498db')
+                .attr('stroke-width', 2);
+            
+            // Add table names
+            node.append('text')
+                .attr('x', d => Math.max(100, d.name.length * 8) / 2)
+                .attr('y', 20)
+                .attr('text-anchor', 'middle')
+                .attr('font-weight', 'bold')
+                .text(d => d.name);
+            
+            // Add column names
+            node.each(function(d) {
+                const g = d3.select(this);
+                d.columns.forEach((col, i) => {
+                    const isPK = col.primary_key;
+                    const isFK = col.foreign_key;
+                    
+                    g.append('text')
+                        .attr('x', 10)
+                        .attr('y', 40 + i * 20)
+                        .attr('font-size', '12px')
+                        .attr('fill', isPK ? '#e74c3c' : isFK ? '#3498db' : '#333')
+                        .text(col.name + (isPK ? ' (PK)' : isFK ? ' (FK)' : ''));
+                });
+            });
+            
+            // Update positions on tick
+            simulation.on('tick', () => {
+                link
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y + 15)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y + 15);
+                
+                node
+                    .attr('transform', d => `translate(${d.x - Math.max(100, d.name.length * 8) / 2},${d.y - 15})`);
+            });
+            
+            // Drag functions
+            function dragstarted(event, d) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+            
+            function dragged(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            }
+            
+            function dragended(event, d) {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
+        }
+        
+        // Initialize diagram when tab is shown
+        document.getElementById('diagram-tab').addEventListener('shown.bs.tab', initDiagram);
+        
+        // Initialize diagram on page load if diagram tab is active
+        if (document.getElementById('diagram').classList.contains('active')) {
+            initDiagram();
+        }
+    </script>
+</body>
+</html>

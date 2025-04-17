@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ordo Database Schema</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .mermaid {
+            margin-top: 20px;
+        }
+        .legend {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+        .legend h3 {
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Ordo Database Schema</h1>
+        <div class="mermaid">
+erDiagram
+    User {
+        i64 id
+        String name
+        String email
+        DateTime created_at
+    }
+    Course {
+        i64 id
+        String title
+        String description
+        i64 instructor_id
+        DateTime created_at
+    }
+    Enrollment {
+        i64 id
+        i64 user_id
+        i64 course_id
+        String role
+        DateTime created_at
+    }
+    Assignment {
+        i64 id
+        i64 course_id
+        String title
+        String description
+        DateTime due_date
+        f64 points_possible
+        DateTime created_at
+    }
+    Submission {
+        i64 id
+        i64 assignment_id
+        i64 user_id
+        String content
+        Option<f64> score
+        DateTime submitted_at
+    }
+    Discussion {
+        i64 id
+        i64 course_id
+        String title
+        String content
+        i64 user_id
+        DateTime created_at
+    }
+    DiscussionPost {
+        i64 id
+        i64 discussion_id
+        i64 user_id
+        String content
+        Option<i64> parent_id
+        DateTime created_at
+    }
+    Course 1--* Enrollment : "has"
+    User 1--* Enrollment : "has"
+    Course 1--* Assignment : "has"
+    Assignment 1--* Submission : "has"
+    User 1--* Submission : "makes"
+    Course 1--* Discussion : "has"
+    Discussion 1--* DiscussionPost : "has"
+    User 1--* DiscussionPost : "creates"
+
+        </div>
+        <div class="legend">
+            <h3>Legend</h3>
+            <p>This diagram shows the database schema for the Ordo application. Each box represents a table in the database, and the lines represent relationships between tables.</p>
+            <p>Cardinality notation:</p>
+            <ul>
+                <li><strong>1--1</strong>: One-to-one relationship</li>
+                <li><strong>1--*</strong>: One-to-many relationship</li>
+                <li><strong>*--*</strong>: Many-to-many relationship</li>
+            </ul>
+        </div>
+    </div>
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: 'default' });
+    </script>
+</body>
+</html>

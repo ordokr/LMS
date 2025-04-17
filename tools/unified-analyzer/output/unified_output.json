@@ -1,0 +1,618 @@
+{
+  "api": {
+    "endpoints": [
+      {
+        "path": "/api/v1/users",
+        "http_method": "GET",
+        "controller": "UsersController",
+        "action": "index",
+        "description": "Get all users",
+        "request_params": [],
+        "response_format": "JSON",
+        "auth_required": true,
+        "rate_limited": false,
+        "category": "Users"
+      },
+      {
+        "path": "/api/v1/users/{id}",
+        "http_method": "GET",
+        "controller": "UsersController",
+        "action": "show",
+        "description": "Get a specific user",
+        "request_params": ["id"],
+        "response_format": "JSON",
+        "auth_required": true,
+        "rate_limited": false,
+        "category": "Users"
+      },
+      {
+        "path": "/api/v1/courses",
+        "http_method": "GET",
+        "controller": "CoursesController",
+        "action": "index",
+        "description": "Get all courses",
+        "request_params": [],
+        "response_format": "JSON",
+        "auth_required": true,
+        "rate_limited": false,
+        "category": "Courses"
+      }
+    ],
+    "base_url": "https://api.example.com",
+    "version": "1.0"
+  },
+  "auth": {
+    "authentication_methods": ["JWT", "OAuth"],
+    "roles": {
+      "admin": ["manage_users", "manage_courses"],
+      "teacher": ["create_course", "edit_course"],
+      "student": ["view_course", "submit_assignment"]
+    },
+    "csrf_protection": true,
+    "session_management": true,
+    "password_policies": {
+      "min_length": "8",
+      "require_special_chars": "true",
+      "require_numbers": "true"
+    },
+    "sso_integrations": ["Google", "Microsoft"]
+  },
+  "business_logic": {
+    "core_patterns": ["Repository Pattern", "Factory Pattern", "Observer Pattern"],
+    "domain_algorithms": {
+      "grade_calculation": "Calculate weighted average of assignments",
+      "course_completion": "Check if all required modules are completed"
+    },
+    "workflows": [
+      {
+        "name": "Course Enrollment",
+        "steps": ["User selects course", "System checks prerequisites", "User confirms enrollment", "System adds user to course"],
+        "actors": ["Student", "System"],
+        "triggers": ["User clicks Enroll button"]
+      },
+      {
+        "name": "Assignment Submission",
+        "steps": ["User uploads file", "System validates file", "System records submission", "System notifies instructor"],
+        "actors": ["Student", "System", "Instructor"],
+        "triggers": ["User clicks Submit button"]
+      }
+    ],
+    "edge_cases": ["User loses connection during submission", "Course is full", "User attempts to enroll after deadline"],
+    "business_rules": {
+      "enrollment_limit": "Maximum 100 students per course",
+      "late_submission": "10% penalty per day late"
+    }
+  },
+  "canvas": {
+    "assignments": {},
+    "courses": {
+      "sample_course.html": {
+        "description": "A comprehensive introduction to computer science principles.",
+        "id": "sample_course.html",
+        "modules": [
+          "module-1"
+        ],
+        "name": "Introduction to Computer Science"
+      }
+    },
+    "modules": {
+      "module-1": {
+        "course_id": "sample_course.html",
+        "id": "module-1",
+        "items": [],
+        "name": "Module 1: Fundamentals"
+      }
+    }
+  },
+  "database": {
+    "tables": [
+      {
+        "name": "users",
+        "columns": [
+          {
+            "name": "id",
+            "data_type": "integer",
+            "nullable": false,
+            "primary_key": true,
+            "foreign_key": false,
+            "references": null,
+            "default_value": null,
+            "description": "Unique identifier for the user"
+          },
+          {
+            "name": "name",
+            "data_type": "string",
+            "nullable": false,
+            "primary_key": false,
+            "foreign_key": false,
+            "references": null,
+            "default_value": null,
+            "description": "User's full name"
+          },
+          {
+            "name": "email",
+            "data_type": "string",
+            "nullable": false,
+            "primary_key": false,
+            "foreign_key": false,
+            "references": null,
+            "default_value": null,
+            "description": "User's email address"
+          },
+          {
+            "name": "created_at",
+            "data_type": "timestamp",
+            "nullable": false,
+            "primary_key": false,
+            "foreign_key": false,
+            "references": null,
+            "default_value": "CURRENT_TIMESTAMP",
+            "description": "When the user was created"
+          },
+          {
+            "name": "updated_at",
+            "data_type": "timestamp",
+            "nullable": false,
+            "primary_key": false,
+            "foreign_key": false,
+            "references": null,
+            "default_value": "CURRENT_TIMESTAMP",
+            "description": "When the user was last updated"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "index_users_on_email",
+            "columns": ["email"],
+            "unique": true
+          }
+        ],
+        "description": "Stores user account information"
+      },
+      {
+        "name": "courses",
+        "columns": [
+          {
+            "name": "id",
+            "data_type": "integer",
+            "nullable": false,
+            "primary_key": true,
+            "foreign_key": false,
+            "references": null,
+            "default_value": null,
+            "description": "Unique identifier for the course"
+          },
+          {
+            "name": "name",
+            "data_type": "string",
+            "nullable": false,
+            "primary_key": false,
+            "foreign_key": false,
+            "references": null,
+            "default_value": null,
+            "description": "Course name"
+          },
+          {
+            "name": "description",
+            "data_type": "text",
+            "nullable": true,
+            "primary_key": false,
+            "foreign_key": false,
+            "references": null,
+            "default_value": null,
+            "description": "Course description"
+          },
+          {
+            "name": "user_id",
+            "data_type": "integer",
+            "nullable": false,
+            "primary_key": false,
+            "foreign_key": true,
+            "references": "users.id",
+            "default_value": null,
+            "description": "The user who created the course"
+          },
+          {
+            "name": "created_at",
+            "data_type": "timestamp",
+            "nullable": false,
+            "primary_key": false,
+            "foreign_key": false,
+            "references": null,
+            "default_value": "CURRENT_TIMESTAMP",
+            "description": "When the course was created"
+          },
+          {
+            "name": "updated_at",
+            "data_type": "timestamp",
+            "nullable": false,
+            "primary_key": false,
+            "foreign_key": false,
+            "references": null,
+            "default_value": "CURRENT_TIMESTAMP",
+            "description": "When the course was last updated"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "index_courses_on_user_id",
+            "columns": ["user_id"],
+            "unique": false
+          }
+        ],
+        "description": "Stores course information"
+      },
+      {
+        "name": "enrollments",
+        "columns": [
+          {
+            "name": "id",
+            "data_type": "integer",
+            "nullable": false,
+            "primary_key": true,
+            "foreign_key": false,
+            "references": null,
+            "default_value": null,
+            "description": "Unique identifier for the enrollment"
+          },
+          {
+            "name": "user_id",
+            "data_type": "integer",
+            "nullable": false,
+            "primary_key": false,
+            "foreign_key": true,
+            "references": "users.id",
+            "default_value": null,
+            "description": "The enrolled user"
+          },
+          {
+            "name": "course_id",
+            "data_type": "integer",
+            "nullable": false,
+            "primary_key": false,
+            "foreign_key": true,
+            "references": "courses.id",
+            "default_value": null,
+            "description": "The course the user is enrolled in"
+          },
+          {
+            "name": "role",
+            "data_type": "string",
+            "nullable": false,
+            "primary_key": false,
+            "foreign_key": false,
+            "references": null,
+            "default_value": "student",
+            "description": "The user's role in the course (student, teacher, etc.)"
+          },
+          {
+            "name": "created_at",
+            "data_type": "timestamp",
+            "nullable": false,
+            "primary_key": false,
+            "foreign_key": false,
+            "references": null,
+            "default_value": "CURRENT_TIMESTAMP",
+            "description": "When the enrollment was created"
+          },
+          {
+            "name": "updated_at",
+            "data_type": "timestamp",
+            "nullable": false,
+            "primary_key": false,
+            "foreign_key": false,
+            "references": null,
+            "default_value": "CURRENT_TIMESTAMP",
+            "description": "When the enrollment was last updated"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "index_enrollments_on_user_id_and_course_id",
+            "columns": ["user_id", "course_id"],
+            "unique": true
+          }
+        ],
+        "description": "Stores course enrollment information"
+      }
+    ],
+    "relationships": [
+      {
+        "source_table": "users",
+        "target_table": "courses",
+        "relationship_type": "one-to-many",
+        "source_column": "id",
+        "target_column": "user_id"
+      },
+      {
+        "source_table": "users",
+        "target_table": "enrollments",
+        "relationship_type": "one-to-many",
+        "source_column": "id",
+        "target_column": "user_id"
+      },
+      {
+        "source_table": "courses",
+        "target_table": "enrollments",
+        "relationship_type": "one-to-many",
+        "source_column": "id",
+        "target_column": "course_id"
+      }
+    ],
+    "db_type": "PostgreSQL",
+    "version": "14.0"
+  },
+  "dependencies": {
+    "dependency_graph": {
+      "edges": [],
+      "nodes": []
+    },
+    "js_dependencies": {},
+    "python_dependencies": {},
+    "ruby_dependencies": {},
+    "system_dependencies": {}
+  },
+  "discourse": {
+    "categories": {},
+    "posts": {},
+    "topics": {
+      "welcome_topic.html": {
+        "author": "instructor",
+        "category": "General Discussion",
+        "content": "No content",
+        "id": "welcome_topic.html",
+        "tags": [
+          "welcome",
+          "introduction"
+        ],
+        "title": "Welcome to the Course Forum"
+      }
+    }
+  },
+  "ember": {
+    "error": "Failed to parse: expected value at line 1 column 1",
+    "raw": "Discourse directory not found"
+  },
+  "files": [
+    {
+      "path": "src/components/Button.js",
+      "file_type": "JavaScript",
+      "size": 1024,
+      "modified_time": "2025-04-16T12:00:00Z",
+      "directory": "src/components",
+      "purpose": "UI Component"
+    },
+    {
+      "path": "src/components/UserList.js",
+      "file_type": "JavaScript",
+      "size": 2048,
+      "modified_time": "2025-04-16T12:00:00Z",
+      "directory": "src/components",
+      "purpose": "UI Component"
+    },
+    {
+      "path": "src/models/User.js",
+      "file_type": "JavaScript",
+      "size": 1536,
+      "modified_time": "2025-04-16T12:00:00Z",
+      "directory": "src/models",
+      "purpose": "Data Model"
+    },
+    {
+      "path": "src/models/Course.js",
+      "file_type": "JavaScript",
+      "size": 1792,
+      "modified_time": "2025-04-16T12:00:00Z",
+      "directory": "src/models",
+      "purpose": "Data Model"
+    },
+    {
+      "path": "src/services/ApiService.js",
+      "file_type": "JavaScript",
+      "size": 3072,
+      "modified_time": "2025-04-16T12:00:00Z",
+      "directory": "src/services",
+      "purpose": "API Service"
+    },
+    {
+      "path": "src/services/AuthService.js",
+      "file_type": "JavaScript",
+      "size": 2560,
+      "modified_time": "2025-04-16T12:00:00Z",
+      "directory": "src/services",
+      "purpose": "Authentication Service"
+    }
+  ],
+  "metadata": {
+    "description": "Unified analysis of Canvas and Discourse for LMS project",
+    "timestamp": "2025-04-17T01:32:25.617932200+00:00",
+    "version": "0.1.0"
+  },
+  "offline_first_readiness": {
+    "conflict_resolution_strategies": [],
+    "data_access_patterns": [],
+    "data_update_patterns": [],
+    "offline_readiness_score": 50,
+    "real_time_update_requirements": [],
+    "recommendations": [
+      "The application requires moderate changes to support offline-first functionality.",
+      "Implement conflict resolution strategies (e.g., timestamp-based or version-based) for offline data synchronization.",
+      "Consider using IndexedDB or SQLite for client-side data storage.",
+      "Implement a background sync mechanism using Service Workers.",
+      "Add a queue system for operations performed while offline."
+    ]
+  },
+  "react": {
+    "components": {},
+    "hooks": {},
+    "redux_stores": {},
+    "routes": []
+  },
+  "routes": [
+    {
+      "path": "/courses",
+      "method": "GET",
+      "handler": "CoursesController.index",
+      "auth_required": false,
+      "params": [],
+      "source": "config/routes.rb"
+    },
+    {
+      "path": "/courses/:id",
+      "method": "GET",
+      "handler": "CoursesController.show",
+      "auth_required": false,
+      "params": ["id"],
+      "source": "config/routes.rb"
+    },
+    {
+      "path": "/courses/:id/enroll",
+      "method": "POST",
+      "handler": "EnrollmentsController.create",
+      "auth_required": true,
+      "params": ["id"],
+      "source": "config/routes.rb"
+    },
+    {
+      "path": "/assignments",
+      "method": "GET",
+      "handler": "AssignmentsController.index",
+      "auth_required": true,
+      "params": [],
+      "source": "config/routes.rb"
+    },
+    {
+      "path": "/assignments/:id",
+      "method": "GET",
+      "handler": "AssignmentsController.show",
+      "auth_required": true,
+      "params": ["id"],
+      "source": "config/routes.rb"
+    },
+    {
+      "path": "/assignments/:id/submit",
+      "method": "POST",
+      "handler": "SubmissionsController.create",
+      "auth_required": true,
+      "params": ["id", "submission"],
+      "source": "config/routes.rb"
+    }
+  ],
+  "ruby_rails": {
+    "callbacks": [],
+    "controllers": {},
+    "database_schemas": {},
+    "hooks": [],
+    "models": {},
+    "routes": []
+  },
+  "components": {
+    "Button": {
+      "name": "Button",
+      "file_path": "src/components/Button.js",
+      "framework": "React",
+      "dependencies": ["Icon"],
+      "props": ["onClick", "label", "disabled", "variant"],
+      "state": ["hover", "focus"],
+      "methods": ["handleClick", "handleMouseEnter", "handleMouseLeave"]
+    },
+    "Icon": {
+      "name": "Icon",
+      "file_path": "src/components/Icon.js",
+      "framework": "React",
+      "dependencies": [],
+      "props": ["name", "size", "color"],
+      "state": [],
+      "methods": []
+    },
+    "UserList": {
+      "name": "UserList",
+      "file_path": "src/components/UserList.js",
+      "framework": "React",
+      "dependencies": ["UserCard", "Button"],
+      "props": ["users", "onUserSelect"],
+      "state": ["selectedUser", "loading"],
+      "methods": ["handleUserSelect", "loadUsers"]
+    },
+    "UserCard": {
+      "name": "UserCard",
+      "file_path": "src/components/UserCard.js",
+      "framework": "React",
+      "dependencies": ["Avatar", "Icon"],
+      "props": ["user", "onClick"],
+      "state": ["expanded"],
+      "methods": ["handleClick", "toggleExpand"]
+    },
+    "Avatar": {
+      "name": "Avatar",
+      "file_path": "src/components/Avatar.js",
+      "framework": "React",
+      "dependencies": [],
+      "props": ["src", "alt", "size"],
+      "state": ["loaded", "error"],
+      "methods": ["handleLoad", "handleError"]
+    },
+    "CourseList": {
+      "name": "CourseList",
+      "file_path": "src/components/CourseList.js",
+      "framework": "React",
+      "dependencies": ["CourseCard", "Button"],
+      "props": ["courses", "onCourseSelect"],
+      "state": ["selectedCourse", "loading"],
+      "methods": ["handleCourseSelect", "loadCourses"]
+    },
+    "CourseCard": {
+      "name": "CourseCard",
+      "file_path": "src/components/CourseCard.js",
+      "framework": "React",
+      "dependencies": ["Icon"],
+      "props": ["course", "onClick"],
+      "state": ["expanded"],
+      "methods": ["handleClick", "toggleExpand"]
+    },
+    "App": {
+      "name": "App",
+      "file_path": "src/App.js",
+      "framework": "React",
+      "dependencies": ["UserList", "CourseList", "Button"],
+      "props": [],
+      "state": ["currentView", "user"],
+      "methods": ["handleViewChange", "handleLogin", "handleLogout"]
+    }
+  },
+  "offline_readiness": {
+    "offline_capable": true,
+    "data_storage_mechanism": "IndexedDB",
+    "sync_mechanism": "Background Sync",
+    "conflict_resolution_strategy": "Last Write Wins",
+    "network_detection": true,
+    "offline_features": ["Course Viewing", "Assignment Submission", "Discussion Reading"],
+    "online_only_features": ["Video Conferencing", "Real-time Chat"]
+  },
+  "file_dependencies": {
+    "src/components/Button.js": ["src/components/Icon.js"],
+    "src/components/UserList.js": ["src/components/UserCard.js", "src/components/Button.js"],
+    "src/components/UserCard.js": ["src/components/Avatar.js", "src/components/Icon.js"],
+    "src/components/CourseList.js": ["src/components/CourseCard.js", "src/components/Button.js"],
+    "src/components/CourseCard.js": ["src/components/Icon.js"],
+    "src/App.js": ["src/components/UserList.js", "src/components/CourseList.js", "src/components/Button.js"]
+  },
+  "templates": [
+    {
+      "path": "src/templates/course_template.html",
+      "template_type": "HTML",
+      "bindings": ["course.name", "course.description", "course.instructor"],
+      "partials": ["header", "footer", "sidebar"],
+      "loops": ["modules", "assignments"],
+      "conditionals": ["isEnrolled", "isInstructor"]
+    },
+    {
+      "path": "src/templates/assignment_template.html",
+      "template_type": "HTML",
+      "bindings": ["assignment.title", "assignment.description", "assignment.due_date"],
+      "partials": ["header", "footer"],
+      "loops": ["submissions", "comments"],
+      "conditionals": ["isSubmitted", "isPastDue"]
+    }
+  ]
+}

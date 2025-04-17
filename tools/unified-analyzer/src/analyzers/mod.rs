@@ -1,14 +1,32 @@
 // Reexports for easier access
 mod ast_analyzer;
 mod project_structure;
+#[cfg(test)]
+mod project_structure_tests;
 pub mod unified_analyzer;
 pub mod integrated_migration_analyzer;
+#[cfg(test)]
+mod integrated_migration_analyzer_tests;
 mod unified_analyzer_extensions;
 pub mod modules;
+pub mod codebase_scanner;
+pub mod simple_source_db_analyzer;
+pub mod rust_source_db_analyzer;
+mod ast_analyzer_runner;
+mod project_structure_runner;
+mod integrated_migration_runner;
+mod unified_analyzer_runner;
 
-// Re-export AnalysisResult and UnifiedProjectAnalyzer for external use
-pub use unified_analyzer::{AnalysisResult, UnifiedProjectAnalyzer};
-pub use integrated_migration_analyzer::IntegratedMigrationAnalyzer;
+// Export the analyzer runners
+pub use ast_analyzer_runner::run_ast_analyzer;
+pub use project_structure_runner::run_project_structure_analyzer;
+// These are commented out to avoid unused import warnings
+// pub use integrated_migration_runner::run_integrated_migration_analyzer;
+// pub use unified_analyzer_runner::run_unified_project_analyzer;
+
+// Re-export AnalysisResult for external use
+// This is used in all_generators.rs
+// pub use unified_analyzer::AnalysisResult;
 
 // Import the modules that will house the analyzers
 use modules::file_structure_analyzer::FileStructureAnalyzer;
@@ -26,21 +44,7 @@ use modules::business_logic_analyzer::BusinessLogicAnalyzer;
 use modules::canvas_analyzer::CanvasAnalyzer;
 use modules::discourse_analyzer::DiscourseAnalyzer;
 
-// Re-export individual analyzers for use in UnifiedProjectAnalyzer
-pub use modules::file_structure_analyzer::FileStructureAnalyzer as ExposedFileStructureAnalyzer;
-pub use modules::ruby_rails_analyzer::RubyRailsAnalyzer as ExposedRubyRailsAnalyzer;
-pub use modules::ember_analyzer::EmberAnalyzer as ExposedEmberAnalyzer;
-pub use modules::react_analyzer::ReactAnalyzer as ExposedReactAnalyzer;
-pub use modules::template_analyzer::TemplateAnalyzer as ExposedTemplateAnalyzer;
-pub use modules::route_analyzer::RouteAnalyzer as ExposedRouteAnalyzer;
-pub use modules::api_analyzer::ApiAnalyzer as ExposedApiAnalyzer;
-pub use modules::dependency_analyzer::DependencyAnalyzer as ExposedDependencyAnalyzer;
-pub use modules::auth_flow_analyzer::AuthFlowAnalyzer as ExposedAuthFlowAnalyzer;
-pub use modules::offline_first_readiness_analyzer::OfflineFirstReadinessAnalyzer as ExposedOfflineFirstReadinessAnalyzer;
-pub use modules::database_schema_analyzer::DatabaseSchemaAnalyzer as ExposedDatabaseSchemaAnalyzer;
-pub use modules::business_logic_analyzer::BusinessLogicAnalyzer as ExposedBusinessLogicAnalyzer;
-pub use modules::canvas_analyzer::CanvasAnalyzer as ExposedCanvasAnalyzer;
-pub use modules::discourse_analyzer::DiscourseAnalyzer as ExposedDiscourseAnalyzer;
+// These exports are used in main.rs
 
 // Function to run all analyzers sequentially
 pub fn run_all_analyzers(

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Source Database Schema</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .mermaid {
+            margin-top: 20px;
+        }
+        .legend {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+        .legend h3 {
+            margin-top: 0;
+        }
+        .source-info {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f0f8ff;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Source Database Schema</h1>
+        
+        <div class="source-info">
+            <h3>About This Visualization</h3>
+            <p>This diagram shows the database schema extracted from the source code of Canvas and Discourse. It represents the core data models that will be implemented in the Ordo application.</p>
+        </div>
+        
+        <div class="mermaid">
+erDiagram
+    users {
+        integer id
+        string username
+        string name
+        string email
+        datetime created_at
+        datetime updated_at
+    }
+    tags {
+        integer id
+        string name
+        datetime created_at
+        datetime updated_at
+    }
+    assignments {
+        integer id
+        string title
+        text description
+        integer course_id
+        float points_possible
+        datetime due_at
+        datetime created_at
+        datetime updated_at
+    }
+    submissions {
+        integer id
+        integer assignment_id
+        integer user_id
+        string grade
+        float score
+        datetime submitted_at
+        datetime created_at
+        datetime updated_at
+    }
+    topics {
+        integer id
+        string title
+        integer user_id
+        integer category_id
+        datetime created_at
+        datetime updated_at
+    }
+    posts {
+        integer id
+        integer topic_id
+        integer user_id
+        text raw
+        text cooked
+        datetime created_at
+        datetime updated_at
+    }
+    enrollments {
+        integer id
+        integer user_id
+        integer course_id
+        string type
+        datetime created_at
+        datetime updated_at
+    }
+    categories {
+        integer id
+        string name
+        string slug
+        text description
+        datetime created_at
+        datetime updated_at
+    }
+    courses {
+        integer id
+        string name
+        integer account_id
+        integer root_account_id
+        integer enrollment_term_id
+        datetime created_at
+        datetime updated_at
+    }
+    courses ||--o{ assignments : "has"
+    assignments ||--o{ submissions : "has"
+    users ||--o{ submissions : "makes"
+    users ||--o{ enrollments : "has"
+    courses ||--o{ enrollments : "has"
+    users ||--o{ topics : "creates"
+    users ||--o{ posts : "creates"
+    topics ||--o{ posts : "has"
+    categories ||--o{ topics : "contains"
+
+        </div>
+        
+        <div class="legend">
+            <h3>Legend</h3>
+            <p>Each box represents a table in the database, and the lines represent relationships between tables.</p>
+            <p>Cardinality notation:</p>
+            <ul>
+                <li><strong>||--||</strong>: One-to-one relationship</li>
+                <li><strong>||--o{</strong>: One-to-many relationship</li>
+                <li><strong>}o--o{</strong>: Many-to-many relationship</li>
+            </ul>
+        </div>
+    </div>
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: 'default' });
+    </script>
+</body>
+</html>

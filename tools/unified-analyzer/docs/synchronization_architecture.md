@@ -6,7 +6,7 @@ This document outlines the synchronization architecture between Canvas LMS and D
 
 ## Synchronization Status
 
-- **Implementation Status**: in-progress
+- **Implementation Status**: planned
 - **Offline Capability**: Yes
 
 ## Synchronization Priorities

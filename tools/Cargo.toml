@@ -1,7 +1,4 @@
-[workspace]
-members = [
-    "unified-analyzer"
-]
+# Removed workspace declaration as it's already included in the root workspace
 
 [package]
 name = "lms-tools"

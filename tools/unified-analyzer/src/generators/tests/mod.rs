@@ -1,0 +1,4 @@
+mod api_map_generator_tests;
+mod component_tree_generator_tests;
+mod db_schema_generator_tests;
+mod migration_roadmap_generator_tests;

@@ -3,7 +3,6 @@ use chrono::Local;
 use log::info;
 use serde_json::Value;
 // use crate::output_schema::UnifiedOutput;
-use crate::utils::file_system::FileSystemUtils;
 use std::fs;
 use std::path::PathBuf;
 
@@ -13,6 +12,24 @@ pub fn generate_documentation(unified_output: &Value, base_dir: &PathBuf) -> Res
     if !docs_dir.exists() {
         fs::create_dir_all(&docs_dir)
             .context("Failed to create docs directory")?;
+    }
+
+    // Create subdirectories
+    let api_dir = docs_dir.join("api");
+    let architecture_dir = docs_dir.join("architecture");
+    let models_dir = docs_dir.join("models");
+    let integration_dir = docs_dir.join("integration");
+    let technical_dir = docs_dir.join("technical");
+    let visualizations_dir = docs_dir.join("visualizations");
+    let analysis_dir = docs_dir.join("analysis");
+
+    // Create directories if they don't exist
+    for dir in &[&api_dir, &architecture_dir, &models_dir, &integration_dir,
+                 &technical_dir, &visualizations_dir, &analysis_dir] {
+        if !dir.exists() {
+            fs::create_dir_all(dir)
+                .context(format!("Failed to create directory: {}", dir.display()))?;
+        }
     }
 
     info!("Generating documentation in {}", docs_dir.display());
@@ -45,7 +62,7 @@ pub fn generate_documentation(unified_output: &Value, base_dir: &PathBuf) -> Res
     Ok(())
 }
 
-fn generate_central_hub(unified_output: &Value, base_dir: &PathBuf) -> Result<()> {
+fn generate_central_hub(_unified_output: &Value, base_dir: &PathBuf) -> Result<()> {
     let mut content = String::from("# Central Reference Hub\n\n");
     content.push_str(&format!("Generated on: {}\n\n", Local::now().format("%Y-%m-%d %H:%M:%S")));
 
@@ -211,7 +228,7 @@ fn generate_api_doc(unified_output: &Value, base_dir: &PathBuf) -> Result<()> {
         content.push_str("No API information available.\n");
     }
 
-    let path = base_dir.join("docs").join("api_documentation.md");
+    let path = base_dir.join("docs").join("api").join("overview.md");
     std::fs::write(&path, content).context("Failed to write API documentation")?;
     info!("Generated API documentation at {}", path.display());
     Ok(())
@@ -341,7 +358,7 @@ fn generate_database_schema_doc(unified_output: &Value, base_dir: &PathBuf) -> R
         content.push_str("No database schema information available.\n");
     }
 
-    let path = base_dir.join("docs").join("database_schema.md");
+    let path = base_dir.join("docs").join("models").join("database_schema.md");
     std::fs::write(&path, content).context("Failed to write database schema documentation")?;
     info!("Generated database schema documentation at {}", path.display());
     Ok(())
@@ -506,7 +523,7 @@ fn generate_business_logic_doc(unified_output: &Value, base_dir: &PathBuf) -> Re
         content.push_str("No business logic information available.\n");
     }
 
-    let path = base_dir.join("docs").join("business_logic.md");
+    let path = base_dir.join("docs").join("technical").join("business_logic.md");
     std::fs::write(&path, content).context("Failed to write business logic documentation")?;
     info!("Generated business logic documentation at {}", path.display());
     Ok(())
@@ -621,13 +638,13 @@ fn generate_offline_readiness_doc(unified_output: &Value, base_dir: &PathBuf) ->
         content.push_str("No offline-first readiness information available.\n");
     }
 
-    let path = base_dir.join("docs").join("offline_readiness.md");
+    let path = base_dir.join("docs").join("technical").join("offline_readiness.md");
     std::fs::write(&path, content).context("Failed to write offline readiness documentation")?;
     info!("Generated offline readiness documentation at {}", path.display());
     Ok(())
 }
 
-fn generate_architecture_overview(unified_output: &Value, base_dir: &PathBuf) -> Result<()> {
+fn generate_architecture_overview(_unified_output: &Value, base_dir: &PathBuf) -> Result<()> {
     let mut content = String::from("# Architecture Overview\n\n");
 
     content.push_str("This document provides a high-level overview of the Canvas and Discourse architectures ");
@@ -736,13 +753,13 @@ fn generate_architecture_overview(unified_output: &Value, base_dir: &PathBuf) ->
     content.push_str("+----------------------------------+\n");
     content.push_str("```\n");
 
-    let path = base_dir.join("docs").join("architecture_overview.md");
+    let path = base_dir.join("docs").join("architecture").join("overview.md");
     std::fs::write(&path, content).context("Failed to write architecture overview documentation")?;
     info!("Generated architecture overview at {}", path.display());
     Ok(())
 }
 
-fn generate_implementation_roadmap(unified_output: &Value, base_dir: &PathBuf) -> Result<()> {
+fn generate_implementation_roadmap(_unified_output: &Value, base_dir: &PathBuf) -> Result<()> {
     let mut content = String::from("# Implementation Roadmap\n\n");
 
     content.push_str("This document outlines the proposed roadmap for implementing the offline-first ");
@@ -844,7 +861,7 @@ fn generate_implementation_roadmap(unified_output: &Value, base_dir: &PathBuf) -
     content.push_str("4. **Performance**: Ensuring good performance with potentially large local databases\n");
     content.push_str("5. **Security**: Maintaining proper security in a distributed system\n");
 
-    let path = base_dir.join("docs").join("implementation_roadmap.md");
+    let path = base_dir.join("docs").join("integration").join("roadmap.md");
     std::fs::write(&path, content).context("Failed to write implementation roadmap documentation")?;
     info!("Generated implementation roadmap at {}", path.display());
     Ok(())

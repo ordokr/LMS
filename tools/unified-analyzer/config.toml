@@ -1,12 +1,23 @@
 # Unified Analyzer Configuration
 
-# Output directories
+# General configuration
+[general]
+project_name = "EduConnect"
+output_dir = "docs"
+log_level = "info"
+
+# Documentation directories
 [output]
 docs_dir = "docs"
 api_dir = "docs/api"
 architecture_dir = "docs/architecture"
 models_dir = "docs/models"
 integration_dir = "docs/integration"
+technical_dir = "docs/technical"
+visualizations_dir = "docs/visualizations"
+analysis_dir = "docs/analysis"
+rag_dir = "docs/rag_knowledge_base"
+development_dir = "docs/development"
 
 # Documentation generation options
 [documentation]
@@ -14,8 +25,10 @@ integration_dir = "docs/integration"
 generate_high_priority = true
 # Whether to generate medium priority documentation
 generate_medium_priority = true
-# Whether to exclude AI/Gemini-related content
-exclude_ai_content = true
+# Whether to generate low priority documentation
+generate_low_priority = false
+# Whether to generate visualizations
+generate_visualizations = true
 
 # High priority documentation
 [documentation.high_priority]
@@ -31,18 +44,49 @@ summary_report = true
 synchronization_architecture = true
 database_architecture = true
 
+# Visualization settings
+[visualizations]
+api_map = true
+component_tree = true
+db_schema = true
+migration_roadmap = true
+
+# Visualization directories
+[visualizations.directories]
+api_map_dir = "docs/visualizations/api_map"
+component_tree_dir = "docs/visualizations/component_tree"
+db_schema_dir = "docs/visualizations/db_schema"
+migration_roadmap_dir = "docs/visualizations/migration_roadmap"
+
 # Project information
 [project]
-name = "LMS"
-description = "Learning Management System"
+name = "Ordo"
+description = "Offline-first learning management system with integrated forum"
 version = "0.1.0"
 repository = "https://github.com/ordokr/LMS.git"
 
+# Source code paths
+[paths]
+canvas_path = "C:\\Users\\Tim\\Desktop\\port\\canvas"
+discourse_path = "C:\\Users\\Tim\\Desktop\\port\\discourse"
+lms_path = "C:\\Users\\Tim\\Desktop\\LMS"
+
 # Analysis options
 [analysis]
+# Analyzers to use
+analyzers = ["file_structure", "ruby_rails", "ember", "react", "template", "route", "api", "dependency", "auth_flow", "offline_first_readiness", "database_schema", "business_logic", "canvas", "discourse"]
 # Maximum depth to search for files
 max_depth = 10
 # File extensions to include in analysis
 include_extensions = [".rs", ".js", ".ts", ".jsx", ".tsx", ".html", ".css", ".scss", ".md", ".toml", ".json"]
 # Directories to exclude from analysis
 exclude_dirs = ["node_modules", "target", "dist", "build", ".git"]
+
+# Performance configuration
+[performance]
+parallel_processing = true
+enable_caching = true
+incremental_analysis = true
+cache_dir = ".cache"
+max_memory_mb = 2048
+timeout_seconds = 7200

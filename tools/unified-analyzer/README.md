@@ -60,6 +60,15 @@ The analyzer generates comprehensive documentation in the `docs` directory of th
 - **Synchronization Architecture**: Documentation of synchronization architecture
 - **Database Architecture**: Documentation of database architecture
 
+### Visualizations
+
+- **API Map**: Interactive visualization of API endpoints and their relationships
+- **Component Tree**: Interactive visualization of component hierarchy and dependencies
+- **Database Schema**: Interactive visualization of database schema and relationships
+- **Migration Roadmap**: Interactive visualization of migration roadmap
+
+For more information about visualizations, see the [Visualizations README](docs/visualizations/README.md).
+
 ## Configuration
 
 The Unified Analyzer can be configured through a `config.toml` file. Here's an example configuration:
@@ -119,6 +128,10 @@ unified-analyzer/
 │   ├── generators/              # Documentation generators
 │   │   ├── mod.rs               # Generator module
 │   │   ├── error.rs             # Error handling
+│   │   ├── api_map_generator.rs  # API map generator
+│   │   ├── component_tree_generator.rs  # Component tree generator
+│   │   ├── db_schema_generator.rs  # Database schema generator
+│   │   ├── migration_roadmap_generator.rs  # Migration roadmap generator
 │   │   ├── api_doc_generator.rs  # API documentation generator
 │   │   ├── implementation_details_generator.rs  # Implementation details generator
 │   │   ├── testing_doc_generator.rs  # Testing documentation generator
@@ -126,10 +139,22 @@ unified-analyzer/
 │   │   ├── summary_report_generator.rs  # Summary report generator
 │   │   ├── enhanced_central_hub_generator.rs  # Enhanced central hub generator
 │   │   ├── sync_architecture_generator.rs  # Synchronization architecture generator
-│   │   └── database_architecture_generator.rs  # Database architecture generator
+│   │   ├── database_architecture_generator.rs  # Database architecture generator
+│   │   ├── templates/           # HTML templates for visualizations
+│   │   │   ├── api_map_template.html  # API map template
+│   │   │   ├── component_tree_template.html  # Component tree template
+│   │   │   └── db_schema_template.html  # Database schema template
+│   │   └── tests/              # Generator tests
+│   │       ├── mod.rs           # Test module
+│   │       ├── api_map_generator_tests.rs  # API map generator tests
+│   │       ├── component_tree_generator_tests.rs  # Component tree generator tests
+│   │       ├── db_schema_generator_tests.rs  # Database schema generator tests
+│   │       └── migration_roadmap_generator_tests.rs  # Migration roadmap generator tests
 │   └── utils/                   # Utilities
 │       ├── mod.rs               # Utility module
-│       └── file_system.rs       # File system utilities
+│       ├── file_system.rs       # File system utilities
+│       ├── performance.rs       # Performance utilities
+│       └── template_cache.rs    # Template caching utilities
 ├── tests/                       # Tests
 │   ├── main.rs                  # Test runner
 │   ├── test_utils.rs            # Test utilities
@@ -164,6 +189,59 @@ To add a new documentation generator:
 3. Re-export the generator function in `src/generators/mod.rs`
 4. Add the generator to the main function in `src/main.rs`
 5. Update the configuration in `config.toml` to include the new generator
+
+### Templates
+
+The Unified Analyzer uses HTML templates to generate visualizations. These templates are located in the `src/generators/templates` directory.
+
+#### Template Structure
+
+Each template is an HTML file with placeholders that are replaced with data from the analysis. The placeholders are HTML comments with specific names.
+
+##### API Map Template
+
+The API Map template (`api_map_template.html`) has the following placeholders:
+
+- `<!-- METHOD_FILTERS_PLACEHOLDER -->`: Replaced with HTML for filtering API endpoints by HTTP method
+- `<!-- CATEGORIES_PLACEHOLDER -->`: Replaced with HTML for the API endpoint categories
+
+##### Component Tree Template
+
+The Component Tree template (`component_tree_template.html`) has the following placeholders:
+
+- `<!-- GRAPH_DATA_PLACEHOLDER -->`: Replaced with JSON data for the component tree graph
+
+##### Database Schema Template
+
+The Database Schema template (`db_schema_template.html`) has the following placeholders:
+
+- `<!-- TABLE_LIST_PLACEHOLDER -->`: Replaced with HTML for the list of database tables
+- `<!-- RELATIONSHIPS_LIST_PLACEHOLDER -->`: Replaced with HTML for the list of table relationships
+- `<!-- SCHEMA_DATA_PLACEHOLDER -->`: Replaced with JSON data for the database schema graph
+
+#### Customizing Templates
+
+You can customize the templates to change the appearance and behavior of the visualizations. Just make sure to keep the placeholders intact, or the generator will not be able to replace them with data.
+
+To create a custom template:
+
+1. Copy one of the existing templates to a new file
+2. Modify the HTML, CSS, and JavaScript as needed
+3. Make sure to keep the placeholders intact
+4. Update the generator code to use your custom template
+
+#### Template Caching
+
+Templates are cached in memory to avoid repeated disk reads. The template cache is implemented in the `src/utils/template_cache.rs` file. To use the template cache in a generator:
+
+```rust
+use crate::utils::template_cache::get_template;
+
+// Load template file using the template cache
+let template_path = "src/generators/templates/my_template.html";
+let embedded_template = include_str!("templates/my_template.html");
+let template = get_template(template_path, Some(embedded_template))?;
+```
 
 ### Running Tests
 

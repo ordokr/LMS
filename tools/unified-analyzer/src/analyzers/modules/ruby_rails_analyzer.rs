@@ -3,7 +3,7 @@ use std::{
     collections::HashMap,
     fs,
     io,
-    path::{Path, PathBuf},
+    path::Path,
 };
 use lazy_static::lazy_static;
 use walkdir::WalkDir;
@@ -312,7 +312,7 @@ impl RubyRailsAnalyzer {
         Ok(())
     }
 
-    fn extract_controller(&mut self, file_name: &str,
+    fn extract_controller(&mut self, _file_name: &str,
         content: &str,
     ) -> Result<(), RubyRailsError> {
         // Regex to find the class name for controllers
@@ -344,7 +344,7 @@ impl RubyRailsAnalyzer {
         }
         Ok(())
     }
-    fn extract_model(&mut self, file_name: &str,
+    fn extract_model(&mut self, _file_name: &str,
         content: &str,
     ) -> Result<(), RubyRailsError> {
         // Regex to find the class name for models

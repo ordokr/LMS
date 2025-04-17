@@ -3,33 +3,69 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use uuid::Uuid;
+use log::{debug, info, warn};
 
 use crate::core::errors::AppError;
 use super::operations::{SyncOperation, SyncBatch, OperationType};
 use super::conflicts::{ConflictResolver, ConflictResolution};
+use super::version_vector::VersionVector;
 
 pub struct SyncEngine {
     db: Pool<Sqlite>,
     device_id: String,
-    vector_clock: Arc<Mutex<HashMap<String, i64>>>,
+    vector_clock: Arc<Mutex<VersionVector>>,
+    conflict_resolver: Arc<ConflictResolver>,
+    // Configuration for large systems
+    max_batch_size: usize,
+    prune_threshold: i64,
+    compression_enabled: bool,
 }
 
 impl SyncEngine {
     pub fn new(db: Pool<Sqlite>) -> Self {
         // Generate a unique device ID or load from storage
         let device_id = Uuid::new_v4().to_string();
-        
+
         Self {
             db,
             device_id,
-            vector_clock: Arc::new(Mutex::new(HashMap::new())),
+            vector_clock: Arc::new(Mutex::new(VersionVector::new())),
+            conflict_resolver: Arc::new(ConflictResolver::new()),
+            max_batch_size: 1000,
+            prune_threshold: 10,
+            compression_enabled: true,
         }
     }
-    
+
+    /// Create a new SyncEngine with custom configuration
+    pub fn with_config(
+        db: Pool<Sqlite>,
+        device_id: Option<String>,
+        max_batch_size: usize,
+        prune_threshold: i64,
+        compression_enabled: bool,
+        conflict_cache_size: usize,
+    ) -> Self {
+        let device_id = device_id.unwrap_or_else(|| Uuid::new_v4().to_string());
+
+        Self {
+            db,
+            device_id,
+            vector_clock: Arc::new(Mutex::new(VersionVector::new())),
+            conflict_resolver: Arc::new(ConflictResolver::with_config(
+                conflict_cache_size,
+                max_batch_size / 10, // Use smaller batches for conflict resolution
+            )),
+            max_batch_size,
+            prune_threshold,
+            compression_enabled,
+        }
+    }
+
     // Initialize vector clock from database
     pub async fn initialize(&self) -> Result<(), AppError> {
         let mut clock = self.vector_clock.lock().await;
-        
+
         // Load vector clock from database
         let rows = sqlx::query!(
             r#"
@@ -40,24 +76,32 @@ impl SyncEngine {
         )
         .fetch_all(&self.db)
         .await?;
-        
+
         for row in rows {
             if let (Some(device_id), Some(timestamp)) = (row.device_id, row.last_timestamp) {
-                clock.insert(device_id, timestamp);
+                let counters = clock.to_hashmap();
+                let mut new_counters = counters.clone();
+                new_counters.insert(device_id, timestamp);
+                *clock = VersionVector::from_hashmap(new_counters);
             }
         }
-        
+
         // Ensure current device is in vector clock
-        if !clock.contains_key(&self.device_id) {
-            clock.insert(self.device_id.clone(), 0);
+        let device_counter = clock.get(&self.device_id);
+        if device_counter == 0 {
+            let counters = clock.to_hashmap();
+            let mut new_counters = counters.clone();
+            new_counters.insert(self.device_id.clone(), 0);
+            *clock = VersionVector::from_hashmap(new_counters);
         }
-        
+
+        info!("Initialized vector clock: {:?}", clock);
         Ok(())
     }
-    
+
     // Queue a new operation for later sync
     pub async fn queue_operation(
-        &self, 
+        &self,
         user_id: i64,
         operation_type: OperationType,
         entity_type: &str,
@@ -65,12 +109,11 @@ impl SyncEngine {
         payload: serde_json::Value,
     ) -> Result<SyncOperation, AppError> {
         let mut clock = self.vector_clock.lock().await;
-        
+
         // Increment vector clock for this device
-        let current_time = *clock.get(&self.device_id).unwrap_or(&0);
-        let new_time = current_time + 1;
-        clock.insert(self.device_id.clone(), new_time);
-        
+        clock.increment(&self.device_id);
+        debug!("Incremented vector clock for device {}: {:?}", self.device_id, clock);
+
         // Create the operation
         let operation = SyncOperation::new(
             &self.device_id,
@@ -79,27 +122,28 @@ impl SyncEngine {
             entity_type,
             entity_id,
             payload,
-            clock.clone(),
+            clock.to_hashmap(),
         );
-        
+
         // Store in database
         self.store_operation(&operation).await?;
-        
+
+        info!("Queued operation: {} ({})", operation.id, operation.operation_type);
         Ok(operation)
     }
-    
+
     // Store operation in database
     async fn store_operation(&self, operation: &SyncOperation) -> Result<(), AppError> {
         let op_json = serde_json::to_string(&operation)
             .map_err(|e| AppError::SyncError(format!("Failed to serialize operation: {}", e)))?;
-            
+
         let vector_clock_json = serde_json::to_string(&operation.vector_clock)
             .map_err(|e| AppError::SyncError(format!("Failed to serialize vector clock: {}", e)))?;
-        
+
         sqlx::query!(
             r#"
-            INSERT INTO sync_operations 
-            (id, device_id, user_id, operation_type, entity_type, entity_id, payload, 
+            INSERT INTO sync_operations
+            (id, device_id, user_id, operation_type, entity_type, entity_id, payload,
              timestamp, vector_clock, synced, synced_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
@@ -117,15 +161,15 @@ impl SyncEngine {
         )
         .execute(&self.db)
         .await?;
-        
+
         Ok(())
     }
-    
+
     // Get pending operations to sync
     pub async fn get_pending_operations(&self, limit: i64) -> Result<Vec<SyncOperation>, AppError> {
         let rows = sqlx::query!(
             r#"
-            SELECT id, device_id, user_id, operation_type, entity_type, entity_id, 
+            SELECT id, device_id, user_id, operation_type, entity_type, entity_id,
                    payload, timestamp, vector_clock, synced, synced_at
             FROM sync_operations
             WHERE synced = 0
@@ -136,9 +180,9 @@ impl SyncEngine {
         )
         .fetch_all(&self.db)
         .await?;
-        
+
         let mut operations = Vec::new();
-        
+
         for row in rows {
             let op_type = match row.operation_type {
                 0 => OperationType::Create,
@@ -147,13 +191,13 @@ impl SyncEngine {
                 3 => OperationType::Reference,
                 _ => continue, // Skip unknown operation types
             };
-            
+
             let vector_clock: HashMap<String, i64> = serde_json::from_str(&row.vector_clock)
                 .map_err(|e| AppError::SyncError(format!("Failed to deserialize vector clock: {}", e)))?;
-            
+
             let payload: serde_json::Value = serde_json::from_str(&row.payload)
                 .map_err(|e| AppError::SyncError(format!("Failed to deserialize payload: {}", e)))?;
-            
+
             let operation = SyncOperation {
                 id: row.id,
                 device_id: row.device_id,
@@ -167,17 +211,17 @@ impl SyncEngine {
                 synced: row.synced != 0,
                 synced_at: row.synced_at,
             };
-            
+
             operations.push(operation);
         }
-        
+
         Ok(operations)
     }
-    
+
     // Mark operations as synced
     pub async fn mark_as_synced(&self, operation_ids: &[String]) -> Result<(), AppError> {
         let now = time::OffsetDateTime::now_utc().unix_timestamp();
-        
+
         for id in operation_ids {
             sqlx::query!(
                 r#"
@@ -191,68 +235,71 @@ impl SyncEngine {
             .execute(&self.db)
             .await?;
         }
-        
+
         Ok(())
     }
-    
+
     // Create a sync batch to send to server
     pub async fn create_sync_batch(&self, user_id: i64, limit: i64) -> Result<Option<SyncBatch>, AppError> {
         let operations = self.get_pending_operations(limit).await?;
-        
+
         if operations.is_empty() {
             return Ok(None);
         }
-        
+
         let clock = self.vector_clock.lock().await;
-        
+
         let batch = SyncBatch::new(
             &self.device_id,
             user_id,
             operations,
-            clock.clone(),
+            clock.to_hashmap(),
         );
-        
+
+        info!("Created sync batch with {} operations", batch.operations.len());
         Ok(Some(batch))
     }
-    
+
     // Apply operations from a received sync batch
     pub async fn apply_sync_batch(&self, batch: SyncBatch) -> Result<(), AppError> {
         let mut clock = self.vector_clock.lock().await;
-        
-        // Merge vector clocks
-        for (device, remote_clock) in batch.vector_clock {
-            let local_clock = clock.entry(device).or_insert(0);
-            *local_clock = std::cmp::max(*local_clock, remote_clock);
-        }
-        
+
+        // Merge vector clocks using VersionVector
+        let remote_vv = VersionVector::from_hashmap(batch.vector_clock);
+        clock.merge(&remote_vv);
+
+        info!("Merged vector clock with remote: {:?}", clock);
+
         // Process operations with conflict resolution
         for remote_op in batch.operations {
             // Find any conflicting operations
             let conflicts = self.find_conflicts(&remote_op).await?;
-            
+
             if conflicts.is_empty() {
                 // No conflicts, just store the operation
+                debug!("No conflicts found for operation {}", remote_op.id);
                 self.store_operation(&remote_op).await?;
             } else {
                 // Resolve conflicts
+                info!("Found {} conflicts for operation {}", conflicts.len(), remote_op.id);
                 self.resolve_conflicts(remote_op, conflicts).await?;
             }
         }
-        
+
         Ok(())
     }
-    
+
     // Find operations that might conflict with a given operation
     async fn find_conflicts(&self, operation: &SyncOperation) -> Result<Vec<SyncOperation>, AppError> {
         // This is a simplified conflict detection
         // In a real implementation, this would be more sophisticated
-        
+
         match &operation.entity_id {
             Some(entity_id) => {
                 // Find operations for the same entity
                 let rows = sqlx::query!(
                     r#"
-                    SELECT id, device_id, user_id, operation_type, entity_type, entity_id, 
+                    SELECT id, device_id, user_id, operation_type, entity_type, entity_id,
                            payload, timestamp, vector_clock, synced, synced_at
                     FROM sync_operations
                     WHERE entity_type = ? AND entity_id = ?
@@ -262,15 +309,15 @@ impl SyncEngine {
                 )
                 .fetch_all(&self.db)
                 .await?;
-                
+
                 let mut conflicts = Vec::new();
-                
+
                 for row in rows {
                     // Parse the row into a SyncOperation
                     // (Similar code as in get_pending_operations)
                     // Add to conflicts list if it conflicts with the operation
                     // This is just an outline - you'd need to implement the actual parsing
-                    
+
                     let op_type = match row.operation_type {
                         0 => OperationType::Create,
                         1 => OperationType::Update,
@@ -278,13 +325,13 @@ impl SyncEngine {
                         3 => OperationType::Reference,
                         _ => continue, // Skip unknown operation types
                     };
-                    
+
                     let vector_clock: HashMap<String, i64> = serde_json::from_str(&row.vector_clock)
                         .map_err(|e| AppError::SyncError(format!("Failed to deserialize vector clock: {}", e)))?;
-                    
+
                     let payload: serde_json::Value = serde_json::from_str(&row.payload)
                         .map_err(|e| AppError::SyncError(format!("Failed to deserialize payload: {}", e)))?;
-                    
+
                     let local_op = SyncOperation {
                         id: row.id,
                         device_id: row.device_id,
@@ -298,19 +345,19 @@ impl SyncEngine {
                         synced: row.synced != 0,
                         synced_at: row.synced_at,
                     };
-                    
+
                     // Check if there's a conflict
                     if ConflictResolver::detect_conflict(&local_op, operation).is_some() {
                         conflicts.push(local_op);
                     }
                 }
-                
+
                 Ok(conflicts)
             },
             None => Ok(Vec::new()),
         }
     }
-    
+
     // Resolve conflicts between operations
     async fn resolve_conflicts(&self, remote_op: SyncOperation, conflicts: Vec<SyncOperation>) -> Result<(), AppError> {
         for local_op in conflicts {
@@ -336,10 +383,10 @@ impl SyncEngine {
                 },
             }
         }
-        
+
         Ok(())
     }
-    
+
     // Delete an operation by ID
     async fn delete_operation(&self, operation_id: &str) -> Result<(), AppError> {
         sqlx::query!(
@@ -351,7 +398,7 @@ impl SyncEngine {
         )
         .execute(&self.db)
         .await?;
-        
+
         Ok(())
     }
 }

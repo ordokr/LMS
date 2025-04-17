@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     fs,
-    io::{self, Error},
-    path::{Path, PathBuf},
+    io::{self},
+    path::PathBuf,
 };
 use walkdir::WalkDir;
 use regex::Regex;
@@ -57,7 +57,7 @@ impl CanvasAnalyzer {
 
     pub fn analyze(&self, project_path: &str) -> Result<String, CanvasError> {
         let mut result = CanvasAnalyzer::default();
-        let canvas_dir = PathBuf::from(project_path).join("canvas");
+        let canvas_dir = PathBuf::from(project_path);
 
         println!("Looking for Canvas directory at: {}", canvas_dir.display());
 
