@@ -26,7 +26,7 @@ Welcome to the Ordo project! This guide is designed to quickly orient AI coding 
 
 - **Frontend**: Leptos (Rust-based reactive framework)
 - **Desktop Shell**: Tauri
-- **Backend**: Rust and Haskell
+- **Backend**: Rust and Haskell ([details](architecture/haskell_integration.md))
 - **Database**: Hybrid SQLite/Redb approach
 - **ORM**: SQLx for type-safe SQL
 
@@ -115,7 +115,7 @@ Current development priorities are:
 2. **Sync Engine**: Add version vector conflict resolution
 3. **UI**: Complete course listing components
 4. **API**: Define core API contracts
-5. **Migration**: Migrate key modules from Canvas and Discourse to Rust
+5. **Migration**: Migrate key modules from Canvas and Discourse to Rust (see [MODEL_CONTROLLER_MIGRATION.md](project/MODEL_CONTROLLER_MIGRATION.md))
 
 See the [Next Steps Document](integration-advisor/next_steps.md) for detailed priorities.
 
@@ -123,7 +123,8 @@ See the [Next Steps Document](integration-advisor/next_steps.md) for detailed pr
 
 ### Hybrid Storage Example
 
-`ust
+`
+ust
 // Example: Database module structure
 pub mod database {
     pub mod sqlite {
@@ -149,7 +150,8 @@ pub mod database {
 
 ### Sync Engine Example
 
-`ust
+`
+ust
 pub struct SyncEngine {
     sqlite_pool: SqlitePool,
     redb: Database,

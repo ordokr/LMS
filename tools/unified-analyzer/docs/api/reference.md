@@ -1,6 +1,6 @@
 # API Reference
 
-_Generated on: 2025-04-17_
+_Generated on: 2025-04-18_
 
 This document provides a comprehensive reference for all API endpoints in the LMS project.
 

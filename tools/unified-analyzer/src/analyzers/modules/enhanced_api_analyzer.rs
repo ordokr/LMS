@@ -6,6 +6,7 @@ use walkdir::WalkDir;
 use regex::Regex;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Clone)]
 pub struct ApiEndpoint {
     pub path: String,
     pub method: String,
@@ -23,6 +24,7 @@ pub struct ApiEndpoint {
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Clone)]
 pub struct ApiClient {
     pub endpoint: String,
     pub method: String,

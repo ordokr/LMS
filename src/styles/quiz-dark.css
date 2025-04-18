@@ -1,0 +1,85 @@
+/* Quiz Module Dark Mode Styles */
+/* This file contains additional styles for dark mode */
+/* Note: Base dark mode variables are now defined in quiz-theme.css */
+
+[data-theme="dark"] .flashcard-front {
+  background-color: var(--quiz-card-bg);
+  border-color: var(--quiz-border);
+}
+
+[data-theme="dark"] .flashcard-back {
+  background-color: var(--quiz-primary-light);
+  border-color: var(--quiz-primary);
+}
+
+[data-theme="dark"] .explanation {
+  background-color: var(--quiz-primary-light);
+}
+
+[data-theme="dark"] .loading-spinner {
+  border-color: rgba(255, 255, 255, 0.1);
+  border-top-color: var(--quiz-primary);
+}
+
+[data-theme="dark"] .choice-button:hover {
+  background-color: var(--quiz-primary-light);
+}
+
+[data-theme="dark"] .choice-button.selected {
+  background-color: var(--quiz-primary-light);
+  border-color: var(--quiz-primary);
+}
+
+[data-theme="dark"] .add-choice-btn,
+[data-theme="dark"] .add-question-btn {
+  background-color: var(--quiz-primary-light);
+  border-color: var(--quiz-primary);
+}
+
+[data-theme="dark"] .edit-btn {
+  background-color: var(--quiz-primary-light);
+  color: var(--quiz-primary);
+}
+
+[data-theme="dark"] .delete-btn {
+  background-color: rgba(228, 87, 53, 0.15);
+  color: var(--quiz-danger);
+}
+
+/* High contrast mode support is now defined in quiz-theme.css */
+/* Additional component-specific high contrast adjustments */
+@media (forced-colors: active) {
+  .quiz-container,
+  .quiz-creator,
+  .quiz-list-container,
+  .flashcard,
+  .question-item,
+  .choice-button {
+    border: 1px solid CanvasText;
+  }
+
+  .progress-bar {
+    background-color: Highlight;
+  }
+
+  .submit-answer,
+  .create-quiz-btn,
+  .save-question-btn,
+  .start-quiz-btn {
+    background-color: Highlight;
+    color: HighlightText;
+  }
+
+  .choice-button.selected {
+    border: 2px solid Highlight;
+  }
+
+  .flashcard-front,
+  .flashcard-back {
+    border: 1px solid CanvasText;
+  }
+
+  .rating-button {
+    border: 1px solid ButtonBorder;
+  }
+}

@@ -1,0 +1,168 @@
+use leptos::*;
+use wasm_bindgen::prelude::*;
+use web_sys::{HtmlElement, Event};
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
+    
+    #[wasm_bindgen(js_namespace = document, js_name = execCommand)]
+    fn exec_command(command: &str, show_ui: bool, value: &str) -> bool;
+}
+
+#[component]
+pub fn RichTextEditor(
+    #[prop(into)] initial_content: Signal<String>,
+    #[prop(into)] on_change: Callback<String>,
+    #[prop(optional)] placeholder: Option<String>,
+) -> impl IntoView {
+    let editor_ref = create_node_ref::<HtmlElement>();
+    
+    // Initialize editor with content
+    create_effect(move |_| {
+        if let Some(editor) = editor_ref.get() {
+            let content = initial_content.get();
+            editor.set_inner_html(&content);
+        }
+    });
+    
+    // Format commands
+    let exec_format = move |command: &str, value: &str| {
+        let _ = exec_command(command, false, value);
+        
+        // Focus back on editor
+        if let Some(editor) = editor_ref.get() {
+            let _ = editor.focus();
+            
+            // Trigger change event
+            handle_change();
+        }
+    };
+    
+    // Bold
+    let format_bold = move |_| {
+        exec_format("bold", "");
+    };
+    
+    // Italic
+    let format_italic = move |_| {
+        exec_format("italic", "");
+    };
+    
+    // Underline
+    let format_underline = move |_| {
+        exec_format("underline", "");
+    };
+    
+    // Heading
+    let format_heading = move |_| {
+        exec_format("formatBlock", "<h3>");
+    };
+    
+    // Paragraph
+    let format_paragraph = move |_| {
+        exec_format("formatBlock", "<p>");
+    };
+    
+    // Bullet list
+    let format_bullet_list = move |_| {
+        exec_format("insertUnorderedList", "");
+    };
+    
+    // Numbered list
+    let format_numbered_list = move |_| {
+        exec_format("insertOrderedList", "");
+    };
+    
+    // Handle content changes
+    let handle_change = move || {
+        if let Some(editor) = editor_ref.get() {
+            let content = editor.inner_html();
+            on_change.call(content);
+        }
+    };
+    
+    // Handle input events
+    let on_input = move |_| {
+        handle_change();
+    };
+    
+    view! {
+        <div class="rich-text-editor">
+            <div class="editor-toolbar">
+                <button type="button" class="toolbar-btn" on:click=format_bold title="Bold">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path>
+                        <path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path>
+                    </svg>
+                </button>
+                
+                <button type="button" class="toolbar-btn" on:click=format_italic title="Italic">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="19" y1="4" x2="10" y2="4"></line>
+                        <line x1="14" y1="20" x2="5" y2="20"></line>
+                        <line x1="15" y1="4" x2="9" y2="20"></line>
+                    </svg>
+                </button>
+                
+                <button type="button" class="toolbar-btn" on:click=format_underline title="Underline">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"></path>
+                        <line x1="4" y1="21" x2="20" y2="21"></line>
+                    </svg>
+                </button>
+                
+                <span class="toolbar-divider"></span>
+                
+                <button type="button" class="toolbar-btn" on:click=format_heading title="Heading">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 12h12"></path>
+                        <path d="M6 4h12"></path>
+                        <path d="M9 20h6"></path>
+                    </svg>
+                </button>
+                
+                <button type="button" class="toolbar-btn" on:click=format_paragraph title="Paragraph">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M13 4v16"></path>
+                        <path d="M19 4v16"></path>
+                        <path d="M19 4H8.5a4.5 4.5 0 0 0 0 9H13"></path>
+                    </svg>
+                </button>
+                
+                <span class="toolbar-divider"></span>
+                
+                <button type="button" class="toolbar-btn" on:click=format_bullet_list title="Bullet List">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="8" y1="6" x2="21" y2="6"></line>
+                        <line x1="8" y1="12" x2="21" y2="12"></line>
+                        <line x1="8" y1="18" x2="21" y2="18"></line>
+                        <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                        <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                        <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                    </svg>
+                </button>
+                
+                <button type="button" class="toolbar-btn" on:click=format_numbered_list title="Numbered List">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="10" y1="6" x2="21" y2="6"></line>
+                        <line x1="10" y1="12" x2="21" y2="12"></line>
+                        <line x1="10" y1="18" x2="21" y2="18"></line>
+                        <path d="M4 6h1v4"></path>
+                        <path d="M4 10h2"></path>
+                        <path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div
+                _ref=editor_ref
+                class="editor-content"
+                contenteditable="true"
+                on:input=on_input
+                placeholder={placeholder.unwrap_or_else(|| "Enter content here...".to_string())}
+            ></div>
+        </div>
+    }
+}

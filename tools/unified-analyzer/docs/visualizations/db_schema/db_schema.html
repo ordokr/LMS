@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ordo Database Schema</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .mermaid {
+            margin-top: 20px;
+        }
+        .legend {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+        .legend h3 {
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Ordo Database Schema</h1>
+        <div class="mermaid">
+erDiagram
+    data_update_patterns {
+        String pattern_type 
+        String description 
+        Vec(String) files 
+    }
+    dependency_analyzers {
+        HashMap(String ruby_dependencies 
+        HashMap(String js_dependencies 
+        HashMap(String python_dependencies 
+        HashMap(String system_dependencies 
+        DependencyGraph dependency_graph 
+    }
+    modules {
+        String id PK 
+        String name 
+        String course_id FK 
+        Vec(ModuleItem) items 
+    }
+    naming_conflicts {
+        String entity1 
+        String entity2 
+        String conflict_type 
+        String description 
+        String suggested_resolution 
+    }
+    topics {
+        String id PK 
+        String title 
+        String author 
+        String content 
+        Vec(String) tags 
+        Option(String) category 
+    }
+    code_quality_metrics {
+        ComplexityMetrics complexity 
+        TechDebtMetrics tech_debt 
+        SolidViolations solid_violations 
+        DesignPatternUsage design_patterns 
+        HashMap(String metrics 
+    }
+    database_infos {
+        Vec(DatabaseTableInfo) tables 
+        Vec(RelationshipInfo) relationships 
+        Option(String) db_type 
+        Option(String) version 
+    }
+    feature_mappings {
+        String source_feature 
+        String target_feature 
+        f32 confidence 
+        String status 
+        u8 priority 
+    }
+    sync_system_infos {
+        String implementation_status 
+        bool offline_capability 
+        String conflict_resolution 
+    }
+    discourse_analysis {
+        Vec(DiscourseUser) users 
+        Vec(DiscourseTopic) topics 
+        Vec(DiscoursePost) posts 
+    }
+    relationship_infos {
+        String source_table 
+        String target_table 
+        String relationship_type 
+        String source_column 
+        String target_column 
+    }
+    ember_routes {
+        String name 
+        String path 
+        Option(String) model 
+    }
+    integration_conflicts {
+        String description 
+        Vec(String) affected_components 
+        String resolution_status 
+    }
+    test_metrics {
+        usize total 
+        usize passing 
+        f32 coverage 
+        Vec(TestInfo) details 
+    }
+    template_analyzers {
+        HashMap(String templates 
+    }
+    integration_metrics {
+        Vec(IntegrationPoint) canvas_integrations 
+        Vec(IntegrationPoint) discourse_integrations 
+        Vec(IntegrationConflict) conflicts 
+        usize total_points 
+        usize implemented_points 
+        f32 implementation_percentage 
+    }
+    business_rules {
+        String name 
+        String description 
+        Vec(String) files 
+    }
+    api_infos {
+        Vec(ApiEndpointInfo) endpoints 
+        Option(String) base_url 
+        Option(String) version 
+    }
+    conflict_resolution_strategys {
+        String name 
+        String description 
+        Vec(String) files 
+    }
+    template_loops {
+        String iterator 
+        String collection 
+    }
+    canvas_elements {
+        String name 
+        String module 
+        Option(String) due_date 
+    }
+    ember_services {
+        String name 
+        Vec(String) methods 
+    }
+    ruby_rails_analyzers {
+        HashMap(String models 
+        HashMap(String controllers 
+        Vec(Route) routes 
+        Vec(Callback) callbacks 
+        Vec(Hook) hooks 
+        HashMap(String database_schemas 
+    }
+    business_logic_analyzers {
+        Vec(BusinessLogicPattern) patterns 
+        Vec(DomainAlgorithm) algorithms 
+        Vec(Workflow) workflows 
+        Vec(EdgeCase) edge_cases 
+        Vec(BusinessRule) business_rules 
+    }
+    business_logic_infos {
+        Vec(String) core_patterns 
+        HashMap(String domain_algorithms 
+        Vec(WorkflowInfo) workflows 
+        Vec(String) edge_cases 
+        HashMap(String business_rules 
+    }
+    solid_violations {
+        Vec(CodeViolation) srp 
+        Vec(CodeViolation) ocp 
+        Vec(CodeViolation) lsp 
+        Vec(CodeViolation) isp 
+        Vec(CodeViolation) dip 
+    }
+    api_parameter_infos {
+        String name 
+        bool required 
+        Option(String) description 
+    }
+    auth_infos {
+        Vec(String) authentication_methods 
+        HashMap(String roles 
+        bool csrf_protection 
+        bool session_management 
+        HashMap(String password_policies 
+        Vec(String) sso_integrations 
+    }
+    index_infos {
+        String name 
+        Vec(String) columns 
+        bool unique 
+    }
+    analysis_configs {
+        Vec(String) analyzers 
+        Vec(String) exclude_patterns 
+        Vec(String) include_patterns 
+        usize max_file_size_mb 
+    }
+    discourse_topics {
+        String title 
+        String author 
+    }
+    template_infos {
+        String path 
+        String template_type 
+        Vec(String) bindings 
+        Vec(String) partials 
+        Vec(String) loops 
+        Vec(String) conditionals 
+    }
+    offline_first_readiness_analyzers {
+        Vec(DataAccessPattern) data_access_patterns 
+        Vec(DataUpdatePattern) data_update_patterns 
+        Vec(ConflictResolutionStrategy) conflict_resolution_strategies 
+        Vec(RealTimeUpdateRequirement) real_time_update_requirements 
+        u8 offline_readiness_score 
+        Vec(String) recommendations 
+    }
+    posts {
+        String id PK 
+        String topic_id FK 
+        String author 
+        String content 
+        String created_at 
+    }
+    columns {
+        String name 
+        String column_type 
+        bool nullable 
+        Option(String) default 
+        String data_type 
+        bool primary_key 
+        Option(ForeignKey) foreign_key 
+        bool unique 
+        Option(String) default_value 
+        Option(String) description 
+        HashMap(String options 
+    }
+    workflow_steps {
+        String name 
+        String description 
+        Option(String) actor 
+        Vec(String) triggers 
+    }
+    helix_db_indexs {
+        String name 
+        Vec(String) fields 
+        bool unique 
+    }
+    ember_models {
+        String name 
+        Vec(String) attributes 
+        Vec(String) relationships 
+    }
+    common_entitys {
+        String name 
+        String canvas_path 
+        String discourse_path 
+        String mapping_complexity 
+    }
+    routes {
+        String path 
+        Option(String) http_method 
+        Option(String) controller 
+        Option(String) action 
+        Option(String) name 
+        Vec(RouteParameter) parameters 
+        bool authentication_required 
+        String source_file 
+        String framework 
+        String verb 
+    }
+    test_infos {
+        String name 
+        PathBuf file_path 
+        TestStatus status 
+    }
+    architecture_infos {
+        Vec(String) frameworks 
+        Vec(String) design_patterns 
+        HashMap(String technologies 
+    }
+    medium_priority_doc_configs {
+        bool sync_architecture 
+        bool database_architecture 
+    }
+    ui_component_infos {
+        String name 
+        PathBuf file_path 
+        f32 completeness 
+        Vec(String) props 
+        Vec(String) states 
+    }
+    route_infos {
+        String path 
+        String method 
+        String handler 
+        bool auth_required 
+        Vec(String) params 
+        String source 
+    }
+    module_items {
+        String id PK 
+        String title 
+        String item_type 
+        Option(String) content_id 
+    }
+    template_conditionals {
+        String condition 
+    }
+    design_pattern_implementations {
+        String pattern 
+        PathBuf file_path 
+        String description 
+    }
+    component_infos {
+        String name 
+        String file_path 
+        String framework 
+        Vec(String) props 
+        Option(Vec(String)) state 
+        Option(Vec(String)) lifecycle_hooks 
+        Vec(String) dependencies 
+    }
+    tech_debt_metrics {
+        f32 score 
+        Vec(TechDebtItem) items 
+    }
+    rails_models {
+        String name 
+        Vec(String) associations 
+        Vec(String) validations 
+    }
+    model_metrics {
+        usize total 
+        usize implemented 
+        Vec(ModelInfo) details 
+        f32 implementation_percentage 
+    }
+    api_clients {
+        String endpoint 
+        String method 
+        String client_type 
+        String source_file 
+    }
+    callbacks {
+        String model 
+        String method 
+    }
+    ember_initializers {
+        String name 
+        String initialize 
+    }
+    migration_infos {
+        String version 
+        String name 
+        Vec(String) operations 
+    }
+    blockchain_infos {
+        usize storage_size_kb 
+        f64 batch_efficiency 
+        usize transaction_count 
+        usize block_count 
+        HashMap(String metrics 
+        String implementation_status 
+        Vec(String) features 
+    }
+    features {
+        String source 
+        String name 
+        String category 
+        Vec(String) source_files 
+        Vec(String) related_entities 
+        HashMap(String metadata 
+    }
+    rails_controllers {
+        String name 
+        Vec(String) actions 
+    }
+    design_pattern_usages {
+        Vec(String) patterns_used 
+        HashMap(String pattern_implementations 
+    }
+    performance_configs {
+        bool parallel_processing 
+        bool enable_caching 
+        bool incremental_analysis 
+        String cache_dir 
+        usize max_memory_mb 
+        u64 timeout_seconds 
+    }
+    auth_roles {
+        String name 
+        Vec(String) permissions 
+        String source_file 
+    }
+    api_endpoint_metrics {
+        usize total 
+        usize implemented 
+        Vec(ApiEndpointInfo) details 
+        f32 implementation_percentage 
+    }
+    code_metrics {
+        String file_path 
+        usize loc 
+        u32 complexity 
+        f32 comment_coverage 
+        f32 cohesion 
+        u8 usefulness_score 
+        String recommendation 
+    }
+    database_schemas {
+        String name 
+        Vec(Column) columns 
+    }
+    configs {
+        GeneralConfig general 
+        AnalysisConfig analysis 
+        DocumentationConfig documentation 
+        PerformanceConfig performance 
+        PathsConfig paths 
+    }
+    migration_phases {
+        String name 
+        String description 
+        Vec(String) components 
+        Vec(String) apis 
+        Vec(String) routes 
+        Vec(String) database_tables 
+        String estimated_effort 
+        Vec(String) dependencies 
+    }
+    component_metrics {
+        usize total 
+        usize implemented 
+        Vec(UiComponentInfo) details 
+        f32 implementation_percentage 
+    }
+    tables {
+        String name 
+        Vec(Column) columns 
+        Option(String) primary_key 
+        Vec(Index) indexes 
+        Vec(ForeignKey) foreign_keys 
+        String source_file 
+        Option(String) description 
+    }
+    ember_helpers {
+        String name 
+        Vec(String) functions 
+    }
+    migration_roadmaps {
+        String project_name 
+        String generated_date 
+        Vec(MigrationPhase) phases 
+        String total_estimated_effort 
+        Vec(String) critical_path_items 
+        Vec(String) risks 
+        Vec(String) recommendations 
+    }
+    canvas_analyzers {
+        HashMap(String courses 
+        HashMap(String assignments 
+        HashMap(String modules 
+    }
+    workflow_infos {
+        String name 
+        Vec(String) steps 
+        Vec(String) actors 
+        Vec(String) triggers 
+    }
+    foreign_keys {
+        String from_column 
+        String to_table 
+        String to_column 
+        String references_table 
+        String references_column 
+    }
+    react_routes {
+        String path 
+        String component 
+        bool exact 
+        bool auth_required 
+        String file_path 
+    }
+    database_table_infos {
+        String name 
+        Vec(ColumnInfo) columns 
+        Vec(IndexInfo) indexes 
+        Option(String) description 
+    }
+    workflows {
+        String name 
+        String description 
+        Vec(WorkflowStep) steps 
+        Vec(String) files 
+    }
+    react_analyzers {
+        HashMap(String components 
+        HashMap(String hooks 
+        Vec(ReactRoute) routes 
+        HashMap(String redux_stores 
+    }
+    helix_db_tables {
+        String name 
+        Vec(HelixDbField) fields 
+        Vec(HelixDbIndex) indexes 
+        Vec(HelixDbRelationship) relationships 
+        String source 
+    }
+    indexs {
+        String name 
+        Vec(String) columns 
+        bool unique 
+    }
+    assignments {
+        String id PK 
+        String name 
+        Option(String) description 
+        String course_id FK 
+        Option(String) due_date 
+        Option(f64) points_possible 
+    }
+    project_status {
+        String phase 
+        f32 completion_percentage 
+        String last_active_area 
+        Option(DateTime(Utc)) estimated_completion_date 
+    }
+    ember_controllers {
+        String name 
+        Vec(String) actions 
+    }
+    template_partials {
+        String name 
+        String path 
+    }
+    business_logic_patterns {
+        String name 
+        String description 
+        Vec(String) files 
+        Vec(String) code_snippets 
+    }
+    file_metadatas {
+        String name 
+        Option(PathBuf) parent_directory 
+        PathBuf relative_path 
+        PathBuf absolute_path 
+        String file_type 
+        u64 size 
+        String modified_time 
+        Cow('static content 
+        Vec(PathBuf) dependencies 
+        String path 
+        Option(String) directory 
+        Option(String) purpose 
+    }
+    migration_paths {
+        String source_entity 
+        String target_entity 
+        String complexity 
+        String mapping_strategy 
+        String entity_name 
+    }
+    general_configs {
+        String project_name 
+        String output_dir 
+        String log_level 
+    }
+    high_priority_doc_configs {
+        bool central_reference_hub 
+        bool api_documentation 
+        bool implementation_details 
+        bool testing_documentation 
+        bool tech_debt_report 
+        bool summary_report 
+    }
+    helix_db_relationships {
+        String relationship_type 
+        String foreign_table 
+        String local_field 
+        String foreign_field 
+    }
+    courses {
+        String id PK 
+        String name 
+        Option(String) description 
+        Vec(String) modules 
+        i64 account_id 
+        DateTime(Utc) created_at 
+        DateTime(Utc) updated_at 
+    }
+    integration_stats {
+        f32 overall_integration_percentage 
+        f32 entity_integration_percentage 
+        f32 feature_integration_percentage 
+        HashMap(String integration_by_category 
+    }
+    api_endpoints {
+        String path 
+        String method 
+        Option(String) controller 
+        Option(String) action 
+        bool authentication_required 
+        Vec(String) parameters 
+        Option(String) response_format 
+        String source_file 
+        Option(String) description 
+        bool rate_limited 
+        Vec(String) required_permissions 
+        Vec(String) request_body_params 
+        Vec(String) response_fields 
+    }
+    real_time_update_requirements {
+        String feature 
+        String description 
+        String criticality 
+        Vec(String) files 
+    }
+    data_access_patterns {
+        String pattern_type 
+        String description 
+        Vec(String) files 
+        SyncFeasibility sync_feasibility 
+    }
+    recommendations {
+        String id PK 
+        String title 
+        String description 
+        u8 priority 
+        f32 effort 
+        Vec(String) related_entities 
+        Vec(String) related_features 
+        Vec(String) steps 
+        String area 
+        Vec(PathBuf) related_files 
+    }
+    route_analyzers {
+        Vec(Route) routes 
+        HashMap(String route_patterns 
+        Vec(String) auth_protected_routes 
+    }
+    tech_debt_items {
+        String file 
+        usize line 
+        String category 
+        String description 
+        TechDebtSeverity severity 
+        String fix_suggestion 
+        Option(PathBuf) file_path 
+    }
+    entity_mappings {
+        String source_entity 
+        String target_entity 
+        f32 confidence 
+        HashMap(String field_mappings 
+        Vec(String) unmapped_source_fields 
+        Vec(String) unmapped_target_fields 
+    }
+    model_infos {
+        String name 
+        PathBuf file_path 
+        f32 completeness 
+        Option(String) source_system 
+        Option(String) source_file 
+        Vec(ModelRelationship) relationships 
+    }
+    api_endpoint_infos {
+        String path 
+        String method 
+        String handler 
+        PathBuf file_path 
+        f32 completeness 
+        String feature_area 
+        String http_method 
+        Option(String) controller 
+        Option(String) action 
+        Option(String) description 
+        Vec(String) request_params 
+        Option(String) response_format 
+        bool auth_required 
+        bool rate_limited 
+        Option(String) category 
+    }
+    edge_cases {
+        String scenario 
+        String handling 
+        Vec(String) files 
+    }
+    model_relationships {
+        String from 
+        String to 
+        RelationshipType relationship_type 
+    }
+    documentation_configs {
+        bool generate_high_priority 
+        bool generate_medium_priority 
+        bool generate_low_priority 
+        HighPriorityDocConfig high_priority 
+        MediumPriorityDocConfig medium_priority 
+    }
+    ember_components {
+        String name 
+        Vec(String) properties 
+        Vec(String) actions 
+    }
+    offline_readiness_infos {
+        bool offline_capable 
+        Option(String) data_storage_mechanism 
+        Option(String) sync_mechanism 
+        Option(String) conflict_resolution_strategy 
+        bool network_detection 
+        Vec(String) offline_features 
+        Vec(String) online_only_features 
+    }
+    auth_flows {
+        String name 
+        Vec(String) steps 
+        String source_file 
+    }
+    hooks {
+        String name 
+        String target 
+        String method 
+    }
+    react_redux_stores {
+        String name 
+        Vec(String) actions 
+        Vec(String) reducers 
+        Vec(String) selectors 
+        String file_path 
+    }
+    auth_flow_analyzers {
+        HashMap(String auth_methods 
+        HashMap(String auth_roles 
+        Vec(AuthFlow) auth_flows 
+        HashSet(String) protected_routes 
+    }
+    dependency_graphs {
+        Vec(String) nodes 
+        Vec((String edges 
+    }
+    route_parameters {
+        String name 
+        Option(String) constraint 
+    }
+    directory_metadatas {
+        DirectoryPurpose purpose 
+    }
+    react_hooks {
+        String name 
+        String file_path 
+        Vec(String) dependencies 
+        Vec(String) return_values 
+    }
+    template_bindings {
+        String name 
+        String binding_type 
+        String source 
+    }
+    categorys {
+        String id PK 
+        String name 
+        Option(String) description 
+        Option(String) parent_category_id 
+    }
+    feature_area_metrics {
+        usize total 
+        usize implemented 
+        String priority 
+    }
+    integration_points {
+        String name 
+        String canvas_component 
+        String discourse_component 
+        String data_flow 
+        String sync_pattern 
+        String entity_name 
+        String source_feature 
+        String target_implementation 
+        String status 
+        String details 
+    }
+    unified_analysis_outputs {
+        Vec(FileMetadata) files 
+        Vec(RouteInfo) routes 
+        HashMap(String components 
+        ApiInfo api 
+        Vec(TemplateInfo) templates 
+        AuthInfo auth 
+        DatabaseInfo database 
+        BusinessLogicInfo business_logic 
+        OfflineReadinessInfo offline_readiness 
+        HashMap(String file_dependencies 
+    }
+    analysis_caches {
+    }
+    paths_configs {
+        Option(String) canvas_path 
+        Option(String) discourse_path 
+        Option(String) lms_path 
+    }
+    auth_methods {
+        String name 
+        String method_type 
+        String source_file 
+        String description 
+    }
+    discourse_analyzers {
+        HashMap(String topics 
+        HashMap(String posts 
+        HashMap(String categories 
+    }
+    helix_db_table_mappings {
+        String source_table 
+        String source_system 
+        String target_table 
+        String target_system 
+        Vec(HelixDbFieldMapping) field_mappings 
+        u8 confidence 
+    }
+    helix_db_field_mappings {
+        String source_field 
+        String target_field 
+        u8 confidence 
+    }
+    api_analyzers {
+        HashMap(String endpoints 
+        Vec(ApiClient) clients 
+        HashMap(String route_patterns 
+        Vec(String) auth_protected_routes 
+    }
+    integration_progress {
+        HashMap(String entity_progress 
+        HashMap(String feature_progress 
+        f32 overall_progress 
+        HashMap(String category_progress 
+    }
+    migrations {
+        String version 
+        String name 
+        Vec(String) operations 
+        String file_path 
+    }
+    template_analysis {
+        String path 
+        Vec(TemplateBinding) bindings 
+        Vec(TemplatePartial) partials 
+        Vec(TemplateLoop) loops 
+        Vec(TemplateConditional) conditionals 
+    }
+    conflicts {
+        ConflictType conflict_type 
+        String source 
+        String target 
+        String description 
+        String suggested_resolution 
+        u8 severity 
+    }
+    ember_analyzers {
+        HashMap(String models 
+        HashMap(String controllers 
+        HashMap(String components 
+        HashMap(String routes 
+        HashMap(String services 
+        HashMap(String helpers 
+        HashMap(String initializers 
+    }
+    database_schema_analyzers {
+        HashMap(String tables 
+        Vec(Migration) migrations 
+    }
+    complexity_metrics {
+        f32 average 
+        usize high 
+        HashMap(PathBuf file_details 
+    }
+    analysis_results {
+        DateTime(Utc) timestamp 
+        ProjectStatus project_status 
+        ModelMetrics models 
+        ApiEndpointMetrics api_endpoints 
+        ComponentMetrics ui_components 
+        CodeQualityMetrics code_quality 
+        TestMetrics tests 
+        IntegrationMetrics integration 
+        ArchitectureInfo architecture 
+        SyncSystemInfo sync_system 
+        BlockchainInfo blockchain 
+        HashMap(String feature_areas 
+        Vec(Recommendation) recommendations 
+    }
+    react_components {
+        String name 
+        String file_path 
+        Vec(String) props 
+        Vec(String) state_variables 
+        Vec(String) hooks 
+        Vec(String) lifecycle_methods 
+        Vec(String) jsx_elements 
+    }
+    helix_db_fields {
+        String name 
+        String field_type 
+        bool nullable 
+        Option(String) default 
+        bool primary_key 
+        bool unique 
+    }
+    discourse_users {
+        String username 
+    }
+    normalized_entitys {
+        String source 
+        String entity 
+        String category 
+        HashMap(String fields 
+        String source_file 
+        HashMap(String metadata 
+    }
+    integrated_migration_results {
+        Vec(String) canvas_models 
+        Vec(String) discourse_models 
+        std_collections_HashMap(String common_entities 
+        Vec(MigrationPath) migration_paths 
+        Vec(IntegrationPoint) integration_points 
+    }
+    dependencys {
+        String name 
+        String version 
+        String dependency_type 
+        String source_file 
+    }
+    code_violations {
+        String description 
+        PathBuf file_path 
+        Option(usize) line_number 
+    }
+    column_infos {
+        String name 
+        String data_type 
+        bool nullable 
+        bool primary_key 
+        bool foreign_key 
+        Option(String) references 
+        Option(String) default_value 
+        Option(String) description 
+    }
+    domain_algorithms {
+        String name 
+        String description 
+        Vec(String) files 
+        String complexity 
+    }
+    improved_db_schema_analyzers {
+        HashMap(String tables 
+        Vec(Migration) migrations 
+    }
+    canvas_analysis {
+        Vec(CanvasElement) modules 
+        Vec(CanvasElement) assignments 
+        Vec(CanvasElement) quizzes 
+        Vec(CanvasElement) pages 
+    }
+    discourse_posts {
+        String content 
+        String topic 
+        String author 
+    }
+    courses ||--o{ modules : "course_id"
+    topics ||--o{ posts : "topic_id"
+    courses ||--o{ assignments : "course_id"
+
+        </div>
+        <div class="legend">
+            <h3>Legend</h3>
+            <p>This diagram shows the database schema for the Ordo application. Each box represents a table in the database, and the lines represent relationships between tables.</p>
+            <p>Cardinality notation:</p>
+            <ul>
+                <li><strong>||--||</strong>: One-to-one relationship</li>
+                <li><strong>||--o{</strong>: One-to-many relationship</li>
+                <li><strong>}o--o{</strong>: Many-to-many relationship</li>
+            </ul>
+            <h3>Key Tables</h3>
+            <ul>
+                <li><strong>users</strong>: Central user table that harmonizes user data from Canvas and Discourse</li>
+                <li><strong>courses</strong>: Course information with integration fields for Canvas and Discourse</li>
+                <li><strong>assignments</strong>: Assignment data that can be synchronized with Canvas</li>
+                <li><strong>discussions</strong>: Discussion topics that can be synchronized with Discourse</li>
+                <li><strong>modules</strong>: Course modules for organizing content</li>
+                <li><strong>sync_status</strong> and <strong>sync_history</strong>: Tables for tracking synchronization between systems</li>
+            </ul>
+            <h3>Integration Design</h3>
+            <p>The schema is designed to support seamless integration between:</p>
+            <ul>
+                <li>Canvas LMS (for courses, assignments, etc.)</li>
+                <li>Discourse forums (for discussions)</li>
+                <li>Ordo's native offline-first functionality</li>
+            </ul>
+        </div>
+    </div>
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: 'default' });
+    </script>
+</body>
+</html>

@@ -1,0 +1,155 @@
+/* Quiz Module Print Styles */
+/* These styles will only apply when printing */
+
+@media print {
+  /* General print styles */
+  body {
+    background-color: white !important;
+    color: black !important;
+    font-size: 12pt;
+    line-height: 1.5;
+  }
+  
+  /* Hide non-essential elements */
+  .submit-answer,
+  .start-quiz-btn,
+  .create-quiz-btn,
+  .cancel-btn,
+  .back-link,
+  .quiz-list-actions,
+  .question-item-actions,
+  .flashcard-hint,
+  .flashcard-rating,
+  .progress-bar-container {
+    display: none !important;
+  }
+  
+  /* Remove shadows and fancy effects */
+  .quiz-container,
+  .quiz-creator,
+  .quiz-list-container,
+  .quiz-details,
+  .question-item,
+  .flashcard-front,
+  .flashcard-back {
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+    background-color: white !important;
+    color: black !important;
+  }
+  
+  /* Ensure proper page breaks */
+  .quiz-container,
+  .question-container,
+  .quiz-completed,
+  .flashcard-container {
+    page-break-inside: avoid;
+    margin: 1cm 0;
+  }
+  
+  /* Adjust headers for print */
+  .quiz-header h1 {
+    font-size: 18pt;
+    margin-bottom: 0.5cm;
+  }
+  
+  .quiz-header p {
+    font-size: 12pt;
+    margin-bottom: 1cm;
+  }
+  
+  /* Make choice buttons look like regular text with bullets */
+  .choice-button {
+    display: block;
+    border: none !important;
+    padding: 0.2cm 0 0.2cm 0.5cm !important;
+    text-align: left;
+    position: relative;
+    background-color: transparent !important;
+  }
+  
+  .choice-button::before {
+    content: "○";
+    position: absolute;
+    left: 0;
+  }
+  
+  .choice-button.selected {
+    font-weight: bold;
+  }
+  
+  .choice-button.selected::before {
+    content: "●";
+  }
+  
+  /* Adjust flashcards for print */
+  .flashcard {
+    transform: none !important;
+    height: auto !important;
+  }
+  
+  .flashcard-front,
+  .flashcard-back {
+    position: relative !important;
+    backface-visibility: visible !important;
+    transform: none !important;
+    margin-bottom: 1cm;
+  }
+  
+  .flashcard-back {
+    border-top: 2px dashed #ddd !important;
+    padding-top: 0.5cm;
+  }
+  
+  .flashcard-back::before {
+    content: "Answer:";
+    font-weight: bold;
+    display: block;
+    margin-bottom: 0.3cm;
+  }
+  
+  /* Adjust quiz list for print */
+  .quiz-list-container {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  
+  .quiz-list-inner {
+    position: static !important;
+  }
+  
+  .quiz-item {
+    position: static !important;
+    margin-bottom: 0.5cm;
+    page-break-inside: avoid;
+  }
+  
+  /* Add page numbers */
+  @page {
+    margin: 2cm;
+    @bottom-center {
+      content: "Page " counter(page) " of " counter(pages);
+    }
+  }
+  
+  /* Add title to the top of each page */
+  @page :first {
+    @top-center {
+      content: "Quiz Module";
+      font-weight: bold;
+    }
+  }
+  
+  /* Ensure proper URLs display for links */
+  a[href]:after {
+    content: " (" attr(href) ")";
+    font-size: 90%;
+    color: #666;
+  }
+  
+  /* Don't show URL for internal links */
+  a[href^="#"]:after,
+  a[href^="javascript:"]:after {
+    content: "";
+  }
+}

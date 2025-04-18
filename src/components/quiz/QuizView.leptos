@@ -1,0 +1,103 @@
+use leptos::*;
+use crate::quiz::models::*;
+use crate::quiz::session::QuizSession;
+use crate::components::quiz::QuestionView;
+use crate::components::quiz::QuizProgress;
+
+#[component]
+pub fn QuizView(
+    #[prop(into)] quiz: Signal<Quiz>,
+    #[prop(into)] session: Signal<Option<QuizSession>>,
+    #[prop(into)] on_submit_answer: Callback<(Uuid, Answer)>,
+    #[prop(into)] on_complete: Callback<()>,
+) -> impl IntoView {
+    let (current_question, set_current_question) = create_signal(0);
+    let (user_answers, set_user_answers) = create_signal(Vec::new());
+    let (is_completed, set_is_completed) = create_signal(false);
+
+    // Get the current question based on the session's question order
+    let current_question_index = create_memo(move |_| {
+        if let Some(session) = session.get() {
+            if !session.question_order.is_empty() && current_question.get() < session.question_order.len() {
+                return session.question_order[current_question.get()];
+            }
+        }
+        current_question.get()
+    });
+
+    // Get the current question
+    let current_question_data = create_memo(move |_| {
+        let quiz_data = quiz.get();
+        let idx = current_question_index.get();
+        if idx < quiz_data.questions.len() {
+            Some(quiz_data.questions[idx].clone())
+        } else {
+            None
+        }
+    });
+
+    // Handle answer submission
+    let handle_answer = create_action(move |answer: &Answer| {
+        let answer = answer.clone();
+        let question = current_question_data.get();
+
+        if let Some(q) = question {
+            set_user_answers.update(|answers| answers.push((q.id, answer.clone())));
+
+            // Call the parent callback
+            on_submit_answer.call((q.id, answer));
+
+            // Move to the next question or complete the quiz
+            let quiz_data = quiz.get();
+            if current_question.get() < quiz_data.questions.len() - 1 {
+                set_current_question.update(|q| *q += 1);
+            } else {
+                set_is_completed.set(true);
+                on_complete.call(());
+            }
+        }
+    });
+
+    view! {
+        <div class="quiz-container">
+            <header class="quiz-header">
+                <h1>{move || quiz.get().title}</h1>
+                <p>{move || quiz.get().description.unwrap_or_default()}</p>
+            </header>
+
+            {move || {
+                if is_completed.get() {
+                    view! {
+                        <div class="quiz-completed">
+                            <h2>"Quiz Completed!"</h2>
+                            <p>"Thank you for completing this quiz."</p>
+                            <p>
+                                "Your score: "
+                                {move || session.get().and_then(|s| s.score).unwrap_or(0.0)}
+                                "%"
+                            </p>
+                        </div>
+                    }.into_view()
+                } else if let Some(question) = current_question_data.get() {
+                    view! {
+                        <QuestionView
+                            question=question
+                            on_answer=move |answer| handle_answer.dispatch(answer)
+                        />
+                    }.into_view()
+                } else {
+                    view! {
+                        <div class="no-questions">
+                            <p>"No questions available."</p>
+                        </div>
+                    }.into_view()
+                }
+            }}
+
+            <QuizProgress
+                current=current_question
+                total=move || quiz.get().questions.len()
+            />
+        </div>
+    }
+}

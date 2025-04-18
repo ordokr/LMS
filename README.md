@@ -1,8 +1,8 @@
-# Canvas-Discourse LMS Integration Project
+# Canvas-Discourse Source Code Migration Project
 
 ## Overview
 
-This project integrates and adapts functionality from Canvas LMS and Discourse forum into a unified desktop application built with Tauri (Rust) and Leptos.
+This project migrates the source code from Canvas LMS and Discourse forum into a unified desktop application built with Tauri (Rust) and Leptos. The migration focuses exclusively on source code transformation, not data migration from built applications.
 
 ## Documentation
 
@@ -13,31 +13,33 @@ All project documentation is automatically generated and maintained in the `docs
 - **Port Documentation**: [docs/port](docs/port)
 - **Integration Knowledge Base**: [rag_knowledge_base/integration](rag_knowledge_base/integration)
 
-## Analysis & Visualization Tools
+## Source Code Analysis & Migration Tools
 
-The project includes comprehensive tools for analyzing, documenting, and visualizing the integration:
+The project includes comprehensive tools for analyzing, transforming, and documenting source code:
 
-- **Master Orchestration**: `tools/unified-analyzer` - Unified Rust analysis tool
-- **Source Systems**: Extensible architecture for analyzing multiple source systems (Canvas, Discourse, Moodle, WordPress)
+- **Unified Analyzer**: `tools/unified-analyzer` - Analyzes source code structure and patterns
+- **Source Code Extraction**: Extracts models, controllers, and views from Ruby/JavaScript code
+- **Code Transformation**: Converts Ruby/JavaScript code to Rust/Haskell
+- **Schema Analysis**: Extracts database schema from migration files (no database connection required)
 - **Conflict Detection**: `conflict_analyzer.rs` - Identifies conflicts between source and target code
 - **Technical Documentation**: `docs_generator.rs` - Generates documentation from code
-- **Summary Report**: `summary_generator.rs` - Provides an executive summary
-- **Visual Dashboard**: `dashboard_generator.rs` - Creates an interactive HTML dashboard
+- **Migration Dashboard**: `dashboard_generator.rs` - Tracks migration progress
 
 ## Getting Started
 
 
 ## 👋 Welcome to the Project!
 
-This project implements integration between Canvas LMS and Discourse forum systems, combining the best of both platforms for educational institutions.
+This project implements source code migration from Canvas LMS and Discourse forum systems to a unified Rust/Haskell application, combining the best of both platforms for educational institutions.
 
 ## 👥 For Developers
 
-This project uses a documentation-driven development approach with automated analysis tools that generate comprehensive documentation from source code.
+This project uses a documentation-driven development approach with automated analysis tools that extract information from source code and generate migration plans and documentation.
 
 To get started:
 
 1. Review the central reference hub at [`docs/central_reference_hub.md`](docs/central_reference_hub.md)
+2. Read the source code migration guide at [`docs/source_code_migration.md`](docs/source_code_migration.md)
 
 Ordo LMS & Forum
 An offline-first learning management system with integrated discussion forums, built with Rust and modern web technologies.
@@ -70,13 +72,15 @@ Offline-First Capabilities
 Backend: Tauri (Rust) with SQLite for data storage
 Frontend: Leptos (Rust) with Tailwind CSS (Standalone CLI)
 Sync Engine: Custom-built conflict resolution system
+Business Logic: Haskell for complex domain logic
 Packaging: Native applications for Windows, macOS, and Linux
 🏗️ Project Status
 Ordo is currently in early development phase:
 
-✅ Core data models (100% complete)
-⏳ API layer (0% implemented)
-🚧 UI components (50% implemented)
+✅ Source code analysis tools (100% complete)
+🚧 Model migration (50% complete)
+⏳ Controller migration (10% complete)
+⏳ View migration (5% complete)
 🧪 Test coverage (6%)
 See the generated project_status.md for detailed implementation metrics.
 

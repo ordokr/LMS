@@ -1,0 +1,127 @@
+use leptos::*;
+use crate::quiz::models::*;
+
+#[component]
+pub fn FlashcardViewer(
+    #[prop(into)] card: Signal<Question>,
+    #[prop(into)] on_next: Callback<i32>, // Rating from 1-5
+) -> impl IntoView {
+    let (is_flipped, set_flipped) = create_signal(false);
+    
+    view! {
+        <div class="flashcard-container">
+            <div 
+                class="flashcard" 
+                class:flipped=move || is_flipped.get()
+                on:click=move |_| set_flipped.update(|f| *f = !*f)
+            >
+                <div class="flashcard-front">
+                    <div class="flashcard-content">
+                        {move || card.get().content.render()}
+                        
+                        // Show image if available
+                        {move || {
+                            if let Some(img_url) = &card.get().content.image_url {
+                                view! {
+                                    <div class="flashcard-image">
+                                        <img src={img_url.clone()} alt="Flashcard image" />
+                                    </div>
+                                }.into_view()
+                            } else {
+                                view! { <div></div> }.into_view()
+                            }
+                        }}
+                    </div>
+                    <div class="flashcard-hint">
+                        <p>"Click to flip"</p>
+                    </div>
+                </div>
+                <div class="flashcard-back">
+                    <div class="flashcard-content">
+                        {move || {
+                            match &card.get().correct_answer {
+                                Answer::Text(text) => view! { <p>{text}</p> }.into_view(),
+                                Answer::Choice(choice_id) => {
+                                    let choice = card.get().choices.iter()
+                                        .find(|c| &c.id == choice_id)
+                                        .map(|c| c.text.clone())
+                                        .unwrap_or_else(|| "Answer not found".to_string());
+                                    
+                                    view! { <p>{choice}</p> }.into_view()
+                                },
+                                _ => view! { <p>"Complex answer type"</p> }.into_view(),
+                            }
+                        }}
+                        
+                        {move || {
+                            if let Some(explanation) = &card.get().explanation {
+                                view! {
+                                    <div class="flashcard-explanation">
+                                        <h3>"Explanation:"</h3>
+                                        <p>{explanation}</p>
+                                    </div>
+                                }.into_view()
+                            } else {
+                                view! { <div></div> }.into_view()
+                            }
+                        }}
+                    </div>
+                    <div class="flashcard-hint">
+                        <p>"Click to flip back"</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flashcard-rating" class:hidden=move || !is_flipped.get()>
+                <p>"How well did you know this?"</p>
+                <div class="rating-buttons">
+                    <button 
+                        class="rating-button rating-1" 
+                        on:click=move |_| {
+                            on_next.call(1);
+                            set_flipped.set(false);
+                        }
+                    >
+                        "1 - Not at all"
+                    </button>
+                    <button 
+                        class="rating-button rating-2" 
+                        on:click=move |_| {
+                            on_next.call(2);
+                            set_flipped.set(false);
+                        }
+                    >
+                        "2 - Barely"
+                    </button>
+                    <button 
+                        class="rating-button rating-3" 
+                        on:click=move |_| {
+                            on_next.call(3);
+                            set_flipped.set(false);
+                        }
+                    >
+                        "3 - Somewhat"
+                    </button>
+                    <button 
+                        class="rating-button rating-4" 
+                        on:click=move |_| {
+                            on_next.call(4);
+                            set_flipped.set(false);
+                        }
+                    >
+                        "4 - Well"
+                    </button>
+                    <button 
+                        class="rating-button rating-5" 
+                        on:click=move |_| {
+                            on_next.call(5);
+                            set_flipped.set(false);
+                        }
+                    >
+                        "5 - Perfectly"
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+}

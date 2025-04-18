@@ -7,6 +7,11 @@ pub use model_factory::ModelFactory;
 pub use model_factory::SourceSystem;
 pub use model_factory::ModelFactoryError;
 
+// Quiz module
+pub mod quiz;
+pub mod quiz_course;
+pub mod quiz_notification;
+
 // Re-export the canvas models
 pub mod canvas {
     pub mod user;

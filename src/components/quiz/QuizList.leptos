@@ -1,0 +1,70 @@
+use leptos::*;
+use crate::quiz::models::*;
+use web_sys::HtmlElement;
+
+#[component]
+pub fn QuizList(
+    #[prop(into)] quizzes: Signal<Vec<Quiz>>,
+    #[prop(into)] on_select: Callback<Uuid>,
+) -> impl IntoView {
+    let (scroll_pos, set_scroll_pos) = create_signal(0.0);
+    let container_ref = create_node_ref::<HtmlElement>();
+    
+    // Calculate visible items based on scroll position
+    let visible_items = create_memo(move |_| {
+        let all_items = quizzes.get();
+        let container_height = container_ref.get()
+            .map(|el| el.client_height() as f64)
+            .unwrap_or(600.0);
+        
+        let item_height = 72.0; // Height of each quiz item in pixels
+        let start_idx = (scroll_pos.get() / item_height).floor() as usize;
+        let visible_count = (container_height / item_height).ceil() as usize + 1; // Add 1 for partially visible items
+        let end_idx = (start_idx + visible_count).min(all_items.len());
+        
+        all_items[start_idx..end_idx].to_vec()
+    });
+    
+    view! {
+        <div class="quiz-list-container" node_ref=container_ref on:scroll=move |e| {
+            if let Some(target) = e.target().and_then(|t| t.dyn_into::<HtmlElement>().ok()) {
+                set_scroll_pos.set(target.scroll_top() as f64);
+            }
+        }>
+            <div class="quiz-list-inner" style:height=move || format!("{}px", quizzes.get().len() as f64 * 72.0)>
+                <For
+                    each=move || visible_items.get()
+                    key=|quiz| quiz.id
+                    children=move |quiz| {
+                        let quiz_id = quiz.id;
+                        view! {
+                            <div 
+                                class="quiz-item"
+                                style:top=move || format!("{}px", quizzes.get().iter().position(|q| q.id == quiz.id).unwrap_or(0) as f64 * 72.0)
+                                on:click=move |_| on_select.call(quiz_id)
+                            >
+                                <div class="quiz-item-content">
+                                    <h3 class="quiz-item-title">{quiz.title}</h3>
+                                    <p class="quiz-item-description">{quiz.description.unwrap_or_default()}</p>
+                                    <div class="quiz-item-meta">
+                                        <span class="quiz-item-questions">{format!("{} questions", quiz.questions.len())}</span>
+                                        <span class="quiz-item-mode">{format!("Mode: {:?}", quiz.study_mode)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+                />
+            </div>
+            
+            <Show
+                when=move || quizzes.get().is_empty()
+                fallback=|| view! { <div></div> }
+            >
+                <div class="quiz-list-empty">
+                    <p>"No quizzes available."</p>
+                </div>
+            </Show>
+        </div>
+    }
+}

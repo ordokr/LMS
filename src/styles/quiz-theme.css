@@ -1,0 +1,123 @@
+/* Quiz Module Theme - Quenti Native Theme with Ordo App Integration */
+
+/* 
+ * This file defines CSS variables that match Quenti's native theme
+ * while allowing for theme changes via the main Ordo app.
+ * 
+ * The CSS variables are structured to inherit from Ordo's theme when available,
+ * but fall back to Quenti's native theme values when not.
+ */
+
+:root {
+  /* Primary Colors - Based on Quenti's blue theme */
+  --quiz-primary: var(--ordo-primary, #1a5fff);
+  --quiz-primary-hover: var(--ordo-primary-hover, #4b83ff);
+  --quiz-primary-light: var(--ordo-primary-light, rgba(26, 95, 255, 0.1));
+  
+  /* Secondary Colors */
+  --quiz-secondary: var(--ordo-secondary, #ff8b1a);
+  --quiz-secondary-hover: var(--ordo-secondary-hover, #ffa54c);
+  --quiz-secondary-light: var(--ordo-secondary-light, rgba(255, 139, 26, 0.1));
+  
+  /* Accent Colors */
+  --quiz-accent: var(--ordo-accent, #ffc91a);
+  --quiz-accent-hover: var(--ordo-accent-hover, #ffd54b);
+  
+  /* Status Colors */
+  --quiz-danger: var(--ordo-danger, #e45735);
+  --quiz-success: var(--ordo-success, #1ca551);
+  
+  /* Text Colors */
+  --quiz-text: var(--ordo-text, #1a202c);
+  --quiz-text-light: var(--ordo-text-light, #4a5568);
+  --quiz-text-lighter: var(--ordo-text-lighter, #718096);
+  
+  /* Background Colors */
+  --quiz-bg: var(--ordo-bg, #f7fafc);
+  --quiz-card-bg: var(--ordo-card-bg, #ffffff);
+  --quiz-border: var(--ordo-border, #e2e8f0);
+  
+  /* Shadows */
+  --quiz-shadow: var(--ordo-shadow, 0 4px 6px rgba(0, 0, 0, 0.1));
+  --quiz-shadow-sm: var(--ordo-shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.05));
+  --quiz-shadow-lg: var(--ordo-shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.1));
+  
+  /* Spacing - Using Quenti's spacing scale */
+  --quiz-spacing-xs: var(--ordo-spacing-xs, 0.25rem);
+  --quiz-spacing-sm: var(--ordo-spacing-sm, 0.5rem);
+  --quiz-spacing: var(--ordo-spacing, 1rem);
+  --quiz-spacing-md: var(--ordo-spacing-md, 1.5rem);
+  --quiz-spacing-lg: var(--ordo-spacing-lg, 2rem);
+  --quiz-spacing-xl: var(--ordo-spacing-xl, 3rem);
+  
+  /* Border Radius - Using Quenti's rounded corners */
+  --quiz-radius-sm: var(--ordo-radius-sm, 0.375rem);
+  --quiz-radius: var(--ordo-radius, 0.5rem);
+  --quiz-radius-md: var(--ordo-radius-md, 0.75rem);
+  --quiz-radius-lg: var(--ordo-radius-lg, 1rem);
+  
+  /* Typography - Using Quenti's font stack */
+  --quiz-font-heading: var(--ordo-font-heading, var(--font-outfit, 'Outfit', system-ui, sans-serif));
+  --quiz-font-body: var(--ordo-font-body, var(--font-open-sans, 'Open Sans', system-ui, sans-serif));
+  
+  /* Font Sizes - Using Quenti's scale */
+  --quiz-font-xs: var(--ordo-font-xs, 0.75rem);
+  --quiz-font-sm: var(--ordo-font-sm, 0.875rem);
+  --quiz-font-base: var(--ordo-font-base, 1rem);
+  --quiz-font-md: var(--ordo-font-md, 1.125rem);
+  --quiz-font-lg: var(--ordo-font-lg, 1.25rem);
+  --quiz-font-xl: var(--ordo-font-xl, 1.5rem);
+  --quiz-font-2xl: var(--ordo-font-2xl, 1.875rem);
+  
+  /* Font Weights */
+  --quiz-font-normal: var(--ordo-font-normal, 400);
+  --quiz-font-medium: var(--ordo-font-medium, 500);
+  --quiz-font-semibold: var(--ordo-font-semibold, 600);
+  --quiz-font-bold: var(--ordo-font-bold, 700);
+  
+  /* Transitions */
+  --quiz-transition: var(--ordo-transition, all 0.2s ease);
+  --quiz-transition-slow: var(--ordo-transition-slow, all 0.3s ease);
+}
+
+/* Dark Mode Variables */
+[data-theme="dark"] {
+  /* Primary Colors */
+  --quiz-primary: var(--ordo-primary-dark, #4b83ff);
+  --quiz-primary-hover: var(--ordo-primary-hover-dark, #7ea6ff);
+  --quiz-primary-light: var(--ordo-primary-light-dark, rgba(75, 131, 255, 0.15));
+  
+  /* Secondary Colors */
+  --quiz-secondary: var(--ordo-secondary-dark, #ffa54c);
+  --quiz-secondary-hover: var(--ordo-secondary-hover-dark, #ffbf7d);
+  --quiz-secondary-light: var(--ordo-secondary-light-dark, rgba(255, 165, 76, 0.15));
+  
+  /* Text Colors */
+  --quiz-text: var(--ordo-text-dark, #f7fafc);
+  --quiz-text-light: var(--ordo-text-light-dark, #cbd5e0);
+  --quiz-text-lighter: var(--ordo-text-lighter-dark, #a0aec0);
+  
+  /* Background Colors */
+  --quiz-bg: var(--ordo-bg-dark, #171923);
+  --quiz-card-bg: var(--ordo-card-bg-dark, #242C3A);
+  --quiz-border: var(--ordo-border-dark, #2d3748);
+  
+  /* Shadows */
+  --quiz-shadow: var(--ordo-shadow-dark, 0 4px 6px rgba(0, 0, 0, 0.3));
+  --quiz-shadow-sm: var(--ordo-shadow-sm-dark, 0 1px 3px rgba(0, 0, 0, 0.2));
+  --quiz-shadow-lg: var(--ordo-shadow-lg-dark, 0 10px 15px -3px rgba(0, 0, 0, 0.3));
+}
+
+/* High Contrast Mode Support */
+@media (forced-colors: active) {
+  :root {
+    --quiz-primary: SelectedItem;
+    --quiz-primary-hover: SelectedItem;
+    --quiz-border: ButtonBorder;
+    --quiz-card-bg: Canvas;
+    --quiz-text: CanvasText;
+    --quiz-shadow: none;
+    --quiz-shadow-sm: none;
+    --quiz-shadow-lg: none;
+  }
+}

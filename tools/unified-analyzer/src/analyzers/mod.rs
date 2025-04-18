@@ -12,6 +12,7 @@ pub mod modules;
 pub mod codebase_scanner;
 pub mod simple_source_db_analyzer;
 pub mod rust_source_db_analyzer;
+pub mod enhanced_ruby_analyzer;
 mod ast_analyzer_runner;
 mod project_structure_runner;
 mod integrated_migration_runner;
@@ -42,8 +43,10 @@ use modules::auth_flow_analyzer::AuthFlowAnalyzer;
 use modules::offline_first_readiness_analyzer::OfflineFirstReadinessAnalyzer;
 use modules::database_schema_analyzer::DatabaseSchemaAnalyzer;
 use modules::business_logic_analyzer::BusinessLogicAnalyzer;
+use modules::haskell_analyzer::HaskellAnalyzer;
 use modules::canvas_analyzer::CanvasAnalyzer;
 use modules::discourse_analyzer::DiscourseAnalyzer;
+use enhanced_ruby_analyzer::EnhancedRubyAnalyzer;
 
 // These exports are used in main.rs
 
@@ -68,6 +71,8 @@ pub fn run_all_analyzers(
     let business_logic_analyzer = BusinessLogicAnalyzer::new();
     let canvas_analyzer = CanvasAnalyzer::new();
     let discourse_analyzer = DiscourseAnalyzer::new();
+    let haskell_analyzer = HaskellAnalyzer::new();
+    let mut enhanced_ruby_analyzer = EnhancedRubyAnalyzer::new("Generic");
 
     vec![
         file_structure_analyzer.analyze(project_path).map_err(|e| e.to_string()),
@@ -83,7 +88,9 @@ pub fn run_all_analyzers(
         offline_first_readiness_analyzer.analyze(&path_buf),
         database_schema_analyzer.analyze(&path_buf),
         business_logic_analyzer.analyze(&path_buf),
+        haskell_analyzer.analyze(&path_buf),
         canvas_analyzer.analyze(project_path).map_err(|e| e.to_string()),
         discourse_analyzer.analyze(project_path).map_err(|e| e.to_string()),
+        enhanced_ruby_analyzer.analyze(project_path).map_err(|e| e.to_string()),
     ]
 }

@@ -4,5 +4,13 @@
 /* Import user profile styles */
 @import './user_profile.css';
 
-/* Add these imports to your main.css file */
+/* Import notification styles */
 @import './notification_center.css';
+
+/* Import quiz module styles */
+@import './quiz-ordo-integration.css'; /* Ordo app integration */
+@import './quiz-theme.css'; /* Theme variables */
+@import './quiz.css'; /* Base styles */
+@import './quiz-dark.css'; /* Dark mode overrides */
+@import './quiz-animations.css'; /* Animations */
+@import './quiz-print.css'; /* Print styles */

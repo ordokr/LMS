@@ -10,7 +10,7 @@ The system will support rich learning experiences even when internet access is l
 
 ### Source Code References:
 - Canvas: C:\Users\Tim\Desktop\port\canvas
-- Discourse: C:\Users\Tim\Desktop\port\port
+- Discourse: C:\Users\Tim\Desktop\port\discourse
 
 ## Current Implementation Status
 
@@ -218,12 +218,14 @@ struct SyncBatch {
 - Integrated notification & activity streams
 - Unified permission/role model across both systems
 
+For a detailed list of models and controllers to be migrated, see [MODEL_CONTROLLER_MIGRATION.md](MODEL_CONTROLLER_MIGRATION.md).
+
 ---
 
 ## Next Steps
 
 1. Finalize core enhancements (auth, sync, error handling)
-2. Port key Canvas LMS models and endpoints
+2. Port key Canvas LMS models and endpoints (see [MODEL_CONTROLLER_MIGRATION.md](MODEL_CONTROLLER_MIGRATION.md))
 3. Implement and test forum backend logic
 4. Build the service layer that unites LMS and forum
 

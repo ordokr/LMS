@@ -1,0 +1,32 @@
+use leptos::*;
+
+#[component]
+pub fn QuizProgress(
+    #[prop(into)] current: Signal<usize>,
+    #[prop(into)] total: Signal<usize>,
+) -> impl IntoView {
+    let progress_percentage = create_memo(move |_| {
+        let current_val = current.get();
+        let total_val = total.get();
+        
+        if total_val == 0 {
+            return 0.0;
+        }
+        
+        ((current_val as f32 + 1.0) / total_val as f32) * 100.0
+    });
+    
+    view! {
+        <div class="quiz-progress">
+            <div class="progress-text">
+                {move || format!("Question {} of {}", current.get() + 1, total.get())}
+            </div>
+            <div class="progress-bar-container">
+                <div 
+                    class="progress-bar" 
+                    style:width=move || format!("{}%", progress_percentage.get())
+                ></div>
+            </div>
+        </div>
+    }
+}

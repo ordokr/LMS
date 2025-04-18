@@ -5,6 +5,7 @@ mod integrator;
 mod output_schema;
 mod utils;
 mod advisors;
+mod code_generators;
 
 use crate::analyzers::modules::{api_analyzer::ApiAnalyzer, auth_flow_analyzer::AuthFlowAnalyzer, canvas_analyzer::CanvasAnalyzer, database_schema_analyzer::DatabaseSchemaAnalyzer, discourse_analyzer::DiscourseAnalyzer, ruby_rails_analyzer::RubyRailsAnalyzer,
     business_logic_analyzer::BusinessLogicAnalyzer, dependency_analyzer::DependencyAnalyzer,
@@ -14,7 +15,11 @@ use crate::analyzers::modules::{api_analyzer::ApiAnalyzer, auth_flow_analyzer::A
     blockchain_analyzer::BlockchainAnalyzer, unified_analyzer::UnifiedProjectAnalyzer,
     entity_mapper::EntityMapper, feature_detector::FeatureDetector, code_quality_scorer::CodeQualityScorer,
     conflict_checker::{ConflictChecker, ConflictType, Conflict}, integration_tracker::{IntegrationTracker, IntegrationStats}, recommendation_system::{RecommendationSystem, Recommendation},
-    helix_db_integration::HelixDbIntegrationAnalyzer,
+    helix_db_integration::HelixDbIntegrationAnalyzer, enhanced_ruby_model_analyzer::EnhancedRubyModelAnalyzer,
+    enhanced_ruby_controller_analyzer::EnhancedRubyControllerAnalyzer, enhanced_ruby_view_analyzer::EnhancedRubyViewAnalyzer,
+    enhanced_ruby_migration_analyzer::EnhancedRubyMigrationAnalyzer, enhanced_react_analyzer::EnhancedReactAnalyzer,
+    enhanced_ember_analyzer::EnhancedEmberAnalyzer, enhanced_vue_analyzer::EnhancedVueAnalyzer,
+    enhanced_angular_analyzer::EnhancedAngularAnalyzer,
 };
 use crate::analyzers::{run_all_analyzers, run_ast_analyzer, run_project_structure_analyzer};
 use crate::analyzers::modules::tech_debt_runner::run_tech_debt_analyzer;
@@ -24,14 +29,17 @@ use config::Config;
 use regex::Regex;
 // Import only what we need from generators
 use crate::generators::{MigrationRoadmapGenerator, ComponentTreeGenerator, ApiMapGenerator, DbSchemaGenerator, all_generators, enhanced_central_hub_generator};
+use crate::generators::improved_db_schema_generator::ImprovedDbSchemaGenerator;
 use log::info;
 use std::fs::{self, File};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::collections::HashMap;
 use crate::{generators::documentation_generator::generate_documentation, integrator::integrate_analysis_results};
+use crate::code_generators::{RubyToRustModelGenerator, RubyToRustControllerGenerator, RubyToLeptosViewGenerator, ReactToLeptosGenerator, EmberToLeptosGenerator, VueToLeptosGenerator, AngularToLeptosGenerator};
 
 use crate::utils::performance::{AnalysisCache, PerformanceMetrics, measure_execution_time, new_shared_metrics};
+use crate::utils::activity_tracker::ActivityTracker;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -68,6 +76,7 @@ async fn main() -> Result<()> {
             "update-hub" => command = "update-hub",
             "summary" => command = "summary",
             "update-rag" => command = "update-rag",
+            "add-activity" => command = "add-activity",
             "roadmap" => command = "roadmap",
             "component-tree" => command = "component-tree",
             "api-map" => command = "api-map",
@@ -172,6 +181,19 @@ async fn main() -> Result<()> {
         "update-hub" => {
             println!("Updating central reference hub...");
             update_central_hub(&base_dir).await?
+        },
+        "add-activity" => {
+            println!("Adding recent activity to central reference hub...");
+            if args.len() < 4 {
+                println!("Error: Not enough arguments for add-activity command.");
+                println!("Usage: unified-analyzer add-activity <component> <description> <developer>");
+                println!("Example: unified-analyzer add-activity 'Database' 'Implemented SQLite schema' 'Team'");
+                return Ok(());
+            }
+            let component = &args[2];
+            let description = &args[3];
+            let developer = if args.len() > 4 { &args[4] } else { "Team" };
+            add_recent_activity(&base_dir, component, description, developer)?
         },
         "summary" => {
             println!("Generating summary report...");
@@ -313,12 +335,21 @@ async fn main() -> Result<()> {
                 println!("Source database schema visualization generated successfully.");
             }
         },
+        "generate-rust" => {
+            println!("Generating Rust code from Ruby models, controllers, and views...");
+            generate_rust_code(&base_dir, &config).await?;
+        },
+        "generate-leptos" => {
+            println!("Generating Leptos code from frontend components...");
+            generate_leptos_code(&base_dir, &config).await?;
+        },
         _ => {
             println!("Unknown command: {}", command);
             println!("Available commands:");
             println!("  full            Run full analysis");
             println!("  quick           Run quick analysis");
             println!("  update-hub      Update central reference hub");
+            println!("  add-activity    Add recent activity to central reference hub");
             println!("  summary         Generate summary report");
             println!("  update-rag      Update RAG knowledge base");
             println!("  roadmap         Generate migration roadmap");
@@ -328,6 +359,8 @@ async fn main() -> Result<()> {
             println!("  db-schema-viz   Generate database schema visualization with Mermaid");
             println!("  source-db-schema Generate database schema visualization from Canvas and Discourse source code");
             println!("  viz             Generate all visualizations");
+            println!("  generate-rust   Generate Rust code from Ruby models, controllers, and views");
+            println!("  generate-leptos Generate Leptos code from frontend components");
             println!("");
             println!("Integration Advisor Commands:");
             println!("  integration-advisor  Run the Full Integration Advisor");
@@ -854,55 +887,87 @@ async fn generate_api_map(base_dir: &PathBuf) -> Result<()> {
 async fn generate_db_schema(base_dir: &PathBuf) -> Result<()> {
     println!("---- Generating Database Schema Visualization ----");
 
-    // Load the unified output
-    let output_path = base_dir.join("unified_output.json");
-    if !output_path.exists() {
-        println!("Unified output file not found. Running analysis first...");
-        let config = Config::default();
-        run_analysis(base_dir, &config).await?
+    // Create docs directory in root
+    let root_docs_dir = base_dir.join("docs");
+    if !root_docs_dir.exists() {
+        fs::create_dir_all(&root_docs_dir).expect("Failed to create docs directory in root");
     }
 
-    let file = File::open(output_path).expect("Failed to open unified output file");
-    let unified_output = serde_json::from_reader(file).expect("Failed to parse unified output");
-
-    // Create output directory in the main docs folder
-    let root_docs_dir = PathBuf::from("C:\\Users\\Tim\\Desktop\\LMS\\docs");
-    std::fs::create_dir_all(&root_docs_dir).expect("Failed to create main docs directory");
-
-    // Create output directory in output/docs for temporary files
-    let output_docs_dir = base_dir.join("output").join("docs");
-    std::fs::create_dir_all(&output_docs_dir).expect("Failed to create output docs directory");
+    // Create the improved database schema generator
+    let improved_db_schema_generator = ImprovedDbSchemaGenerator::new();
 
     // Generate database schema visualization
-    let db_schema_generator = DbSchemaGenerator::new();
-
-    // Generate in output/docs directory first
-    db_schema_generator.generate(&unified_output, &output_docs_dir).expect("Failed to generate database schema visualization in output directory");
-
-    // Copy the generated files from output/docs to root docs folder
-    let output_vis_dir = output_docs_dir.join("visualizations").join("db_schema");
-    let root_vis_dir = root_docs_dir.join("visualizations").join("db_schema");
-
-    // Create the visualizations directory in root docs folder
-    std::fs::create_dir_all(&root_vis_dir).expect("Failed to create visualizations directory in root docs folder");
-
-    // Copy the HTML file
-    let html_src = output_vis_dir.join("db_schema.html");
-    let html_dst = root_vis_dir.join("db_schema.html");
-    if html_src.exists() {
-        std::fs::copy(&html_src, &html_dst).expect("Failed to copy database schema HTML file");
-        println!("Copied database schema HTML file to: {:?}", html_dst);
-    }
-
-    // Copy the Markdown file
-    let md_src = output_vis_dir.join("db_schema.md");
-    let md_dst = root_vis_dir.join("db_schema.md");
-    if md_src.exists() {
-        std::fs::copy(&md_src, &md_dst).expect("Failed to copy database schema Markdown file");
-        println!("Copied database schema Markdown file to: {:?}", md_dst);
-    }
+    improved_db_schema_generator.generate(base_dir, &root_docs_dir)
+        .map_err(|e| anyhow::anyhow!("Failed to generate database schema visualization: {}", e))?;
 
     println!("Database schema visualization generated successfully.");
+    println!("  - HTML: {}", root_docs_dir.join("visualizations").join("db_schema").join("db_schema.html").display());
+    println!("  - Markdown: {}", root_docs_dir.join("visualizations").join("db_schema").join("db_schema.md").display());
+    println!("  - Documentation: {}", root_docs_dir.join("models").join("database_schema.md").display());
+
+    Ok(())
+}
+
+/// Add a recent activity entry to the activity log and update the central reference hub
+fn add_recent_activity(base_dir: &PathBuf, component: &str, description: &str, developer: &str) -> Result<()> {
+    // Use the correct base directory for the docs
+    let docs_base_dir = PathBuf::from("C:\\Users\\Tim\\Desktop\\LMS");
+    println!("Adding activity: {} - {} by {}", component, description, developer);
+
+    // Create an activity tracker
+    let mut activity_tracker = ActivityTracker::new(&docs_base_dir, 10);
+
+    // Add the activity
+    activity_tracker.add_activity(component, description, developer)?;
+
+    // Update the Recent Activity section in the central reference hub
+    update_recent_activity_section(&docs_base_dir, &mut activity_tracker)?;
+
+    println!("Activity added successfully.");
+    Ok(())
+}
+
+/// Update the Recent Activity section in the central reference hub
+fn update_recent_activity_section(base_dir: &PathBuf, activity_tracker: &mut ActivityTracker) -> Result<()> {
+    println!("Updating Recent Activity section in central reference hub...");
+
+    // Path to the central reference hub
+    let hub_path = base_dir.join("docs").join("central_reference_hub.md");
+
+    if !hub_path.exists() {
+        return Err(anyhow::anyhow!("Central reference hub not found at {:?}", hub_path));
+    }
+
+    // Read the existing content
+    let content = fs::read_to_string(&hub_path)
+        .map_err(|e| anyhow::anyhow!("Failed to read central reference hub: {}", e))?;
+
+    // Format the recent activities as markdown
+    let activities_markdown = activity_tracker.format_as_markdown(Some(5))?;
+
+    // Find the Recent Activity section
+    let mut updated_content = content.clone();
+    if let Some(start_pos) = content.find("### Recent Activity") {
+        // Find the end of the section
+        if let Some(end_pos) = content[start_pos..].find("### Implementation Progress") {
+            // Replace the section content
+            let section_start = start_pos + "### Recent Activity".len();
+            let section_end = start_pos + end_pos;
+
+            let new_section = format!("\n\n{}", activities_markdown);
+            updated_content = format!("{}{}{}",
+                &content[..section_start],
+                new_section,
+                &content[section_end..]
+            );
+        }
+    }
+
+    // Write the updated content back to the file
+    fs::write(&hub_path, updated_content)
+        .map_err(|e| anyhow::anyhow!("Failed to write updated central reference hub: {}", e))?;
+
+    println!("Recent Activity section updated in central reference hub.");
     Ok(())
 }
 
@@ -1166,7 +1231,14 @@ async fn run_code_quality_scorer(base_dir: &PathBuf, config: &Config) -> Result<
     // Initialize code quality scorer
     let mut code_quality_scorer = CodeQualityScorer::new();
 
-    // Analyze code quality
+    // Load exclude patterns from config
+    let config_path = base_dir.join("config.toml");
+    if config_path.exists() {
+        println!("Loading exclude patterns from config file: {}", config_path.display());
+        code_quality_scorer.load_exclude_patterns_from_config(&config_path)?;
+    }
+
+    // Analyze code quality with parallel processing
     println!("Analyzing code quality...");
     code_quality_scorer.analyze_codebase(&canvas_path, "canvas")?;
     code_quality_scorer.analyze_codebase(&discourse_path, "discourse")?;
@@ -1851,6 +1923,236 @@ fn update_central_hub_with_integration_advisor(
     // Write updated content back to file
     fs::write(&central_hub_path, central_hub_content)?;
     println!("Central reference hub updated at: {}", central_hub_path.display());
+
+    Ok(())
+}
+
+async fn generate_rust_code(base_dir: &PathBuf, config: &Config) -> Result<()> {
+    println!("Generating Rust code from Ruby source code...");
+
+    // Get the source code paths
+    let canvas_path = match config.get_path("canvas_path") {
+        Some(path) => path,
+        None => "C:\\Users\\Tim\\Desktop\\port\\canvas"
+    };
+    let discourse_path = match config.get_path("discourse_path") {
+        Some(path) => path,
+        None => "C:\\Users\\Tim\\Desktop\\port\\discourse"
+    };
+
+    // Ensure the paths exist
+    let canvas_dir = std::path::Path::new(canvas_path);
+    let discourse_dir = std::path::Path::new(discourse_path);
+
+    if !canvas_dir.exists() {
+        println!("Warning: Canvas directory not found at: {}", canvas_path);
+        return Ok(());
+    }
+
+    if !discourse_dir.exists() {
+        println!("Warning: Discourse directory not found at: {}", discourse_path);
+        return Ok(());
+    }
+
+    // Create output directory
+    let output_dir = base_dir.join("generated").join("rust");
+    fs::create_dir_all(&output_dir)?;
+
+    // Initialize analyzers
+    let mut model_analyzer = EnhancedRubyModelAnalyzer::new();
+    let mut controller_analyzer = EnhancedRubyControllerAnalyzer::new();
+    let mut view_analyzer = EnhancedRubyViewAnalyzer::new();
+    let mut migration_analyzer = EnhancedRubyMigrationAnalyzer::new();
+    let mut react_analyzer = EnhancedReactAnalyzer::new();
+    let mut ember_analyzer = EnhancedEmberAnalyzer::new();
+
+    // Analyze Canvas models
+    println!("Analyzing Canvas models...");
+    model_analyzer.analyze_directory(&canvas_dir.join("app").join("models"))?;
+
+    // Analyze Canvas controllers
+    println!("Analyzing Canvas controllers...");
+    controller_analyzer.analyze_directory(&canvas_dir.join("app").join("controllers"))?;
+
+    // Analyze Canvas views
+    println!("Analyzing Canvas views...");
+    view_analyzer.analyze_directory(&canvas_dir.join("app").join("views"))?;
+
+    // Analyze Canvas migrations
+    println!("Analyzing Canvas migrations...");
+    migration_analyzer.analyze_directory(canvas_dir)?;
+
+    // Analyze Canvas React components
+    println!("Analyzing Canvas React components...");
+    react_analyzer.analyze_directory(&canvas_dir.join("app").join("jsx"))?;
+    react_analyzer.analyze_directory(&canvas_dir.join("ui").join("shared").join("react"))?;
+
+    // Analyze Discourse Ember components
+    println!("Analyzing Discourse Ember components...");
+    ember_analyzer.analyze_directory(&discourse_dir.join("app").join("assets").join("javascripts").join("discourse"))?;
+
+    // Initialize code generators
+    let model_generator = RubyToRustModelGenerator::new(&output_dir);
+    let controller_generator = RubyToRustControllerGenerator::new(&output_dir);
+    let view_generator = RubyToLeptosViewGenerator::new(&output_dir);
+    let react_generator = ReactToLeptosGenerator::new(&output_dir);
+    let ember_generator = EmberToLeptosGenerator::new(&output_dir);
+
+    // Generate Rust models
+    println!("Generating Rust models...");
+    for model in model_analyzer.models.values() {
+        println!("Generating model: {}", model.name);
+        if let Err(e) = model_generator.generate_model(model) {
+            println!("Error generating model {}: {}", model.name, e);
+        }
+    }
+
+    // Generate Rust controllers
+    println!("Generating Rust controllers...");
+    for controller in controller_analyzer.controllers.values() {
+        println!("Generating controller: {}", controller.name);
+        if let Err(e) = controller_generator.generate_controller(controller) {
+            println!("Error generating controller {}: {}", controller.name, e);
+        }
+    }
+
+    // Generate Leptos views from Ruby views
+    println!("Generating Leptos views from Ruby views...");
+    for view in view_analyzer.views.values() {
+        println!("Generating view: {}", view.name);
+        if let Err(e) = view_generator.generate_view(view) {
+            println!("Error generating view {}: {}", view.name, e);
+        }
+    }
+
+    // Generate Leptos components from React components
+    println!("Generating Leptos components from React components...");
+    for component in react_analyzer.components.values() {
+        println!("Generating React component: {}", component.name);
+        if let Err(e) = react_generator.generate_component(component) {
+            println!("Error generating React component {}: {}", component.name, e);
+        }
+    }
+
+    // Generate Leptos components from Ember components
+    println!("Generating Leptos components from Ember components...");
+    for component in ember_analyzer.components.values() {
+        println!("Generating Ember component: {}", component.name);
+        if let Err(e) = ember_generator.generate_component(component) {
+            println!("Error generating Ember component {}: {}", component.name, e);
+        }
+    }
+
+    // Generate database schema
+    println!("Generating database schema...");
+    let schema_sql = migration_analyzer.generate_schema_sql();
+    let schema_path = output_dir.join("schema.sql");
+    fs::write(schema_path, schema_sql)?;
+
+    println!("Rust code generation complete. Output directory: {:?}", output_dir);
+
+    Ok(())
+}
+
+async fn generate_leptos_code(base_dir: &PathBuf, config: &Config) -> Result<()> {
+    println!("Generating Leptos code from frontend components...");
+
+    // Get the source code paths
+    let canvas_path = match config.get_path("canvas_path") {
+        Some(path) => path,
+        None => "C:\\Users\\Tim\\Desktop\\port\\canvas"
+    };
+    let discourse_path = match config.get_path("discourse_path") {
+        Some(path) => path,
+        None => "C:\\Users\\Tim\\Desktop\\port\\discourse"
+    };
+
+    // Ensure the paths exist
+    let canvas_dir = std::path::Path::new(canvas_path);
+    let discourse_dir = std::path::Path::new(discourse_path);
+
+    if !canvas_dir.exists() {
+        println!("Warning: Canvas directory not found at: {}", canvas_path);
+        return Ok(());
+    }
+
+    if !discourse_dir.exists() {
+        println!("Warning: Discourse directory not found at: {}", discourse_path);
+        return Ok(());
+    }
+
+    // Create output directory
+    let output_dir = base_dir.join("generated").join("leptos");
+    fs::create_dir_all(&output_dir)?;
+
+    // Initialize analyzers
+    let mut react_analyzer = EnhancedReactAnalyzer::new();
+    let mut ember_analyzer = EnhancedEmberAnalyzer::new();
+    let mut vue_analyzer = EnhancedVueAnalyzer::new();
+    let mut angular_analyzer = EnhancedAngularAnalyzer::new();
+
+    // Analyze React components
+    println!("Analyzing React components...");
+    react_analyzer.analyze_directory(&canvas_dir.join("app").join("jsx"))?;
+    react_analyzer.analyze_directory(&canvas_dir.join("ui").join("shared").join("react"))?;
+
+    // Analyze Ember components
+    println!("Analyzing Ember components...");
+    ember_analyzer.analyze_directory(&discourse_dir.join("app").join("assets").join("javascripts").join("discourse"))?;
+
+    // Analyze Vue.js components (if any)
+    println!("Analyzing Vue.js components...");
+    vue_analyzer.analyze_directory(canvas_dir)?;
+    vue_analyzer.analyze_directory(discourse_dir)?;
+
+    // Analyze Angular components (if any)
+    println!("Analyzing Angular components...");
+    angular_analyzer.analyze_directory(canvas_dir)?;
+    angular_analyzer.analyze_directory(discourse_dir)?;
+
+    // Initialize code generators
+    let react_generator = ReactToLeptosGenerator::new(&output_dir.join("components").join("react"));
+    let ember_generator = EmberToLeptosGenerator::new(&output_dir.join("components").join("ember"));
+    let vue_generator = VueToLeptosGenerator::new(&output_dir.join("components").join("vue"));
+    let angular_generator = AngularToLeptosGenerator::new(&output_dir.join("components").join("angular"));
+
+    // Generate Leptos components from React components
+    println!("Generating Leptos components from React components...");
+    for component in react_analyzer.components.values() {
+        println!("Generating React component: {}", component.name);
+        if let Err(e) = react_generator.generate_component(component) {
+            println!("Error generating React component {}: {}", component.name, e);
+        }
+    }
+
+    // Generate Leptos components from Ember components
+    println!("Generating Leptos components from Ember components...");
+    for component in ember_analyzer.components.values() {
+        println!("Generating Ember component: {}", component.name);
+        if let Err(e) = ember_generator.generate_component(component) {
+            println!("Error generating Ember component {}: {}", component.name, e);
+        }
+    }
+
+    // Generate Leptos components from Vue.js components
+    println!("Generating Leptos components from Vue.js components...");
+    for component in vue_analyzer.components.values() {
+        println!("Generating Vue.js component: {}", component.name);
+        if let Err(e) = vue_generator.generate_component(component) {
+            println!("Error generating Vue.js component {}: {}", component.name, e);
+        }
+    }
+
+    // Generate Leptos components from Angular components
+    println!("Generating Leptos components from Angular components...");
+    for component in angular_analyzer.components.values() {
+        println!("Generating Angular component: {}", component.name);
+        if let Err(e) = angular_generator.generate_component(component) {
+            println!("Error generating Angular component {}: {}", component.name, e);
+        }
+    }
+
+    println!("Leptos code generation complete. Output directory: {:?}", output_dir);
 
     Ok(())
 }

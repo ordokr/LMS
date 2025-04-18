@@ -85,6 +85,15 @@ impl IntegrationAdvisor {
 
         // Analyze code quality
         println!("Analyzing code quality...");
+
+        // Load exclude patterns from config
+        let config_path = self.base_dir.join("config.toml");
+        if config_path.exists() {
+            println!("Loading exclude patterns from config file: {}", config_path.display());
+            self.code_quality_scorer.load_exclude_patterns_from_config(&config_path)?;
+        }
+
+        // Analyze codebases with parallel processing
         self.code_quality_scorer.analyze_codebase(canvas_path, "canvas")?;
         self.code_quality_scorer.analyze_codebase(discourse_path, "discourse")?;
 

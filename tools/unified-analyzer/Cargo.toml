@@ -25,3 +25,12 @@ walkdir = "2.4.0"
 # lazy_static already defined above
 env_logger = "0.10.0"
 rayon = "1.8.0"
+once_cell = "1.18.0"
+
+[[bin]]
+name = "test_haskell_analyzer"
+path = "src/bin/test_haskell_analyzer.rs"
+
+[[bin]]
+name = "analyze_ruby"
+path = "src/bin/analyze_ruby.rs"

@@ -25,6 +25,7 @@ The LMS Project Analyzer is a unified system that analyzes the codebase, generat
 - **ArchitectureAnalyzer**: Analyzes architecture patterns.
 - **SyncAnalyzer**: Analyzes sync system.
 - **BlockchainAnalyzer**: Analyzes blockchain components.
+- **HaskellAnalyzer**: Analyzes Haskell code for business logic, blockchain, and sync components.
 
 ## Usage
 

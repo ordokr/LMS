@@ -1,0 +1,144 @@
+use leptos::*;
+use leptos_router::*;
+use uuid::Uuid;
+
+use crate::quiz::models::*;
+use crate::components::quiz::*;
+
+#[component]
+pub fn QuizPage() -> impl IntoView {
+    let params = use_params_map();
+    let quiz_id = move || params.with(|params| params.get("id").cloned().unwrap_or_default());
+    
+    let (quiz, set_quiz) = create_signal(None::<Quiz>);
+    let (session, set_session) = create_signal(None::<QuizSession>);
+    let (loading, set_loading) = create_signal(true);
+    let (error, set_error) = create_signal(None::<String>);
+    
+    // Load quiz data
+    create_effect(move |_| {
+        let id = quiz_id();
+        if id.is_empty() {
+            set_error.set(Some("Invalid quiz ID".to_string()));
+            set_loading.set(false);
+            return;
+        }
+        
+        set_loading.set(true);
+        set_error.set(None);
+        
+        // In a real implementation, this would call the Tauri command to get the quiz
+        // For now, we'll simulate loading with a timeout
+        set_timeout(
+            move || {
+                // Simulate API call
+                let quiz_data = Quiz::new(format!("Sample Quiz {}", id), None);
+                set_quiz.set(Some(quiz_data));
+                set_loading.set(false);
+            },
+            std::time::Duration::from_millis(500),
+        );
+    });
+    
+    // Start a quiz session
+    let start_session = create_action(move |_| {
+        if let Some(quiz_data) = quiz.get() {
+            // In a real implementation, this would call the Tauri command to start a session
+            // For now, we'll create a mock session
+            let user_id = Uuid::new_v4(); // In a real app, this would come from auth
+            let session_data = QuizSession::with_quiz(&quiz_data, user_id);
+            set_session.set(Some(session_data));
+        }
+    });
+    
+    // Submit an answer
+    let submit_answer = create_action(move |(question_id, answer): &(Uuid, Answer)| {
+        let question_id = *question_id;
+        let answer = answer.clone();
+        
+        if let (Some(mut session_data), Some(quiz_data)) = (session.get(), quiz.get()) {
+            // In a real implementation, this would call the Tauri command to submit the answer
+            // For now, we'll update the session locally
+            let _ = session_data.submit_answer(question_id, answer, &quiz_data);
+            set_session.set(Some(session_data));
+        }
+    });
+    
+    // Complete the session
+    let complete_session = create_action(move |_| {
+        if let Some(mut session_data) = session.get() {
+            // In a real implementation, this would call the Tauri command to complete the session
+            // For now, we'll update the session locally
+            let _ = session_data.complete();
+            set_session.set(Some(session_data));
+        }
+    });
+    
+    view! {
+        <div class="quiz-page">
+            <Show
+                when=move || loading.get()
+                fallback=move || {
+                    view! {
+                        <Show
+                            when=move || error.get().is_none()
+                            fallback=move || {
+                                view! {
+                                    <div class="error-container">
+                                        <h2>"Error"</h2>
+                                        <p>{move || error.get().unwrap_or_default()}</p>
+                                        <A href="/quizzes" class="back-link">"Back to Quizzes"</A>
+                                    </div>
+                                }
+                            }
+                        >
+                            <Show
+                                when=move || session.get().is_some()
+                                fallback=move || {
+                                    view! {
+                                        <div class="quiz-details">
+                                            <h1>{move || quiz.get().map(|q| q.title.clone()).unwrap_or_default()}</h1>
+                                            <p>{move || quiz.get().and_then(|q| q.description.clone()).unwrap_or_default()}</p>
+                                            
+                                            <div class="quiz-meta">
+                                                <p>
+                                                    "Questions: "
+                                                    {move || quiz.get().map(|q| q.questions.len()).unwrap_or(0)}
+                                                </p>
+                                                <p>
+                                                    "Study Mode: "
+                                                    {move || format!("{:?}", quiz.get().map(|q| q.study_mode).unwrap_or(StudyMode::MultipleChoice))}
+                                                </p>
+                                            </div>
+                                            
+                                            <button 
+                                                class="start-quiz-btn"
+                                                on:click=move |_| start_session.dispatch(())
+                                            >
+                                                "Start Quiz"
+                                            </button>
+                                            
+                                            <A href="/quizzes" class="back-link">"Back to Quizzes"</A>
+                                        </div>
+                                    }
+                                }
+                            >
+                                <QuizView
+                                    quiz=Signal::derive(move || quiz.get().unwrap_or_else(|| Quiz::new("".to_string(), None)))
+                                    session=session
+                                    on_submit_answer=move |(q_id, answer)| submit_answer.dispatch((q_id, answer))
+                                    on_complete=move |_| complete_session.dispatch(())
+                                />
+                            </Show>
+                        </Show>
+                    }
+                }
+            >
+                <div class="loading-container">
+                    <div class="loading-spinner"></div>
+                    <p>"Loading quiz..."</p>
+                </div>
+            </Show>
+        </div>
+    }
+}

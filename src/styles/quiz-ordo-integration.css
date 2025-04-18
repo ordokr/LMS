@@ -1,0 +1,123 @@
+/* Quiz Module - Ordo App Integration */
+/* 
+ * This file allows the Ordo app to customize the quiz theme.
+ * It should be imported by the Ordo app's main CSS file.
+ * 
+ * To customize the quiz theme, override the CSS variables defined here.
+ */
+
+:root {
+  /* 
+   * Define Ordo app variables that will be used by the quiz module.
+   * These variables should match the naming convention used in quiz-theme.css.
+   */
+  
+  /* Primary Colors */
+  --ordo-primary: var(--primary-color, #1a5fff);
+  --ordo-primary-hover: var(--primary-color-hover, #4b83ff);
+  --ordo-primary-light: var(--primary-color-light, rgba(26, 95, 255, 0.1));
+  
+  /* Secondary Colors */
+  --ordo-secondary: var(--secondary-color, #ff8b1a);
+  --ordo-secondary-hover: var(--secondary-color-hover, #ffa54c);
+  --ordo-secondary-light: var(--secondary-color-light, rgba(255, 139, 26, 0.1));
+  
+  /* Accent Colors */
+  --ordo-accent: var(--accent-color, #ffc91a);
+  --ordo-accent-hover: var(--accent-color-hover, #ffd54b);
+  
+  /* Status Colors */
+  --ordo-danger: var(--danger-color, #e45735);
+  --ordo-success: var(--success-color, #1ca551);
+  
+  /* Text Colors */
+  --ordo-text: var(--text-color, #1a202c);
+  --ordo-text-light: var(--text-light, #4a5568);
+  --ordo-text-lighter: var(--text-lighter, #718096);
+  
+  /* Background Colors */
+  --ordo-bg: var(--background-color, #f7fafc);
+  --ordo-card-bg: var(--card-bg, #ffffff);
+  --ordo-border: var(--border-color, #e2e8f0);
+  
+  /* Shadows */
+  --ordo-shadow: var(--shadow, 0 4px 6px rgba(0, 0, 0, 0.1));
+  --ordo-shadow-sm: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.05));
+  --ordo-shadow-lg: var(--shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.1));
+  
+  /* Spacing */
+  --ordo-spacing-xs: var(--spacing-xs, 0.25rem);
+  --ordo-spacing-sm: var(--spacing-sm, 0.5rem);
+  --ordo-spacing: var(--spacing, 1rem);
+  --ordo-spacing-md: var(--spacing-md, 1.5rem);
+  --ordo-spacing-lg: var(--spacing-lg, 2rem);
+  --ordo-spacing-xl: var(--spacing-xl, 3rem);
+  
+  /* Border Radius */
+  --ordo-radius-sm: var(--radius-sm, 0.375rem);
+  --ordo-radius: var(--radius, 0.5rem);
+  --ordo-radius-md: var(--radius-md, 0.75rem);
+  --ordo-radius-lg: var(--radius-lg, 1rem);
+  
+  /* Typography */
+  --ordo-font-heading: var(--font-heading, 'Outfit', system-ui, sans-serif);
+  --ordo-font-body: var(--font-body, 'Open Sans', system-ui, sans-serif);
+  
+  /* Font Sizes */
+  --ordo-font-xs: var(--font-xs, 0.75rem);
+  --ordo-font-sm: var(--font-sm, 0.875rem);
+  --ordo-font-base: var(--font-base, 1rem);
+  --ordo-font-md: var(--font-md, 1.125rem);
+  --ordo-font-lg: var(--font-lg, 1.25rem);
+  --ordo-font-xl: var(--font-xl, 1.5rem);
+  --ordo-font-2xl: var(--font-2xl, 1.875rem);
+  
+  /* Font Weights */
+  --ordo-font-normal: var(--font-normal, 400);
+  --ordo-font-medium: var(--font-medium, 500);
+  --ordo-font-semibold: var(--font-semibold, 600);
+  --ordo-font-bold: var(--font-bold, 700);
+  
+  /* Transitions */
+  --ordo-transition: var(--transition, all 0.2s ease);
+  --ordo-transition-slow: var(--transition-slow, all 0.3s ease);
+}
+
+/* Dark Mode Variables */
+[data-theme="dark"] {
+  /* Primary Colors */
+  --ordo-primary-dark: var(--primary-color-dark, #4b83ff);
+  --ordo-primary-hover-dark: var(--primary-color-hover-dark, #7ea6ff);
+  --ordo-primary-light-dark: var(--primary-color-light-dark, rgba(75, 131, 255, 0.15));
+  
+  /* Secondary Colors */
+  --ordo-secondary-dark: var(--secondary-color-dark, #ffa54c);
+  --ordo-secondary-hover-dark: var(--secondary-color-hover-dark, #ffbf7d);
+  --ordo-secondary-light-dark: var(--secondary-color-light-dark, rgba(255, 165, 76, 0.15));
+  
+  /* Text Colors */
+  --ordo-text-dark: var(--text-color-dark, #f7fafc);
+  --ordo-text-light-dark: var(--text-light-dark, #cbd5e0);
+  --ordo-text-lighter-dark: var(--text-lighter-dark, #a0aec0);
+  
+  /* Background Colors */
+  --ordo-bg-dark: var(--background-color-dark, #171923);
+  --ordo-card-bg-dark: var(--card-bg-dark, #242C3A);
+  --ordo-border-dark: var(--border-color-dark, #2d3748);
+  
+  /* Shadows */
+  --ordo-shadow-dark: var(--shadow-dark, 0 4px 6px rgba(0, 0, 0, 0.3));
+  --ordo-shadow-sm-dark: var(--shadow-sm-dark, 0 1px 3px rgba(0, 0, 0, 0.2));
+  --ordo-shadow-lg-dark: var(--shadow-lg-dark, 0 10px 15px -3px rgba(0, 0, 0, 0.3));
+}
+
+/* 
+ * Example of how to customize the quiz theme in the Ordo app:
+ *
+ * :root {
+ *   --primary-color: #ff0000; // Red primary color
+ *   --border-radius: 0; // Square corners
+ * }
+ * 
+ * This will change the quiz theme to use a red primary color and square corners.
+ */

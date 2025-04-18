@@ -31,6 +31,11 @@ if "%~1"=="--update-rag" (
     shift
     goto parse_args
 )
+if "%~1"=="--add-activity" (
+    set COMMAND=add-activity
+    shift
+    goto parse_args
+)
 if "%~1"=="--project" (
     set COMMAND=project
     shift
@@ -75,6 +80,8 @@ if "%COMMAND%"=="full" (
     cargo run --bin unified-analyzer -- summary %OPTIONS%
 ) else if "%COMMAND%"=="update-rag" (
     cargo run --bin unified-analyzer -- update-rag %OPTIONS%
+) else if "%COMMAND%"=="add-activity" (
+    cargo run --bin unified-analyzer -- add-activity %OPTIONS%
 ) else if "%COMMAND%"=="project" (
     cargo run --bin project-analyzer %OPTIONS%
 ) else if "%COMMAND%"=="roadmap" (
@@ -91,6 +98,7 @@ if "%COMMAND%"=="full" (
     echo   --full            Run full analysis
     echo   --quick           Run quick analysis
     echo   --update-hub      Update central reference hub
+    echo   --add-activity    Add recent activity to central reference hub
     echo   --summary         Generate summary report
     echo   --update-rag      Update RAG knowledge base
     echo   --project         Run project analyzer

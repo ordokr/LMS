@@ -1,0 +1,198 @@
+use leptos::*;
+use wasm_bindgen::prelude::*;
+use web_sys::{DragEvent, DataTransfer, Element};
+use std::collections::HashMap;
+
+use crate::models::{Question, Answer, DragDropItem};
+
+#[component]
+pub fn DragDropQuestion(
+    #[prop(into)] question: Signal<Question>,
+    #[prop(into)] on_answer: Callback<Answer>,
+    #[prop(into)] is_submitted: Signal<bool>,
+    #[prop(into)] is_correct: Signal<Option<bool>>,
+) -> impl IntoView {
+    // State for drag and drop items
+    let (items, set_items) = create_signal(Vec::<DragDropItem>::new());
+    let (targets, set_targets) = create_signal(Vec::<String>::new());
+    let (mappings, set_mappings) = create_signal(HashMap::<String, String>::new());
+    
+    // Initialize items and targets from question
+    create_effect(move |_| {
+        if let Some(content) = &question.get().content.drag_drop_content {
+            set_items.set(content.items.clone());
+            set_targets.set(content.targets.clone());
+            
+            // Reset mappings when question changes
+            set_mappings.set(HashMap::new());
+        }
+    });
+    
+    // Handle drag start
+    let on_drag_start = move |ev: DragEvent, item_id: String| {
+        let data_transfer = ev.data_transfer().unwrap();
+        data_transfer.set_data("text/plain", &item_id).unwrap();
+        data_transfer.set_effect_allowed("move");
+    };
+    
+    // Handle drag over
+    let on_drag_over = move |ev: DragEvent| {
+        ev.prevent_default();
+    };
+    
+    // Handle drop
+    let on_drop = move |ev: DragEvent, target_id: String| {
+        ev.prevent_default();
+        
+        if let Some(data_transfer) = ev.data_transfer() {
+            if let Ok(item_id) = data_transfer.get_data("text/plain") {
+                // Update mappings
+                set_mappings.update(|m| {
+                    m.insert(item_id.clone(), target_id.clone());
+                });
+                
+                // Submit answer if all items are mapped
+                if mappings.get().len() == items.get().len() {
+                    let answer = Answer::DragDrop(mappings.get().clone());
+                    on_answer.call(answer);
+                }
+            }
+        }
+    };
+    
+    // Get item position
+    let get_item_position = move |item_id: &str| -> Option<String> {
+        mappings.get().get(item_id).cloned()
+    };
+    
+    // Reset mappings
+    let reset = move |_| {
+        set_mappings.set(HashMap::new());
+    };
+    
+    view! {
+        <div class="drag-drop-question">
+            <div class="question-text">
+                {move || question.get().content.text.clone()}
+            </div>
+            
+            <div class="drag-drop-container">
+                <div class="drag-items">
+                    <h4>"Items"</h4>
+                    <For
+                        each=move || items.get()
+                        key=|item| item.id.clone()
+                        children=move |item| {
+                            let item_id = item.id.clone();
+                            let is_placed = move || get_item_position(&item_id).is_some();
+                            
+                            view! {
+                                <div 
+                                    class="drag-item"
+                                    class:placed=is_placed
+                                    draggable=true
+                                    on:dragstart=move |ev| on_drag_start(ev, item_id.clone())
+                                >
+                                    {item.text}
+                                </div>
+                            }
+                        }
+                    />
+                </div>
+                
+                <div class="drop-targets">
+                    <h4>"Targets"</h4>
+                    <For
+                        each=move || targets.get()
+                        key=|target| target.clone()
+                        children=move |target| {
+                            let target_id = target.clone();
+                            let mapped_item = move || {
+                                let current_mappings = mappings.get();
+                                for (item_id, t_id) in current_mappings.iter() {
+                                    if t_id == &target_id {
+                                        return Some(item_id.clone());
+                                    }
+                                }
+                                None
+                            };
+                            
+                            view! {
+                                <div 
+                                    class="drop-target"
+                                    on:dragover=on_drag_over
+                                    on:drop=move |ev| on_drop(ev, target_id.clone())
+                                >
+                                    <div class="target-label">{target.clone()}</div>
+                                    {move || {
+                                        if let Some(item_id) = mapped_item() {
+                                            let item = items.get().iter().find(|i| i.id == item_id).cloned();
+                                            if let Some(i) = item {
+                                                view! {
+                                                    <div class="placed-item">{i.text}</div>
+                                                }
+                                            } else {
+                                                view! { <div></div> }
+                                            }
+                                        } else {
+                                            view! { <div class="empty-target">"Drop here"</div> }
+                                        }
+                                    }}
+                                </div>
+                            }
+                        }
+                    />
+                </div>
+            </div>
+            
+            <div class="question-actions">
+                <button 
+                    class="reset-btn"
+                    on:click=reset
+                    disabled=move || is_submitted.get()
+                >
+                    "Reset"
+                </button>
+            </div>
+            
+            // Feedback section
+            {move || {
+                if is_submitted.get() {
+                    let feedback_class = match is_correct.get() {
+                        Some(true) => "feedback correct",
+                        Some(false) => "feedback incorrect",
+                        None => "feedback",
+                    };
+                    
+                    let feedback_text = match is_correct.get() {
+                        Some(true) => "Correct!",
+                        Some(false) => "Incorrect. Try again.",
+                        None => "",
+                    };
+                    
+                    view! {
+                        <div class={feedback_class}>
+                            {feedback_text}
+                            
+                            // Show explanation if available and answer is submitted
+                            {move || {
+                                if let Some(explanation) = &question.get().explanation {
+                                    view! {
+                                        <div class="explanation">
+                                            <h4>"Explanation"</h4>
+                                            <p>{explanation.clone()}</p>
+                                        </div>
+                                    }
+                                } else {
+                                    view! { <div></div> }
+                                }
+                            }}
+                        </div>
+                    }
+                } else {
+                    view! { <div></div> }
+                }
+            }}
+        </div>
+    }
+}

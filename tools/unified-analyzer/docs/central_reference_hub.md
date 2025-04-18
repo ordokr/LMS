@@ -139,3 +139,9 @@ The migration from Canvas and Discourse to Ordo will follow these steps:
 - Comprehensive security model
 - Performance optimization
 - Extended platform support
+
+
+## Visualizations
+
+- [Database Schema](visualizations/db_schema/db_schema.html) - Interactive visualization of the database schema
+- [Database Schema Documentation](models/database_schema.md) - Comprehensive documentation of the database schema

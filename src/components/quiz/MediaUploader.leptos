@@ -1,0 +1,277 @@
+use leptos::*;
+use wasm_bindgen::prelude::*;
+use web_sys::{File, FileList, HtmlInputElement};
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
+}
+
+#[derive(Clone, Debug)]
+pub enum MediaType {
+    Image,
+    Audio,
+    Video,
+}
+
+#[derive(Clone, Debug)]
+pub struct MediaFile {
+    pub id: String,
+    pub name: String,
+    pub url: String,
+    pub media_type: MediaType,
+    pub size: u32,
+}
+
+#[component]
+pub fn MediaUploader(
+    #[prop(into)] on_upload: Callback<MediaFile>,
+    #[prop(optional)] media_type: Option<MediaType>,
+    #[prop(optional)] max_size_mb: Option<f64>,
+) -> impl IntoView {
+    let input_ref = create_node_ref::<HtmlInputElement>();
+    let (is_uploading, set_is_uploading) = create_signal(false);
+    let (error_message, set_error_message) = create_signal(None::<String>);
+    
+    // Determine accepted file types
+    let accept = match media_type {
+        Some(MediaType::Image) => "image/*",
+        Some(MediaType::Audio) => "audio/*",
+        Some(MediaType::Video) => "video/*",
+        None => "image/*,audio/*,video/*",
+    };
+    
+    // Open file dialog
+    let open_file_dialog = move |_| {
+        if let Some(input) = input_ref.get() {
+            let _ = input.click();
+        }
+    };
+    
+    // Handle file selection
+    let on_file_selected = move |_| {
+        if let Some(input) = input_ref.get() {
+            if let Some(files) = input.files() {
+                if files.length() > 0 {
+                    if let Some(file) = files.get(0) {
+                        handle_file_upload(file, set_is_uploading, set_error_message, on_upload, max_size_mb);
+                    }
+                }
+            }
+        }
+    };
+    
+    view! {
+        <div class="media-uploader">
+            <input
+                _ref=input_ref
+                type="file"
+                accept={accept}
+                style="display: none;"
+                on:change=on_file_selected
+            />
+            
+            <button
+                type="button"
+                class="upload-btn"
+                on:click=open_file_dialog
+                disabled=is_uploading
+            >
+                {move || if is_uploading.get() { "Uploading..." } else { "Upload Media" }}
+            </button>
+            
+            {move || {
+                if let Some(msg) = error_message.get() {
+                    view! {
+                        <div class="upload-error">{msg}</div>
+                    }
+                } else {
+                    view! { <div></div> }
+                }
+            }}
+        </div>
+    }
+}
+
+// Handle file upload
+fn handle_file_upload(
+    file: File,
+    set_is_uploading: WriteSignal<bool>,
+    set_error_message: WriteSignal<Option<String>>,
+    on_upload: Callback<MediaFile>,
+    max_size_mb: Option<f64>,
+) {
+    // Check file size
+    if let Some(max_mb) = max_size_mb {
+        let file_size_mb = file.size() as f64 / (1024.0 * 1024.0);
+        if file_size_mb > max_mb {
+            set_error_message.set(Some(format!("File size exceeds maximum allowed ({}MB)", max_mb)));
+            return;
+        }
+    }
+    
+    // Reset error
+    set_error_message.set(None);
+    
+    // Start upload
+    set_is_uploading.set(true);
+    
+    // In a real implementation, this would upload to a server
+    // For now, we'll create a local URL
+    let file_name = file.name();
+    let file_type = file.type_();
+    let file_size = file.size() as u32;
+    
+    // Determine media type
+    let media_type = if file_type.starts_with("image/") {
+        MediaType::Image
+    } else if file_type.starts_with("audio/") {
+        MediaType::Audio
+    } else if file_type.starts_with("video/") {
+        MediaType::Video
+    } else {
+        // Default to image
+        MediaType::Image
+    };
+    
+    // Create a URL for the file
+    let url = web_sys::Url::create_object_url_with_blob(&file).unwrap_or_default();
+    
+    // Create a unique ID
+    let id = format!("media_{}", js_sys::Date::now().to_string());
+    
+    // Create media file object
+    let media_file = MediaFile {
+        id,
+        name: file_name,
+        url,
+        media_type,
+        size: file_size,
+    };
+    
+    // Simulate upload delay
+    let on_upload_clone = on_upload.clone();
+    let media_file_clone = media_file.clone();
+    let set_is_uploading_clone = set_is_uploading.clone();
+    
+    // Use setTimeout to simulate upload
+    let window = web_sys::window().unwrap();
+    let closure = Closure::once(move || {
+        on_upload_clone.call(media_file_clone);
+        set_is_uploading_clone.set(false);
+    });
+    
+    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+        closure.as_ref().unchecked_ref(),
+        1000, // 1 second delay
+    );
+    
+    closure.forget();
+}
+
+#[component]
+pub fn MediaPreview(
+    #[prop(into)] media: Signal<Option<MediaFile>>,
+    #[prop(optional)] on_remove: Option<Callback<()>>,
+) -> impl IntoView {
+    view! {
+        <div class="media-preview">
+            {move || {
+                if let Some(file) = media.get() {
+                    match file.media_type {
+                        MediaType::Image => view! {
+                            <div class="image-preview">
+                                <img src={file.url.clone()} alt={file.name.clone()} />
+                                <div class="media-info">
+                                    <span class="media-name">{file.name.clone()}</span>
+                                    <span class="media-size">{format!("{:.1} KB", file.size as f64 / 1024.0)}</span>
+                                </div>
+                                {move || {
+                                    if let Some(remove_callback) = on_remove.clone() {
+                                        view! {
+                                            <button 
+                                                type="button" 
+                                                class="remove-media-btn"
+                                                on:click=move |_| remove_callback.call(())
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                                </svg>
+                                            </button>
+                                        }
+                                    } else {
+                                        view! { <div></div> }
+                                    }
+                                }}
+                            </div>
+                        }.into_view(),
+                        MediaType::Audio => view! {
+                            <div class="audio-preview">
+                                <audio controls>
+                                    <source src={file.url.clone()} type="audio/mpeg" />
+                                    "Your browser does not support the audio element."
+                                </audio>
+                                <div class="media-info">
+                                    <span class="media-name">{file.name.clone()}</span>
+                                    <span class="media-size">{format!("{:.1} KB", file.size as f64 / 1024.0)}</span>
+                                </div>
+                                {move || {
+                                    if let Some(remove_callback) = on_remove.clone() {
+                                        view! {
+                                            <button 
+                                                type="button" 
+                                                class="remove-media-btn"
+                                                on:click=move |_| remove_callback.call(())
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                                </svg>
+                                            </button>
+                                        }
+                                    } else {
+                                        view! { <div></div> }
+                                    }
+                                }}
+                            </div>
+                        }.into_view(),
+                        MediaType::Video => view! {
+                            <div class="video-preview">
+                                <video controls>
+                                    <source src={file.url.clone()} type="video/mp4" />
+                                    "Your browser does not support the video element."
+                                </video>
+                                <div class="media-info">
+                                    <span class="media-name">{file.name.clone()}</span>
+                                    <span class="media-size">{format!("{:.1} KB", file.size as f64 / 1024.0)}</span>
+                                </div>
+                                {move || {
+                                    if let Some(remove_callback) = on_remove.clone() {
+                                        view! {
+                                            <button 
+                                                type="button" 
+                                                class="remove-media-btn"
+                                                on:click=move |_| remove_callback.call(())
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                                </svg>
+                                            </button>
+                                        }
+                                    } else {
+                                        view! { <div></div> }
+                                    }
+                                }}
+                            </div>
+                        }.into_view(),
+                    }
+                } else {
+                    view! { <div class="no-media">No media selected</div> }.into_view()
+                }
+            }}
+        </div>
+    }
+}

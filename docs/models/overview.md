@@ -1,8 +1,34 @@
 # Ordo Data Models
 
-_Last updated: 2025-04-16_
+_Last updated: 2025-04-17_
 
 This document provides an overview of the data models used in Ordo.
+
+## Implementation Status
+
+| Component | Implemented | Total | Progress |
+|-----------|-------------|-------|----------|
+| **Models** | 11 | 15 | 73.3% |
+
+### Model Details
+
+| Model | Implementation Status | Coverage | Source |
+|-------|----------------------|----------|--------|
+| course | ✅ | 95% | Canvas/Discourse |
+| user | ✅ | 90% | Canvas/Discourse |
+| assignment | ✅ | 85% | Canvas |
+| discussion | ✅ | 75% | Canvas/Discourse |
+| announcement | ✅ | 90% | Canvas |
+| forumTopic | ✅ | 95% | Discourse |
+| forumPost | ✅ | 85% | Discourse |
+| userProfile | ❌ | 0% | Canvas/Discourse |
+| notification | ✅ | 70% | Canvas/Discourse |
+| message | ✅ | 80% | Canvas/Discourse |
+| enrollment | ✅ | 75% | Canvas |
+| grade | ❌ | 30% | Canvas |
+| submission | ✅ | 65% | Canvas |
+| comment | ❌ | 20% | Canvas/Discourse |
+| attachment | ✅ | 70% | Canvas/Discourse |
 
 ## Data Model Overview
 

@@ -74,13 +74,63 @@ lms_path = "C:\\Users\\Tim\\Desktop\\LMS"
 # Analysis options
 [analysis]
 # Analyzers to use
-analyzers = ["file_structure", "ruby_rails", "ember", "react", "template", "route", "api", "dependency", "auth_flow", "offline_first_readiness", "database_schema", "business_logic", "canvas", "discourse"]
+analyzers = ["file_structure", "ruby_rails", "ember", "react", "template", "route", "api", "dependency", "auth_flow", "offline_first_readiness", "database_schema", "business_logic", "haskell", "canvas", "discourse"]
 # Maximum depth to search for files
 max_depth = 10
 # File extensions to include in analysis
-include_extensions = [".rs", ".js", ".ts", ".jsx", ".tsx", ".html", ".css", ".scss", ".md", ".toml", ".json"]
+include_extensions = [".rs", ".js", ".ts", ".jsx", ".tsx", ".html", ".css", ".scss", ".md", ".toml", ".json", ".hs", ".lhs", ".cabal", ".yaml"]
 # Directories to exclude from analysis
 exclude_dirs = ["node_modules", "target", "dist", "build", ".git"]
+
+# Enhanced Tech Debt Analyzer configuration
+[tech_debt_analyzer]
+# Directories to exclude from tech debt analysis
+exclude_dirs = ["target", "node_modules", ".git", "build-output", "dist", "tests"]
+# File extensions to include in tech debt analysis
+include_extensions = ["rs", "hs", "toml"]
+# Whether to use parallel processing
+use_parallel = true
+# Whether to use incremental analysis
+use_incremental = true
+# Path to the cache file (relative to the base directory)
+cache_path = ".tech_debt_cache.json"
+
+# Custom rules for tech debt analysis
+[[tech_debt_analyzer.custom_rules]]
+id = "todo_priority"
+name = "TODO with Priority"
+description = "TODO comment with priority marker"
+pattern = "(?i)//\\s*TODO\\s*\\[P[0-9]\\]"
+severity = "medium"
+fix_suggestion = "Implement the prioritized TODO item"
+impact_score = 60
+effort_to_fix = 40
+tags = ["todo", "priority"]
+whole_file_match = false
+
+[[tech_debt_analyzer.custom_rules]]
+id = "deprecated_api"
+name = "Deprecated API Usage"
+description = "Usage of deprecated API functions"
+pattern = "(?i)//\\s*DEPRECATED API"
+severity = "high"
+fix_suggestion = "Replace with the recommended alternative API"
+impact_score = 75
+effort_to_fix = 50
+tags = ["api", "deprecated"]
+whole_file_match = false
+
+[[tech_debt_analyzer.custom_rules]]
+id = "large_match"
+name = "Large Match Statement"
+description = "Match statement with too many arms"
+pattern = "match\\s+.*\\{[^}]{500,}\\}"
+severity = "medium"
+fix_suggestion = "Refactor into smaller functions or use a different pattern"
+impact_score = 55
+effort_to_fix = 65
+tags = ["complexity", "readability"]
+whole_file_match = true
 
 # Integration Advisor configuration
 [analysis.integration_advisor]

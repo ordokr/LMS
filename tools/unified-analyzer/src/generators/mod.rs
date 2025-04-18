@@ -14,6 +14,7 @@ pub mod migration_guide_generator;
 pub mod component_tree_generator;
 pub mod api_map_generator;
 pub mod db_schema_generator;
+pub mod improved_db_schema_generator;
 pub mod db_schema_visualization;
 pub mod simple_db_schema_viz;
 pub mod simple_source_db_viz;

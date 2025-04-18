@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use chrono::Local;
 
 use crate::analyzers::unified_analyzer::AnalysisResult;
+use crate::utils::activity_tracker::ActivityTracker;
 
 /// Generate enhanced central reference hub with insights from AI documentation
 pub fn generate_enhanced_central_hub(result: &AnalysisResult, _base_dir: &Path) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -52,11 +53,23 @@ pub fn generate_enhanced_central_hub(result: &AnalysisResult, _base_dir: &Path) 
 
     // Recent Activity
     content.push_str("### Recent Activity\n\n");
-    content.push_str("| Date | Component | Description | Developer |\n");
-    content.push_str("|------|-----------|-------------|------------|\n");
-    content.push_str("| 2025-04-16 | Database | Implemented hybrid SQLite/Redb storage architecture | Team |\n");
-    content.push_str("| 2025-04-15 | Sync Engine | Added conflict resolution for offline changes | Team |\n");
-    content.push_str("| 2025-04-14 | UI Components | Created initial course listing components | Team |\n\n");
+
+    // Try to load recent activities from the activity log
+    let mut activity_tracker = ActivityTracker::new(_base_dir, 10);
+    let activities_markdown = match activity_tracker.format_as_markdown(Some(5)) {
+        Ok(markdown) => markdown,
+        Err(_) => {
+            // Fallback to default content if activity log can't be loaded
+            String::from("| Date | Component | Description | Developer |\n") +
+            "|------|-----------|-------------|------------|\n" +
+            "| 2025-04-16 | Database | Implemented hybrid SQLite/Redb storage architecture | Team |\n" +
+            "| 2025-04-15 | Sync Engine | Added conflict resolution for offline changes | Team |\n" +
+            "| 2025-04-14 | UI Components | Created initial course listing components | Team |\n"
+        }
+    };
+
+    content.push_str(&activities_markdown);
+    content.push_str("\n");
 
     // Implementation Metrics
     content.push_str("### Implementation Progress\n\n");

@@ -532,6 +532,43 @@ pub fn run() {
             search_topics,
             get_recent_topics,
             get_active_topics,
+
+            // Quiz flashcard commands
+            quiz::commands::rate_flashcard,
+            quiz::commands::create_flashcard_session,
+            quiz::commands::get_flashcard_stats,
+
+            // Quiz analytics commands
+            quiz::commands::get_user_stats,
+            quiz::commands::get_quiz_analytics,
+            quiz::commands::generate_user_report,
+            quiz::commands::generate_quiz_report,
+
+            // Quiz export/import commands
+            quiz::commands::export_quiz,
+            quiz::commands::export_quiz_to_file,
+            quiz::commands::export_quiz_with_options,
+            quiz::commands::import_quiz_from_file,
+            quiz::commands::import_quiz,
+
+            // Quiz course integration commands
+            quiz::commands::add_quiz_to_course,
+            quiz::commands::remove_quiz_from_course,
+            quiz::commands::update_quiz_course_mapping,
+            quiz::commands::get_quizzes_for_course,
+            quiz::commands::get_courses_for_quiz,
+            quiz::commands::get_quiz_with_context,
+            quiz::commands::get_student_quizzes,
+            quiz::commands::assign_quiz_to_student,
+
+            // Quiz notification commands
+            quiz::commands::get_quiz_notifications,
+            quiz::commands::get_unread_notification_count,
+            quiz::commands::mark_notification_as_read,
+            quiz::commands::mark_all_notifications_as_read,
+            quiz::commands::delete_notification,
+            quiz::commands::delete_all_notifications,
+            quiz::commands::check_quiz_notifications,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

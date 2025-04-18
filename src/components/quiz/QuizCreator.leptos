@@ -1,0 +1,395 @@
+use leptos::*;
+use crate::quiz::models::*;
+use uuid::Uuid;
+
+#[component]
+pub fn QuizCreator(
+    #[prop(into)] on_create: Callback<Quiz>,
+    #[prop(into)] on_cancel: Callback<()>,
+) -> impl IntoView {
+    let (title, set_title) = create_signal(String::new());
+    let (description, set_description) = create_signal(String::new());
+    let (study_mode, set_study_mode) = create_signal(StudyMode::MultipleChoice);
+    let (questions, set_questions) = create_signal(Vec::<Question>::new());
+    let (current_question, set_current_question) = create_signal(None::<Question>);
+    let (is_editing_question, set_is_editing_question) = create_signal(false);
+    
+    // Create a new quiz
+    let create_quiz = move |_| {
+        let mut quiz = Quiz::new(title.get(), None);
+        quiz.description = Some(description.get());
+        quiz.study_mode = study_mode.get();
+        quiz.questions = questions.get();
+        
+        on_create.call(quiz);
+    };
+    
+    // Add a new question
+    let add_question = move |_| {
+        let content = QuestionContent {
+            text: String::new(),
+            rich_text: None,
+            image_url: None,
+            audio_url: None,
+        };
+        
+        let question = Question::new(Uuid::nil(), content, AnswerType::MultipleChoice);
+        set_current_question.set(Some(question));
+        set_is_editing_question.set(true);
+    };
+    
+    // Save the current question
+    let save_question = move |_| {
+        if let Some(question) = current_question.get() {
+            set_questions.update(|qs| {
+                // Check if we're updating an existing question
+                if let Some(idx) = qs.iter().position(|q| q.id == question.id) {
+                    qs[idx] = question;
+                } else {
+                    qs.push(question);
+                }
+            });
+            
+            set_current_question.set(None);
+            set_is_editing_question.set(false);
+        }
+    };
+    
+    // Edit an existing question
+    let edit_question = move |idx: usize| {
+        let qs = questions.get();
+        if idx < qs.len() {
+            set_current_question.set(Some(qs[idx].clone()));
+            set_is_editing_question.set(true);
+        }
+    };
+    
+    // Delete a question
+    let delete_question = move |idx: usize| {
+        set_questions.update(|qs| {
+            if idx < qs.len() {
+                qs.remove(idx);
+            }
+        });
+    };
+    
+    // Update question content
+    let update_question_text = move |ev| {
+        let text = event_target_value(&ev);
+        set_current_question.update(|q| {
+            if let Some(q) = q {
+                q.content.text = text;
+            }
+        });
+    };
+    
+    // Update question type
+    let update_question_type = move |ev| {
+        let type_str = event_target_value(&ev);
+        let answer_type = match type_str.as_str() {
+            "multiple_choice" => AnswerType::MultipleChoice,
+            "true_false" => AnswerType::TrueFalse,
+            "short_answer" => AnswerType::ShortAnswer,
+            "essay" => AnswerType::Essay,
+            _ => AnswerType::MultipleChoice,
+        };
+        
+        set_current_question.update(|q| {
+            if let Some(q) = q {
+                q.answer_type = answer_type;
+            }
+        });
+    };
+    
+    // Add a choice to the current question
+    let add_choice = move |_| {
+        set_current_question.update(|q| {
+            if let Some(q) = q {
+                q.add_choice(String::new());
+            }
+        });
+    };
+    
+    // Update choice text
+    let update_choice_text = move |(idx, ev): (usize, web_sys::Event)| {
+        let text = event_target_value(&ev);
+        set_current_question.update(|q| {
+            if let Some(q) = q {
+                if idx < q.choices.len() {
+                    q.choices[idx].text = text;
+                }
+            }
+        });
+    };
+    
+    // Set correct answer for multiple choice
+    let set_correct_choice = move |choice_id: Uuid| {
+        set_current_question.update(|q| {
+            if let Some(q) = q {
+                q.correct_answer = Answer::Choice(choice_id);
+            }
+        });
+    };
+    
+    // Set correct answer for text-based questions
+    let set_correct_text = move |ev| {
+        let text = event_target_value(&ev);
+        set_current_question.update(|q| {
+            if let Some(q) = q {
+                q.correct_answer = Answer::Text(text);
+            }
+        });
+    };
+    
+    view! {
+        <div class="quiz-creator">
+            <Show
+                when=move || !is_editing_question.get()
+                fallback=move || {
+                    view! {
+                        <div class="question-editor">
+                            <h2>"Edit Question"</h2>
+                            
+                            <div class="form-group">
+                                <label for="question-text">"Question Text"</label>
+                                <input 
+                                    type="text" 
+                                    id="question-text" 
+                                    value=move || current_question.get().map(|q| q.content.text.clone()).unwrap_or_default()
+                                    on:input=update_question_text
+                                />
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="question-type">"Question Type"</label>
+                                <select 
+                                    id="question-type"
+                                    on:change=update_question_type
+                                >
+                                    <option 
+                                        value="multiple_choice" 
+                                        selected=move || matches!(current_question.get().map(|q| q.answer_type), Some(AnswerType::MultipleChoice))
+                                    >
+                                        "Multiple Choice"
+                                    </option>
+                                    <option 
+                                        value="true_false" 
+                                        selected=move || matches!(current_question.get().map(|q| q.answer_type), Some(AnswerType::TrueFalse))
+                                    >
+                                        "True/False"
+                                    </option>
+                                    <option 
+                                        value="short_answer" 
+                                        selected=move || matches!(current_question.get().map(|q| q.answer_type), Some(AnswerType::ShortAnswer))
+                                    >
+                                        "Short Answer"
+                                    </option>
+                                    <option 
+                                        value="essay" 
+                                        selected=move || matches!(current_question.get().map(|q| q.answer_type), Some(AnswerType::Essay))
+                                    >
+                                        "Essay"
+                                    </option>
+                                </select>
+                            </div>
+                            
+                            // Show choices for multiple choice questions
+                            <Show
+                                when=move || matches!(current_question.get().map(|q| q.answer_type), Some(AnswerType::MultipleChoice))
+                            >
+                                <div class="choices-editor">
+                                    <h3>"Choices"</h3>
+                                    <For
+                                        each=move || current_question.get().map(|q| q.choices.clone()).unwrap_or_default()
+                                        key=|choice| choice.id
+                                        children=move |(idx, choice)| {
+                                            let choice_id = choice.id;
+                                            let is_correct = create_memo(move |_| {
+                                                if let Some(q) = current_question.get() {
+                                                    if let Answer::Choice(id) = q.correct_answer {
+                                                        return id == choice_id;
+                                                    }
+                                                }
+                                                false
+                                            });
+                                            
+                                            view! {
+                                                <div class="choice-item">
+                                                    <input 
+                                                        type="radio"
+                                                        name="correct-choice"
+                                                        checked=move || is_correct.get()
+                                                        on:change=move |_| set_correct_choice(choice_id)
+                                                    />
+                                                    <input 
+                                                        type="text"
+                                                        value=choice.text
+                                                        on:input=move |ev| update_choice_text((idx, ev))
+                                                    />
+                                                </div>
+                                            }
+                                        }
+                                    />
+                                    <button class="add-choice-btn" on:click=add_choice>
+                                        "Add Choice"
+                                    </button>
+                                </div>
+                            </Show>
+                            
+                            // Show correct answer field for text-based questions
+                            <Show
+                                when=move || {
+                                    matches!(current_question.get().map(|q| q.answer_type), 
+                                        Some(AnswerType::ShortAnswer) | Some(AnswerType::Essay))
+                                }
+                            >
+                                <div class="form-group">
+                                    <label for="correct-answer">"Correct Answer"</label>
+                                    <input 
+                                        type="text" 
+                                        id="correct-answer"
+                                        on:input=set_correct_text
+                                        value=move || {
+                                            if let Some(q) = current_question.get() {
+                                                if let Answer::Text(text) = &q.correct_answer {
+                                                    return text.clone();
+                                                }
+                                            }
+                                            String::new()
+                                        }
+                                    />
+                                </div>
+                            </Show>
+                            
+                            <div class="form-group">
+                                <label for="explanation">"Explanation (Optional)"</label>
+                                <textarea 
+                                    id="explanation"
+                                    on:input=move |ev| {
+                                        let text = event_target_value(&ev);
+                                        set_current_question.update(|q| {
+                                            if let Some(q) = q {
+                                                q.explanation = Some(text);
+                                            }
+                                        });
+                                    }
+                                    prop:value=move || current_question.get().and_then(|q| q.explanation.clone()).unwrap_or_default()
+                                ></textarea>
+                            </div>
+                            
+                            <div class="button-group">
+                                <button class="save-question-btn" on:click=save_question>
+                                    "Save Question"
+                                </button>
+                                <button class="cancel-btn" on:click=move |_| {
+                                    set_current_question.set(None);
+                                    set_is_editing_question.set(false);
+                                }>
+                                    "Cancel"
+                                </button>
+                            </div>
+                        </div>
+                    }
+                }
+            >
+                <div class="quiz-form">
+                    <h2>"Create New Quiz"</h2>
+                    
+                    <div class="form-group">
+                        <label for="quiz-title">"Title"</label>
+                        <input 
+                            type="text" 
+                            id="quiz-title" 
+                            value=move || title.get()
+                            on:input=move |ev| set_title.set(event_target_value(&ev))
+                        />
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="quiz-description">"Description (Optional)"</label>
+                        <textarea 
+                            id="quiz-description"
+                            on:input=move |ev| set_description.set(event_target_value(&ev))
+                        ></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="study-mode">"Study Mode"</label>
+                        <select 
+                            id="study-mode"
+                            on:change=move |ev| {
+                                let mode_str = event_target_value(&ev);
+                                let mode = match mode_str.as_str() {
+                                    "flashcards" => StudyMode::Flashcards,
+                                    "multiple_choice" => StudyMode::MultipleChoice,
+                                    "written" => StudyMode::Written,
+                                    "mixed" => StudyMode::Mixed,
+                                    _ => StudyMode::MultipleChoice,
+                                };
+                                set_study_mode.set(mode);
+                            }
+                        >
+                            <option value="multiple_choice">"Multiple Choice"</option>
+                            <option value="flashcards">"Flashcards"</option>
+                            <option value="written">"Written"</option>
+                            <option value="mixed">"Mixed"</option>
+                        </select>
+                    </div>
+                    
+                    <div class="questions-section">
+                        <h3>"Questions"</h3>
+                        <button class="add-question-btn" on:click=add_question>
+                            "Add Question"
+                        </button>
+                        
+                        <div class="questions-list">
+                            <For
+                                each=move || questions.get()
+                                key=|q| q.id
+                                children=move |(idx, question)| {
+                                    view! {
+                                        <div class="question-item">
+                                            <div class="question-item-content">
+                                                <span class="question-number">{idx + 1}</span>
+                                                <span class="question-text">{question.content.text.clone()}</span>
+                                            </div>
+                                            <div class="question-item-actions">
+                                                <button class="edit-btn" on:click=move |_| edit_question(idx)>
+                                                    "Edit"
+                                                </button>
+                                                <button class="delete-btn" on:click=move |_| delete_question(idx)>
+                                                    "Delete"
+                                                </button>
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                            />
+                            
+                            <Show
+                                when=move || questions.get().is_empty()
+                            >
+                                <div class="no-questions">
+                                    <p>"No questions added yet. Click 'Add Question' to get started."</p>
+                                </div>
+                            </Show>
+                        </div>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button 
+                            class="create-quiz-btn" 
+                            on:click=create_quiz
+                            disabled=move || title.get().is_empty() || questions.get().is_empty()
+                        >
+                            "Create Quiz"
+                        </button>
+                        <button class="cancel-btn" on:click=move |_| on_cancel.call(())>
+                            "Cancel"
+                        </button>
+                    </div>
+                </div>
+            </Show>
+        </div>
+    }
+}

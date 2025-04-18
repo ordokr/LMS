@@ -1,0 +1,139 @@
+use leptos::*;
+
+#[derive(Clone, Debug)]
+pub struct FontOption {
+    pub name: String,
+    pub heading_font: String,
+    pub body_font: String,
+}
+
+#[component]
+pub fn FontSelector() -> impl IntoView {
+    // Define available font options
+    let font_options = vec![
+        FontOption {
+            name: "Quenti Default".to_string(),
+            heading_font: "Outfit, system-ui, sans-serif".to_string(),
+            body_font: "Open Sans, system-ui, sans-serif".to_string(),
+        },
+        FontOption {
+            name: "Modern Sans".to_string(),
+            heading_font: "Inter, system-ui, sans-serif".to_string(),
+            body_font: "Inter, system-ui, sans-serif".to_string(),
+        },
+        FontOption {
+            name: "Classic Serif".to_string(),
+            heading_font: "Merriweather, Georgia, serif".to_string(),
+            body_font: "Source Serif Pro, Georgia, serif".to_string(),
+        },
+        FontOption {
+            name: "Playful".to_string(),
+            heading_font: "Quicksand, system-ui, sans-serif".to_string(),
+            body_font: "Nunito, system-ui, sans-serif".to_string(),
+        },
+        FontOption {
+            name: "Monospace".to_string(),
+            heading_font: "JetBrains Mono, monospace".to_string(),
+            body_font: "JetBrains Mono, monospace".to_string(),
+        },
+    ];
+    
+    let (is_open, set_is_open) = create_signal(false);
+    let (current_font, set_current_font) = create_signal(font_options[0].clone());
+    
+    // Initialize font from localStorage if available
+    create_effect(move |_| {
+        if let Some(window) = web_sys::window() {
+            if let Ok(Some(storage)) = window.local_storage() {
+                if let Ok(Some(saved_font)) = storage.get_item("ordo-font-option") {
+                    if let Some(font) = font_options.iter().find(|f| f.name == saved_font) {
+                        set_current_font.set(font.clone());
+                        apply_font(font);
+                    }
+                }
+            }
+        }
+    });
+    
+    // Toggle dropdown
+    let toggle_dropdown = move |_| {
+        set_is_open.update(|open| *open = !*open);
+    };
+    
+    // Select font
+    let select_font = move |font: FontOption| {
+        set_current_font.set(font.clone());
+        set_is_open.set(false);
+        
+        // Save to localStorage
+        if let Some(window) = web_sys::window() {
+            if let Ok(Some(storage)) = window.local_storage() {
+                let _ = storage.set_item("ordo-font-option", &font.name);
+            }
+        }
+        
+        apply_font(&font);
+    };
+    
+    view! {
+        <div class="font-selector">
+            <button 
+                class="font-selector-toggle"
+                on:click=toggle_dropdown
+                aria-expanded=move || is_open.get().to_string()
+                aria-haspopup="true"
+            >
+                <span class="font-selector-current">
+                    <span class="font-selector-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 7V4h16v3"></path>
+                            <path d="M9 20h6"></path>
+                            <path d="M12 4v16"></path>
+                        </svg>
+                    </span>
+                    <span class="font-selector-name">{move || current_font.get().name}</span>
+                </span>
+                <span class="font-selector-dropdown-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m6 9 6 6 6-6"></path>
+                    </svg>
+                </span>
+            </button>
+            
+            <div 
+                class="font-selector-dropdown"
+                class:open=move || is_open.get()
+            >
+                <For
+                    each=move || font_options.clone()
+                    key=|font| font.name.clone()
+                    children=move |font| {
+                        let font_clone = font.clone();
+                        view! {
+                            <button 
+                                class="font-selector-option"
+                                class:active=move || current_font.get().name == font.name
+                                on:click=move |_| select_font(font_clone.clone())
+                                style=format!("font-family: {}", font.heading_font)
+                            >
+                                <span class="font-selector-name">{font.name}</span>
+                            </button>
+                        }
+                    }
+                />
+            </div>
+        </div>
+    }
+}
+
+// Apply font to document
+fn apply_font(font: &FontOption) {
+    if let Some(window) = web_sys::window() {
+        if let Some(document) = window.document() {
+            if let Some(root) = document.document_element() {
+                let _ = root.style().set_property("--font-heading", &font.heading_font);
+                let _ = root.style().set_property("--font-body", &font.body_font);
+            }
+        }
+    }
+}

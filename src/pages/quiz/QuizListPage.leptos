@@ -1,0 +1,114 @@
+use leptos::*;
+use leptos_router::*;
+use uuid::Uuid;
+
+use crate::quiz::models::*;
+use crate::components::quiz::*;
+
+#[component]
+pub fn QuizListPage() -> impl IntoView {
+    let (quizzes, set_quizzes) = create_signal(Vec::<Quiz>::new());
+    let (loading, set_loading) = create_signal(true);
+    let (error, set_error) = create_signal(None::<String>);
+    let (creating_quiz, set_creating_quiz) = create_signal(false);
+
+    // Load quizzes
+    create_effect(move |_| {
+        set_loading.set(true);
+        set_error.set(None);
+
+        // In a real implementation, this would call the Tauri command to list quizzes
+        // For now, we'll simulate loading with a timeout
+        set_timeout(
+            move || {
+                // Simulate API call with mock data
+                let mock_quizzes = vec![
+                    Quiz::new("Sample Quiz 1".to_string(), None),
+                    Quiz::new("Sample Quiz 2".to_string(), None),
+                    Quiz::new("Sample Quiz 3".to_string(), None),
+                ];
+                set_quizzes.set(mock_quizzes);
+                set_loading.set(false);
+            },
+            std::time::Duration::from_millis(500),
+        );
+    });
+
+    // Navigate to a quiz
+    let navigate = use_navigate();
+    let select_quiz = move |id: Uuid| {
+        navigate(&format!("/quizzes/{}", id), NavigateOptions::default());
+    };
+
+    // Create a new quiz
+    let create_quiz = create_action(move |quiz: &Quiz| {
+        let quiz = quiz.clone();
+
+        // In a real implementation, this would call the Tauri command to create the quiz
+        // For now, we'll just add it to our local state
+        set_quizzes.update(|qs| qs.push(quiz.clone()));
+        set_creating_quiz.set(false);
+    });
+
+    view! {
+        <div class="quiz-list-page">
+            <div class="quiz-list-header">
+                <h1>"Quizzes"</h1>
+                <div class="theme-controls">
+                    <ThemeToggle/>
+                    <ThemeSelector/>
+                    <FontSelector/>
+                </div>
+            </div>
+
+            <Show
+                when=move || !creating_quiz.get()
+                fallback=move || {
+                    view! {
+                        <QuizCreator
+                            on_create=move |quiz| create_quiz.dispatch(quiz)
+                            on_cancel=move |_| set_creating_quiz.set(false)
+                        />
+                    }
+                }
+            >
+                <div class="quiz-list-actions">
+                    <button
+                        class="create-quiz-btn"
+                        on:click=move |_| set_creating_quiz.set(true)
+                    >
+                        "Create New Quiz"
+                    </button>
+                </div>
+
+                <Show
+                    when=move || loading.get()
+                    fallback=move || {
+                        view! {
+                            <Show
+                                when=move || error.get().is_none()
+                                fallback=move || {
+                                    view! {
+                                        <div class="error-container">
+                                            <p>{move || error.get().unwrap_or_default()}</p>
+                                        </div>
+                                    }
+                                }
+                            >
+                                <QuizList
+                                    quizzes=Signal::derive(move || quizzes.get())
+                                    on_select=select_quiz
+                                />
+                            </Show>
+                        }
+                    }
+                >
+                    <div class="loading-container">
+                        <div class="loading-spinner"></div>
+                        <p>"Loading quizzes..."</p>
+                    </div>
+                </Show>
+            </Show>
+        </div>
+    }
+}

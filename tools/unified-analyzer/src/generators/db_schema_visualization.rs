@@ -219,7 +219,7 @@ fn generate_html_with_mermaid(mermaid_content: &str) -> Result<String> {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ordo Database Schema</title>
-    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
     <style>
         body {{
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -257,12 +257,14 @@ fn generate_html_with_mermaid(mermaid_content: &str) -> Result<String> {
 <body>
     <div class="container">
         <h1>Ordo Database Schema</h1>
-        <div class="mermaid">
+        <pre class="mermaid">
 {mermaid_content}
-        </div>
+        </pre>
         <div class="legend">
             <h3>Legend</h3>
             <p>This diagram shows the database schema for the Ordo application. Each box represents a table in the database, and the lines represent relationships between tables.</p>
+            <p><strong>PK</strong> - Primary Key</p>
+            <p><strong>FK</strong> - Foreign Key</p>
             <p>Cardinality notation:</p>
             <ul>
                 <li><strong>1--1</strong>: One-to-one relationship</li>
@@ -272,7 +274,18 @@ fn generate_html_with_mermaid(mermaid_content: &str) -> Result<String> {
         </div>
     </div>
     <script>
-        mermaid.initialize({{ startOnLoad: true, theme: 'default' }});
+        mermaid.initialize({{
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose',
+            er: {{
+                diagramPadding: 20,
+                layoutDirection: 'TB',
+                minEntityWidth: 100,
+                minEntityHeight: 75,
+                entityPadding: 15
+            }}
+        }});
     </script>
 </body>
 </html>"#, mermaid_content = mermaid_content);

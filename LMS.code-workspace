@@ -5,6 +5,9 @@
 		},
 		{
 			"path": "../port"
+		},
+		{
+			"path": "../quenti"
 		}
 	],
 	"settings": {
