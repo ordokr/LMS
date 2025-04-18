@@ -1027,14 +1027,9 @@ async fn update_central_hub(base_dir: &PathBuf) -> Result<()> {
 
 async fn run_full_integration_advisor(base_dir: &PathBuf, config: &Config) -> Result<()> {
     println!("---- Starting Full Integration Advisor ----");
-    println!("Implementing AI Coder Action Plan for Unified Analyzer Upgrade");
+    println!("Using modular integration advisor implementation");
 
-    // Create the reports directory in the root docs folder
-    let reports_dir = PathBuf::from("docs").join("integration-advisor").join("reports");
-    fs::create_dir_all(&reports_dir)?;
-    println!("Reports will be saved to: {}", reports_dir.display());
-
-    // Get paths to Canvas, Discourse, and Ordo codebases
+    // Get paths to Canvas and Discourse codebases
     let canvas_path = match config.get_path("canvas_path") {
         Some(path) => PathBuf::from(path),
         None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\canvas"),
@@ -1043,11 +1038,6 @@ async fn run_full_integration_advisor(base_dir: &PathBuf, config: &Config) -> Re
     let discourse_path = match config.get_path("discourse_path") {
         Some(path) => PathBuf::from(path),
         None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\discourse"),
-    };
-
-    let ordo_path = match config.get_path("lms_path") {
-        Some(path) => PathBuf::from(path),
-        None => base_dir.clone(),
     };
 
     // Verify paths exist
@@ -1061,259 +1051,20 @@ async fn run_full_integration_advisor(base_dir: &PathBuf, config: &Config) -> Re
         println!("Some analysis steps may be skipped.");
     }
 
-    if !ordo_path.exists() {
-        println!("Warning: Ordo path does not exist: {}", ordo_path.display());
-        println!("Some analysis steps may be skipped.");
-    }
+    // Create and run the integration advisor
+    let mut integration_advisor = crate::advisors::integration_advisor::IntegrationAdvisor::new(base_dir);
 
-    // Initialize components with improved performance settings
-    // Use caching unless explicitly disabled
-    let mut entity_mapper = if !config.performance.enable_caching {
-        println!("Caching disabled for entity mapper");
-        EntityMapper::new_without_cache()
-    } else {
-        println!("Caching enabled for entity mapper");
-        EntityMapper::new()
-    };
-    let mut feature_detector = FeatureDetector::new();
-    let mut code_quality_scorer = CodeQualityScorer::new();
-    let mut conflict_checker = ConflictChecker::new();
-    let mut integration_tracker = IntegrationTracker::new();
-    let mut recommendation_system = RecommendationSystem::new();
-    let mut helix_db_analyzer = HelixDbIntegrationAnalyzer::new();
-
-    // STEP 1: Model & Feature Mapper
-    println!("\n🔍 STEP 1: Model & Feature Mapper");
-    println!("Goal: Map domain entities and features from Canvas + Discourse to Ordo.");
-
-    // Extract entities with improved error handling
-    println!("Extracting entities...");
-    if canvas_path.exists() {
-        match entity_mapper.extract_canvas_entities(&canvas_path) {
-            Ok(_) => println!("Successfully extracted Canvas entities"),
-            Err(e) => println!("Warning: Failed to extract Canvas entities: {}", e),
+    match integration_advisor.run(&canvas_path, &discourse_path) {
+        Ok(_) => {
+            println!("\n---- Full Integration Advisor Completed ----");
+            println!("All reports have been generated in the docs directory.");
+            println!("The central reference hub has been updated with integration advisor findings.");
+        },
+        Err(e) => {
+            println!("Error running integration advisor: {}", e);
+            println!("Some reports may not have been generated.");
         }
     }
-
-    if discourse_path.exists() {
-        match entity_mapper.extract_discourse_entities(&discourse_path) {
-            Ok(_) => println!("Successfully extracted Discourse entities"),
-            Err(e) => println!("Warning: Failed to extract Discourse entities: {}", e),
-        }
-    }
-
-    if ordo_path.exists() {
-        match entity_mapper.extract_ordo_entities(&ordo_path) {
-            Ok(_) => println!("Successfully extracted Ordo entities"),
-            Err(e) => println!("Warning: Failed to extract Ordo entities: {}", e),
-        }
-    }
-
-    match entity_mapper.generate_mappings() {
-        Ok(_) => println!("Successfully generated entity mappings"),
-        Err(e) => println!("Warning: Failed to generate entity mappings: {}", e),
-    }
-
-    // STEP 2: Feature & Module Detector
-    println!("\n🧰 STEP 2: Feature & Module Detector");
-    println!("Goal: Find and categorize all functional features.");
-
-    // Extract features with improved error handling
-    println!("Extracting features...");
-    match feature_detector.analyze(&ordo_path.to_string_lossy()) {
-        Ok(_) => println!("Successfully analyzed features"),
-        Err(e) => println!("Warning: Failed to analyze features: {}", e),
-    }
-
-    // STEP 3: Code Quality & Usefulness Scorer
-    println!("\n🧪 STEP 3: Code Quality & Usefulness Scorer");
-    println!("Goal: Rank source code usefulness (reuse vs rebuild decision support).");
-
-    // Analyze code quality with improved error handling
-    println!("Analyzing code quality...");
-    if canvas_path.exists() {
-        match code_quality_scorer.analyze_codebase(&canvas_path, "canvas") {
-            Ok(_) => println!("Successfully analyzed Canvas code quality"),
-            Err(e) => println!("Warning: Failed to analyze Canvas code quality: {}", e),
-        }
-    }
-
-    if discourse_path.exists() {
-        match code_quality_scorer.analyze_codebase(&discourse_path, "discourse") {
-            Ok(_) => println!("Successfully analyzed Discourse code quality"),
-            Err(e) => println!("Warning: Failed to analyze Discourse code quality: {}", e),
-        }
-    }
-
-    // STEP 4: Conflict & Overlap Checker
-    println!("\n⚔️ STEP 4: Conflict & Overlap Checker");
-    println!("Goal: Highlight naming or logic mismatches.");
-
-    // Detect conflicts with improved error handling
-    println!("Detecting conflicts...");
-    match conflict_checker.detect_conflicts(&entity_mapper) {
-        Ok(_) => println!("Successfully detected conflicts"),
-        Err(e) => println!("Warning: Failed to detect conflicts: {}", e),
-    }
-
-    // STEP 5: Integration Progress Tracker
-    println!("\n📈 STEP 5: Integration Progress Tracker");
-    println!("Goal: Measure what % of Canvas and Discourse has been successfully ported into Ordo.");
-
-    // Track integration progress with improved error handling
-    println!("Tracking integration progress...");
-    match integration_tracker.track_progress(&entity_mapper, &feature_detector) {
-        Ok(_) => println!("Successfully tracked integration progress"),
-        Err(e) => println!("Warning: Failed to track integration progress: {}", e),
-    }
-
-    // STEP 6: Ongoing Sync & Recommendation System
-    println!("\n🔁 STEP 6: Ongoing Sync & Recommendation System");
-    println!("Goal: Keep watching and advising as development continues.");
-
-    // Generate recommendations with improved error handling
-    println!("Generating recommendations...");
-    match recommendation_system.generate_recommendations(
-        &entity_mapper,
-        &feature_detector,
-        &code_quality_scorer,
-        &conflict_checker,
-        &integration_tracker
-    ) {
-        Ok(_) => println!("Successfully generated recommendations"),
-        Err(e) => println!("Warning: Failed to generate recommendations: {}", e),
-    }
-
-    // Additional Analysis: HelixDB Integration
-    println!("\n🔄 Additional Analysis: HelixDB Integration");
-    println!("Goal: Analyze database integration options for offline-first capabilities.");
-
-    // Run HelixDB integration analyzer with improved error handling
-    println!("Analyzing HelixDB integration...");
-    if canvas_path.exists() {
-        match helix_db_analyzer.extract_canvas_schema(&canvas_path) {
-            Ok(_) => println!("Successfully extracted Canvas database schema"),
-            Err(e) => println!("Warning: Failed to extract Canvas database schema: {}", e),
-        }
-    }
-
-    if discourse_path.exists() {
-        match helix_db_analyzer.extract_discourse_schema(&discourse_path) {
-            Ok(_) => println!("Successfully extracted Discourse database schema"),
-            Err(e) => println!("Warning: Failed to extract Discourse database schema: {}", e),
-        }
-    }
-
-    if ordo_path.exists() {
-        match helix_db_analyzer.extract_ordo_schema(&ordo_path) {
-            Ok(_) => println!("Successfully extracted Ordo database schema"),
-            Err(e) => println!("Warning: Failed to extract Ordo database schema: {}", e),
-        }
-    }
-
-    // Extract Moodle schema if path is provided
-    let moodle_path = match config.get_path("moodle_path") {
-        Some(path) => Some(PathBuf::from(path)),
-        None => None,
-    };
-
-    if let Some(path) = &moodle_path {
-        if path.exists() {
-            println!("Extracting Moodle database schema...");
-            match helix_db_analyzer.extract_moodle_schema(path) {
-                Ok(_) => println!("Successfully extracted Moodle database schema"),
-                Err(e) => println!("Warning: Failed to extract Moodle database schema: {}", e),
-            }
-        } else {
-            println!("Warning: Moodle path does not exist: {}", path.display());
-        }
-    }
-
-    // Extract WordPress schema if path is provided
-    let wordpress_path = match config.get_path("wordpress_path") {
-        Some(path) => Some(PathBuf::from(path)),
-        None => None,
-    };
-
-    if let Some(path) = &wordpress_path {
-        if path.exists() {
-            println!("Extracting WordPress database schema...");
-            match helix_db_analyzer.extract_wordpress_schema(path) {
-                Ok(_) => println!("Successfully extracted WordPress database schema"),
-                Err(e) => println!("Warning: Failed to extract WordPress database schema: {}", e),
-            }
-        } else {
-            println!("Warning: WordPress path does not exist: {}", path.display());
-        }
-    }
-
-    match helix_db_analyzer.generate_mappings() {
-        Ok(_) => println!("Successfully generated database mappings"),
-        Err(e) => println!("Warning: Failed to generate database mappings: {}", e),
-    }
-
-    // Generate reports in the root docs folder
-    println!("\n📊 Generating Integration Advisor Reports");
-    println!("Goal: Create comprehensive reports for development guidance.");
-
-    // Generate reports with improved error handling
-    let root_docs_dir = PathBuf::from("docs");
-
-    match generate_entity_mapping_report(&entity_mapper, &root_docs_dir) {
-        Ok(_) => println!("Successfully generated entity mapping report"),
-        Err(e) => println!("Warning: Failed to generate entity mapping report: {}", e),
-    }
-
-    match generate_feature_mapping_report(&feature_detector, &root_docs_dir) {
-        Ok(_) => println!("Successfully generated feature mapping report"),
-        Err(e) => println!("Warning: Failed to generate feature mapping report: {}", e),
-    }
-
-    match generate_code_quality_report(&code_quality_scorer, &root_docs_dir) {
-        Ok(_) => println!("Successfully generated code quality report"),
-        Err(e) => println!("Warning: Failed to generate code quality report: {}", e),
-    }
-
-    match generate_conflict_report(&conflict_checker, &root_docs_dir) {
-        Ok(_) => println!("Successfully generated conflict report"),
-        Err(e) => println!("Warning: Failed to generate conflict report: {}", e),
-    }
-
-    match generate_integration_progress_report(&integration_tracker, &root_docs_dir) {
-        Ok(_) => println!("Successfully generated integration progress report"),
-        Err(e) => println!("Warning: Failed to generate integration progress report: {}", e),
-    }
-
-    match generate_recommendation_report(&recommendation_system, &root_docs_dir) {
-        Ok(_) => println!("Successfully generated recommendation report"),
-        Err(e) => println!("Warning: Failed to generate recommendation report: {}", e),
-    }
-
-    match generate_helix_db_integration_report(&helix_db_analyzer, &root_docs_dir) {
-        Ok(_) => println!("Successfully generated HelixDB integration report"),
-        Err(e) => println!("Warning: Failed to generate HelixDB integration report: {}", e),
-    }
-
-    // Generate central reference hub update
-    println!("\n📚 Updating Central Reference Hub");
-    println!("Goal: Update the central reference document with integration advisor findings.");
-
-    match update_central_hub_with_integration_advisor(
-        &root_docs_dir,
-        &entity_mapper,
-        &feature_detector,
-        &code_quality_scorer,
-        &conflict_checker,
-        &integration_tracker,
-        &recommendation_system
-    ) {
-        Ok(_) => println!("Successfully updated central reference hub"),
-        Err(e) => println!("Warning: Failed to update central reference hub: {}", e),
-    }
-
-    println!("\n---- Full Integration Advisor Completed ----");
-    println!("All reports have been generated in the docs directory.");
-    println!("The central reference hub has been updated with integration advisor findings.");
 
     Ok(())
 }

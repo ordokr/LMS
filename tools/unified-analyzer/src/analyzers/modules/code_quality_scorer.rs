@@ -242,7 +242,7 @@ impl CodeQualityScorer {
         if let Some(cache) = self.file_cache.get(file_path_str) {
             if cache.last_modified >= modified_secs {
                 // File hasn't been modified, use cached metrics
-                self.metrics.insert(file_path_str.clone(), cache.metrics.clone());
+                self.metrics.insert(file_path_str.to_string(), cache.metrics.clone());
                 return false; // Don't need to analyze
             }
         }
@@ -271,7 +271,7 @@ impl CodeQualityScorer {
         };
 
         // Update cache
-        self.file_cache.insert(file_path_str.clone(), FileCache {
+        self.file_cache.insert(file_path_str.to_string(), FileCache {
             last_modified: modified_secs,
             metrics: metrics.clone(),
         });
