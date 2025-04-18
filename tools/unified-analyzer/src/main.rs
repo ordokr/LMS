@@ -1051,8 +1051,8 @@ async fn run_full_integration_advisor(base_dir: &PathBuf, config: &Config) -> Re
         println!("Some analysis steps may be skipped.");
     }
 
-    // Create and run the integration advisor
-    let mut integration_advisor = crate::advisors::integration_advisor::IntegrationAdvisor::new(base_dir);
+    // Create and run the improved integration advisor
+    let mut integration_advisor = crate::advisors::integration_advisor_improved::IntegrationAdvisor::new(base_dir);
 
     match integration_advisor.run(&canvas_path, &discourse_path) {
         Ok(_) => {

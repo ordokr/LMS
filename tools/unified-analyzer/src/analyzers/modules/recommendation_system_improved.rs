@@ -462,42 +462,53 @@ impl RecommendationSystem {
         Ok(report)
     }
 
-    /// Generate a Markdown report of recommendations
+    /// Generate a Markdown report of recommendations focused on migration strategies
     pub fn generate_recommendations_markdown(&self) -> String {
         let mut markdown = String::new();
 
-        markdown.push_str("# Development Recommendations\n\n");
+        markdown.push_str("# Migration and Implementation Recommendations\n\n");
+        markdown.push_str("This report provides recommendations for migrating functionality from Canvas and Discourse to Ordo, implemented in Rust or Haskell with offline-first capabilities.\n\n");
+
+        // Group recommendations by type
+        let migration_recommendations: Vec<_> = self.recommendations.iter()
+            .filter(|r| r.title.starts_with("Migrate"))
+            .collect();
+
+        let implementation_recommendations: Vec<_> = self.recommendations.iter()
+            .filter(|r| r.title.starts_with("Implement"))
+            .collect();
+
+        let improvement_recommendations: Vec<_> = self.recommendations.iter()
+            .filter(|r| r.title.starts_with("Improve"))
+            .collect();
+
+        let other_recommendations: Vec<_> = self.recommendations.iter()
+            .filter(|r| !r.title.starts_with("Migrate") &&
+                      !r.title.starts_with("Implement") &&
+                      !r.title.starts_with("Improve"))
+            .collect();
 
         // Summary statistics
         let total_recommendations = self.recommendations.len();
-        let high_priority = self.recommendations.iter()
-            .filter(|r| r.priority >= self.high_priority_threshold)
-            .count();
-        let medium_priority = self.recommendations.iter()
-            .filter(|r| r.priority >= self.medium_priority_threshold && r.priority < self.high_priority_threshold)
-            .count();
-        let low_priority = self.recommendations.iter()
-            .filter(|r| r.priority < self.medium_priority_threshold)
-            .count();
 
         markdown.push_str("## Summary\n\n");
         markdown.push_str(&format!("- Total Recommendations: {}\n", total_recommendations));
-        markdown.push_str(&format!("- High Priority: {}\n", high_priority));
-        markdown.push_str(&format!("- Medium Priority: {}\n", medium_priority));
-        markdown.push_str(&format!("- Low Priority: {}\n\n", low_priority));
+        markdown.push_str(&format!("- Migration Recommendations: {}\n", migration_recommendations.len()));
+        markdown.push_str(&format!("- Implementation Recommendations: {}\n", implementation_recommendations.len()));
+        markdown.push_str(&format!("- Improvement Recommendations: {}\n", improvement_recommendations.len()));
+        markdown.push_str(&format!("- Other Recommendations: {}\n\n", other_recommendations.len()));
 
-        // High priority recommendations
-        if high_priority > 0 {
-            markdown.push_str("## High Priority Recommendations\n\n");
+        // Migration recommendations
+        if !migration_recommendations.is_empty() {
+            markdown.push_str("## Migration Recommendations\n\n");
+            markdown.push_str("These recommendations focus on migrating functionality from Canvas and Discourse to Rust/Haskell implementations in Ordo.\n\n");
 
-            for recommendation in self.recommendations.iter()
-                .filter(|r| r.priority >= self.high_priority_threshold) {
+            for recommendation in migration_recommendations {
                 markdown.push_str(&format!("### {}\n\n", recommendation.title));
                 markdown.push_str(&format!("**Priority:** {}/5 | **Effort:** {:.1} days\n\n",
                     recommendation.priority, recommendation.effort));
-                markdown.push_str(&format!("{}\n\n", recommendation.description));
-
-                markdown.push_str("**Implementation Steps:**\n\n");
+                markdown.push_str(&format!("{}", recommendation.description));
+                markdown.push_str("\n\n**Implementation Steps:**\n\n");
                 for (i, step) in recommendation.steps.iter().enumerate() {
                     markdown.push_str(&format!("{}. {}\n", i + 1, step));
                 }
@@ -520,18 +531,17 @@ impl RecommendationSystem {
             }
         }
 
-        // Medium priority recommendations
-        if medium_priority > 0 {
-            markdown.push_str("## Medium Priority Recommendations\n\n");
+        // Implementation recommendations
+        if !implementation_recommendations.is_empty() {
+            markdown.push_str("## Implementation Recommendations\n\n");
+            markdown.push_str("These recommendations focus on implementing new features and entities in Rust/Haskell for Ordo.\n\n");
 
-            for recommendation in self.recommendations.iter()
-                .filter(|r| r.priority >= self.medium_priority_threshold && r.priority < self.high_priority_threshold) {
+            for recommendation in implementation_recommendations {
                 markdown.push_str(&format!("### {}\n\n", recommendation.title));
                 markdown.push_str(&format!("**Priority:** {}/5 | **Effort:** {:.1} days\n\n",
                     recommendation.priority, recommendation.effort));
-                markdown.push_str(&format!("{}\n\n", recommendation.description));
-
-                markdown.push_str("**Implementation Steps:**\n\n");
+                markdown.push_str(&format!("{}", recommendation.description));
+                markdown.push_str("\n\n**Implementation Steps:**\n\n");
                 for (i, step) in recommendation.steps.iter().enumerate() {
                     markdown.push_str(&format!("{}. {}\n", i + 1, step));
                 }
@@ -554,14 +564,68 @@ impl RecommendationSystem {
             }
         }
 
-        // Low priority recommendations (just list them)
-        if low_priority > 0 {
-            markdown.push_str("## Low Priority Recommendations\n\n");
+        // Improvement recommendations
+        if !improvement_recommendations.is_empty() {
+            markdown.push_str("## Improvement Recommendations\n\n");
+            markdown.push_str("These recommendations focus on improving existing Rust/Haskell implementations in the Ordo codebase.\n\n");
 
-            for recommendation in self.recommendations.iter()
-                .filter(|r| r.priority < self.medium_priority_threshold) {
-                markdown.push_str(&format!("- **{}** (Priority: {}/5, Effort: {:.1} days)\n",
-                    recommendation.title, recommendation.priority, recommendation.effort));
+            for recommendation in improvement_recommendations {
+                markdown.push_str(&format!("### {}\n\n", recommendation.title));
+                markdown.push_str(&format!("**Priority:** {}/5 | **Effort:** {:.1} days\n\n",
+                    recommendation.priority, recommendation.effort));
+                markdown.push_str(&format!("{}", recommendation.description));
+                markdown.push_str("\n\n**Implementation Steps:**\n\n");
+                for (i, step) in recommendation.steps.iter().enumerate() {
+                    markdown.push_str(&format!("{}. {}\n", i + 1, step));
+                }
+
+                markdown.push_str("\n");
+
+                if !recommendation.related_entities.is_empty() {
+                    markdown.push_str("**Related Entities:** ");
+                    markdown.push_str(&recommendation.related_entities.join(", "));
+                    markdown.push_str("\n\n");
+                }
+
+                if !recommendation.related_features.is_empty() {
+                    markdown.push_str("**Related Features:** ");
+                    markdown.push_str(&recommendation.related_features.join(", "));
+                    markdown.push_str("\n\n");
+                }
+
+                markdown.push_str("---\n\n");
+            }
+        }
+
+        // Other recommendations
+        if !other_recommendations.is_empty() {
+            markdown.push_str("## Other Recommendations\n\n");
+
+            for recommendation in other_recommendations {
+                markdown.push_str(&format!("### {}\n\n", recommendation.title));
+                markdown.push_str(&format!("**Priority:** {}/5 | **Effort:** {:.1} days\n\n",
+                    recommendation.priority, recommendation.effort));
+                markdown.push_str(&format!("{}", recommendation.description));
+                markdown.push_str("\n\n**Implementation Steps:**\n\n");
+                for (i, step) in recommendation.steps.iter().enumerate() {
+                    markdown.push_str(&format!("{}. {}\n", i + 1, step));
+                }
+
+                markdown.push_str("\n");
+
+                if !recommendation.related_entities.is_empty() {
+                    markdown.push_str("**Related Entities:** ");
+                    markdown.push_str(&recommendation.related_entities.join(", "));
+                    markdown.push_str("\n\n");
+                }
+
+                if !recommendation.related_features.is_empty() {
+                    markdown.push_str("**Related Features:** ");
+                    markdown.push_str(&recommendation.related_features.join(", "));
+                    markdown.push_str("\n\n");
+                }
+
+                markdown.push_str("---\n\n");
             }
         }
 

@@ -31,10 +31,15 @@ _Last updated: 2025-04-15_
 
 ## 🔧 Technology Stack
 
-- **Frontend**: Leptos 0.5, Tauri
+> **Note:** The Ordo project uses the latest stable versions of all dependencies. See the Dependency Management document for details.
+
+- **Frontend**: Leptos 0.5+, Tauri 1.5+
 - **UI Libraries**: DaisyUI (Tailwind), Plotly.rs, Framer-Motion, TanStack Table
 - **Backend**: Rust, Axum
-- **Database**: SQLite with SQLx
+- **Database**: SQLite with SQLx, Redb for ephemeral state
+- **Sync Engine**: Custom Rust with version vectors
+- **Background Jobs**: background_jobs, tokio-beat
+- **Module System**: Compile-time features, WASM-based extensions (see [Modules Documentation](../../../docs/modules/overview.md))
 - **Search**: MeiliSearch
 - **Authentication**: JWT, Argon2
 

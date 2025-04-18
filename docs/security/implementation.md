@@ -53,10 +53,10 @@ impl CredentialManager {
 - **Primary**: Argon2id via the `argon2` crate
   - Memory-hard algorithm resistant to GPU/ASIC attacks
   - Recommended by OWASP and security experts
-  
+
 - **Fallback**: PBKDF2 via the `pbkdf2` crate
   - Used for compatibility with legacy systems when needed
-  
+
 - **Interoperability**: `password-hash` crate for standardized PHC strings
   - Ensures compatibility with other systems and future upgrades
 
@@ -114,12 +114,14 @@ impl CredentialStore {
 
 ## Recommended Crates
 
-| Crate | Purpose | License | Notes |
-|-------|---------|---------|-------|
-| argon2 | Argon2 implementation | MIT/Apache | RustCrypto maintained |
-| password-hash | PHC string format | MIT/Apache | Standardized hash serialization |
-| secrecy | Secret management | MIT | Zeroize-on-drop for sensitive data |
-| rand_core | Cryptographic RNG | MIT/Apache | OsRng implementation |
+> **Note:** The Ordo project always uses the latest stable versions of all dependencies. The versions shown below are minimum versions and will be updated regularly.
+
+| Crate | Version | Purpose | License | Notes |
+|-------|---------|---------|---------|-------|
+| argon2 | 0.5.2+ | Argon2 implementation | MIT/Apache | RustCrypto maintained |
+| password-hash | 0.5.0+ | PHC string format | MIT/Apache | Standardized hash serialization |
+| secrecy | 0.8.0+ | Secret management | MIT | Zeroize-on-drop for sensitive data |
+| rand_core | 0.6.4+ | Cryptographic RNG | MIT/Apache | OsRng implementation |
 
 ## Security Audit Checklist
 

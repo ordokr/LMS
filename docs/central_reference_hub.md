@@ -89,9 +89,11 @@ Ordo is built with modern technologies that prioritize performance, security, an
 
 ### Core Technologies
 
+> **Note:** The Ordo project uses the latest stable versions of all dependencies. See the [Dependency Management](development/dependency_management.md) document for details.
+
 | Layer | Technology | Purpose |
 |-------|------------|---------|
-| **Frontend** | Leptos 0.5 (Rust) | Reactive UI framework |
+| **Frontend** | Leptos 0.8 (Rust) | Reactive UI framework |
 | **UI Styling** | Tailwind CSS, DaisyUI | Utility-first CSS framework |
 | **UI Charts** | Plotly.rs | WASM-compatible charts |
 | **UI Animations** | Framer-Motion (WASM) | Spring animations |
@@ -99,15 +101,16 @@ Ordo is built with modern technologies that prioritize performance, security, an
 | **Desktop Shell** | Tauri | Native cross-platform wrapper |
 | **Backend** | Rust | Performance-critical components |
 | **Backend** | Haskell | Type-safe business logic |
-| **Database** | SQLite | Local data storage |
+| **Database** | SQLite, Redb | Structured and ephemeral storage |
 | **ORM** | SQLx | Type-safe SQL |
 | **Search** | MeiliSearch | Full-text search capabilities |
 | **Authentication** | JWT, Argon2 | Secure user authentication |
 | **Sync Engine** | Custom Rust | Conflict resolution system |
+| **Background Jobs** | background_jobs, tokio-beat | Async task processing |
 
 ## 📚 Project Structure
 
-The project follows a modular architecture with clear separation of concerns:
+The project follows a modular architecture with clear separation of concerns and support for app-like modules that can be turned on and off:
 
 ```plaintext
 Ordo/
@@ -117,7 +120,12 @@ Ordo/
 │       ├── core/      # Core business logic
 │       ├── db/        # Database interactions
 │       ├── models/    # Data models
-│       └── sync/      # Synchronization engine
+│       ├── sync/      # Synchronization engine
+│       ├── modules/   # App-like modules
+│       │   ├── quiz/      # Quiz module
+│       │   ├── forum/     # Forum module
+│       │   └── gradebook/ # Gradebook module
+│       └── extensions/ # Extension system
 ├── src/               # Frontend code (Leptos)
 │   ├── components/    # Reusable UI components
 │   ├── pages/         # Application pages
@@ -144,7 +152,7 @@ Ordo follows these key architectural principles:
 2. **SOLID Principles**: Single responsibility, Open-closed, Liskov substitution, Interface segregation, Dependency inversion
 3. **Offline-First**: All core functionality works without an internet connection
 4. **Domain-Driven Design**: Focus on core domain logic and bounded contexts
-5. **Modular Design**: Components can be developed, tested, and maintained independently
+5. **Modular Architecture**: Support for app-like modules that can be turned on and off (see [Modular Architecture](architecture/modular_architecture.md))
 
 ### Design Patterns
 
@@ -315,7 +323,11 @@ Key entity mappings between source systems and Ordo:
 ### Generated Documentation
 
 - [Architecture Documentation](architecture/overview.md)
+- [Modular Architecture](architecture/modular_architecture.md)
+- [Module Categories](architecture/module_categories.md)
 - [Models Documentation](models/overview.md)
+- [Modules Documentation](modules/overview.md)
+- [Content Module](modules/content/overview.md)
 - [Integration Documentation](integration/overview.md)
 - [API Documentation](api/overview.md)
 - [UI Components](ui/overview.md)
@@ -338,13 +350,15 @@ Key entity mappings between source systems and Ordo:
 - [Implementation Roadmap](integration/roadmap.md)
 - [Offline-First Implementation](technical/offline_readiness.md)
 - [Authentication Implementation](technical/authentication_implementation.md)
-- [Data Synchronization](technical/data_synchronization.md)
+- [Sync Engine Implementation](technical/sync_engine_implementation.md)
+- [Background Job System](technical/background_job_system.md)
 - [UI Component Strategy](ui/component_strategy.md)
 
 ### Development Resources
 
 - [Development Environment Setup](development/setup.md)
 - [Coding Standards](development/coding_standards.md)
+- [Dependency Management](development/dependency_management.md)
 - [Testing Guidelines](development/testing_guidelines.md)
 - [Contribution Guidelines](development/contribution.md)
 
@@ -462,8 +476,9 @@ Current development focus areas:
 2. **Sync Engine**: Add version vector conflict resolution
 3. **UI**: Complete course listing components
 4. **API**: Define core API contracts
-5. **Testing**: Increase test coverage
-6. **Documentation**: Improve documentation
+5. **Modules**: Begin [Quiz module integration](modules/quiz_integration.md) from Quenti
+6. **Testing**: Increase test coverage
+7. **Documentation**: Improve documentation
 
 ## 👋 Conclusion
 

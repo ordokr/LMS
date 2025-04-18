@@ -16,9 +16,9 @@ use tauri::{Manager, WindowBuilder};
 #[component]
 pub fn OfflineReadyButton() -> impl IntoView {
     let (is_online, set_online) = create_signal(true);
-    
+
     view! {
-        <button 
+        <button
             class="btn btn-primary rounded-lg"
             class:disabled=move || !is_online.get()
             on:click=move |_| {
@@ -29,7 +29,7 @@ pub fn OfflineReadyButton() -> impl IntoView {
                 })
             }
         >
-            <span class="i-ph-cloud-warning-bold"/> 
+            <span class="i-ph-cloud-warning-bold"/>
             "Submit Assignment"
         </button>
     }
@@ -38,13 +38,15 @@ pub fn OfflineReadyButton() -> impl IntoView {
 
 ## Recommended Libraries
 
+> **Note:** The Ordo project always uses the latest stable versions of all dependencies. The versions shown below are minimum versions and will be updated regularly.
+
 | Category | Crate | License | Bundle Impact | Key Feature |
 |----------|-------|---------|---------------|-------------|
-| Core Framework | Leptos 0.5 | MIT | 180KB WASM | Reactive signals |
-| Component Library | DaisyUI (Tailwind) | MIT | +45KB | Prebuilt accessible components |
-| Charts | Plotly.rs | MIT | +110KB | WASM-compatible |
-| Animations | Framer-Motion (WASM) | MIT | +82KB | Spring animations |
-| Tables | TanStack Table (WASM) | MIT | +38KB | Virtualized scrolling |
+| Core Framework | Leptos 0.5+ | MIT | 180KB WASM | Reactive signals |
+| Component Library | DaisyUI 4.0+ (Tailwind) | MIT | +45KB | Prebuilt accessible components |
+| Charts | Plotly.rs 0.8+ | MIT | +110KB | WASM-compatible |
+| Animations | Framer-Motion 10.0+ (WASM) | MIT | +82KB | Spring animations |
+| Tables | TanStack Table 0.3+ (WASM) | MIT | +38KB | Virtualized scrolling |
 
 ## Performance Optimization
 
@@ -71,7 +73,7 @@ pub fn GradebookView() -> impl IntoView {
     let filtered_grades = create_memo(move |_| {
         grades.get().iter().filter(|g| g.passed()).collect()
     });
-    
+
     view! { <For each=filtered_grades key=|g| g.id let:g>
         <GradeItem grade=g />
     </For> }
@@ -85,7 +87,7 @@ pub fn GradebookView() -> impl IntoView {
 pub fn SyncStatus() -> impl IntoView {
     let sync_queue = use_context::<SyncQueue>().unwrap();
     let pending = create_resource(|| {}, |_| sync_queue.pending_count());
-    
+
     view! { <Show when=move || pending.get().unwrap_or(0) > 0>
         <div class="toast toast-bottom">
             <div class="alert alert-info">

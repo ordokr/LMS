@@ -219,7 +219,7 @@ impl CodeQualityScorer {
     }
 
     /// Determine if a file should be analyzed or if cached results can be used
-    fn should_analyze_file(&self, file_path: &Path, file_path_str: &str) -> bool {
+    fn should_analyze_file(&mut self, file_path: &Path, file_path_str: &str) -> bool {
         // Get file metadata
         let metadata = match fs::metadata(file_path) {
             Ok(meta) => meta,

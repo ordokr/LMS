@@ -63,6 +63,8 @@ pub mod conflict_checker;
 pub mod integration_tracker;
 // Responsible for generating development recommendations
 pub mod recommendation_system;
+// Improved recommendation system focused on migration strategies
+pub mod recommendation_system_improved;
 // Responsible for HelixDB integration planning
 pub mod helix_db_integration;
 // Source system implementations for various platforms
