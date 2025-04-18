@@ -1,0 +1,69 @@
+{
+  "components": {
+    "9af772291f28f4b1": {
+      "id": "9af772291f28f4b1",
+      "name": "AngularComponent",
+      "file_path": "src/components/AngularComponent.ts",
+      "component_type": "Angular",
+      "status": {
+        "Failed": "Simulated failure"
+      },
+      "complexity": 7,
+      "dependencies": [],
+      "dependents": [],
+      "last_updated": "2025-04-18T17:04:31.436174900Z",
+      "migrated_path": null,
+      "notes": null
+    },
+    "b405af821b02c9a0": {
+      "id": "b405af821b02c9a0",
+      "name": "ReactComponent",
+      "file_path": "src/components/ReactComponent.jsx",
+      "component_type": "React",
+      "status": "Completed",
+      "complexity": 5,
+      "dependencies": [],
+      "dependents": [],
+      "last_updated": "2025-04-18T17:04:31.436325100Z",
+      "migrated_path": "generated/leptos/components/react/reactcomponent.rs",
+      "notes": null
+    },
+    "23ff47df6c4dcf1b": {
+      "id": "23ff47df6c4dcf1b",
+      "name": "EmberComponent",
+      "file_path": "src/components/EmberComponent.js",
+      "component_type": "Ember",
+      "status": "NotStarted",
+      "complexity": 8,
+      "dependencies": [],
+      "dependents": [],
+      "last_updated": "2025-04-18T17:04:31.434386900Z",
+      "migrated_path": null,
+      "notes": null
+    },
+    "1b045cb8062564c9": {
+      "id": "1b045cb8062564c9",
+      "name": "VueComponent",
+      "file_path": "src/components/VueComponent.vue",
+      "component_type": "Vue",
+      "status": "NotStarted",
+      "complexity": 3,
+      "dependencies": [],
+      "dependents": [],
+      "last_updated": "2025-04-18T17:04:31.434388900Z",
+      "migrated_path": null,
+      "notes": null
+    }
+  },
+  "started_at": "2025-04-18T17:04:31.434187900Z",
+  "last_updated": "2025-04-18T17:04:31.436393300Z",
+  "stats": {
+    "total_components": 4,
+    "not_started": 2,
+    "in_progress": 0,
+    "completed": 1,
+    "failed": 1,
+    "skipped": 0,
+    "completion_percentage": 25.0
+  }
+}

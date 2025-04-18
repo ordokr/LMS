@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Dependency Visualization</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1, h2 { color: #333; }
+        .component {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px;
+            width: 300px;
+        }
+        .completed { background-color: #d4edda; }
+        .in-progress { background-color: #fff3cd; }
+        .not-started { background-color: #f8f9fa; }
+        .dependency {
+            margin-top: 10px;
+            padding: 5px;
+            background-color: #e9ecef;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Simple Dependency Visualization</h1>
+    
+    <h2>Components</h2>
+    <div class="components">
+        <div class="component completed">
+    <h3>Button (button)</h3>
+    <p><strong>Type:</strong> React</p>
+    <p><strong>Status:</strong> Completed</p>
+    <p><strong>Complexity:</strong> 2</p>
+    <p><strong>Dependencies:</strong></p>
+    None
+</div>
+<div class="component in-progress">
+    <h3>Form (form)</h3>
+    <p><strong>Type:</strong> React</p>
+    <p><strong>Status:</strong> InProgress</p>
+    <p><strong>Complexity:</strong> 5</p>
+    <p><strong>Dependencies:</strong></p>
+    <div class="dependency">Button (button)</div>
+</div>
+    </div>
+</body>
+</html>

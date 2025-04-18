@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migration Visualization</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { display: flex; flex-wrap: wrap; }
+        .chart-container { width: 500px; height: 400px; margin: 20px; }
+        h1, h2 { color: #333; }
+        .stats { margin: 20px; }
+        .progress-bar { 
+            height: 30px; 
+            background-color: #f0f0f0; 
+            border-radius: 5px; 
+            margin: 10px 0; 
+        }
+        .progress { 
+            height: 100%; 
+            background-color: #4CAF50; 
+            border-radius: 5px; 
+            width: 16.7%; 
+        }
+        table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+    </style>
+</head>
+<body>
+    <h1>Migration Visualization</h1>
+    
+    <div class="stats">
+        <h2>Migration Progress</h2>
+        <div class="progress-bar">
+            <div class="progress"></div>
+        </div>
+        <p>16.7% Complete (1 out of 6 components)</p>
+    </div>
+    
+    <div class="container">
+        <div class="chart-container">
+            <h2>Components by Type</h2>
+            <canvas id="typeChart"></canvas>
+        </div>
+        
+        <div class="chart-container">
+            <h2>Migration Status</h2>
+            <canvas id="statusChart"></canvas>
+        </div>
+    </div>
+    
+    <h2>Component Details</h2>
+    <table>
+        <tr>
+            <th>Component</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Complexity</th>
+            <th>Dependencies</th>
+            <th>Dependents</th>
+        </tr>
+        <tr><td>EmberComponent</td><td>Ember</td><td>Completed</td><td>8</td><td>0</td><td>1</td></tr>
+<tr><td>AngularComponent</td><td>Angular</td><td>Failed</td><td>7</td><td>0</td><td>0</td></tr>
+<tr><td>ReactComponent2</td><td>React</td><td>Not Started</td><td>3</td><td>1</td><td>0</td></tr>
+<tr><td>EmberComponent2</td><td>Ember</td><td>Not Started</td><td>4</td><td>1</td><td>0</td></tr>
+<tr><td>VueComponent</td><td>Vue</td><td>Not Started</td><td>3</td><td>0</td><td>0</td></tr>
+<tr><td>ReactComponent</td><td>React</td><td>Not Started</td><td>5</td><td>0</td><td>1</td></tr>
+
+    </table>
+    
+    <script>
+        // Components by Type Chart
+        const typeCtx = document.getElementById('typeChart').getContext('2d');
+        const typeChart = new Chart(typeCtx, {
+            type: 'pie',
+            data: {
+                labels: ['React', 'Ember', 'Vue', 'Angular'],
+                datasets: [{
+                    data: [2, 2, 1, 1],
+                    backgroundColor: [
+                        'rgba(54, 162, 235, 0.7)',
+                        'rgba(255, 99, 132, 0.7)',
+                        'rgba(75, 192, 192, 0.7)',
+                        'rgba(255, 159, 64, 0.7)'
+                    ],
+                    borderColor: [
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(255, 159, 64, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Components by Type'
+                    }
+                }
+            }
+        });
+        
+        // Migration Status Chart
+        const statusCtx = document.getElementById('statusChart').getContext('2d');
+        const statusChart = new Chart(statusCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Not Started', 'In Progress', 'Completed', 'Failed', 'Skipped'],
+                datasets: [{
+                    data: [4, 0, 1, 1, 0],
+                    backgroundColor: [
+                        'rgba(201, 203, 207, 0.7)',
+                        'rgba(255, 205, 86, 0.7)',
+                        'rgba(75, 192, 192, 0.7)',
+                        'rgba(255, 99, 132, 0.7)',
+                        'rgba(153, 102, 255, 0.7)'
+                    ],
+                    borderColor: [
+                        'rgb(201, 203, 207)',
+                        'rgb(255, 205, 86)',
+                        'rgb(75, 192, 192)',
+                        'rgb(255, 99, 132)',
+                        'rgb(153, 102, 255)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Migration Status'
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

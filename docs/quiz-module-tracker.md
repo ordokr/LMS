@@ -82,11 +82,11 @@
 
 ## Planned
 
-- [ ] **Advanced Features**
-  - [ ] Collaborative quizzes
-  - [ ] Quiz templates
-  - [ ] AI-assisted quiz generation
-  - [ ] Adaptive learning paths
+- [x] **Advanced Features**
+  - [x] Collaborative quizzes
+  - [x] Quiz templates
+  - [x] AI-assisted quiz generation
+  - [x] Adaptive learning paths
 
 - [ ] **Performance Optimizations**
   - [ ] Query optimization

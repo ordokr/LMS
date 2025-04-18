@@ -3289,6 +3289,7 @@ dependencies = [
  "criterion",
  "ctrlc",
  "diff-struct",
+ "dotenvy",
  "ed25519-dalek",
  "futures",
  "futures-util",

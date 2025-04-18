@@ -11,6 +11,10 @@ pub use model_factory::ModelFactoryError;
 pub mod quiz;
 pub mod quiz_course;
 pub mod quiz_notification;
+pub mod quiz_collaboration;
+pub mod quiz_template;
+pub mod quiz_ai_generation;
+pub mod quiz_adaptive_learning;
 
 // Re-export the canvas models
 pub mod canvas {

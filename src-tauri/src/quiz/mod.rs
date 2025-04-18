@@ -13,6 +13,28 @@ pub mod export;
 pub mod course_integration;
 pub mod auth;
 pub mod notification;
+pub mod collaboration;
+pub mod collaboration_comments;
+pub mod collaboration_methods;
+pub mod templates;
+pub mod templates_retrieve;
+pub mod templates_rating;
+pub mod templates_storage;
+pub mod template_methods;
+pub mod ai_generation;
+pub mod ai_generation_quiz;
+pub mod ai_generation_storage;
+pub mod ai_generation_retrieve;
+pub mod ai_generation_providers;
+pub mod ai_generation_methods;
+pub mod adaptive_learning;
+pub mod adaptive_learning_retrieve;
+pub mod adaptive_learning_storage;
+pub mod adaptive_learning_progress;
+pub mod adaptive_learning_methods;
+
+#[cfg(test)]
+mod tests;
 
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -31,6 +53,11 @@ use export::{QuizExportEngine, ExportOptions, ExportFormat};
 use course_integration::CourseIntegrationService;
 use auth::{QuizAuthService, QuizAuthMiddleware};
 use notification::QuizNotificationService;
+use collaboration::CollaborationService;
+use templates::{TemplateService, QuizTemplate, QuestionTemplate, TemplateCategory, TemplateRating};
+use ai_generation::{AIGenerationService, AIGenerationRequest, AIGenerationResult, AISourceType, AIModelType, AIGenerationStatus, AIModelProvider};
+use ai_generation_providers::{MockAIModelProvider, OpenAIModelProvider, AnthropicModelProvider};
+use adaptive_learning::{AdaptiveLearningService, AdaptiveLearningPath, LearningPathNode, LearningPathEdge, LearningPathNodeType, EdgeConditionType, UserLearningPathProgress, LearningPathRecommendation};
 
 #[derive(Clone)]
 pub struct QuizEngine {
@@ -43,6 +70,10 @@ pub struct QuizEngine {
     auth_service: Option<Arc<QuizAuthService>>,
     auth_middleware: Option<Arc<QuizAuthMiddleware>>,
     notification_service: Option<Arc<QuizNotificationService>>,
+    collaboration_service: Option<Arc<CollaborationService>>,
+    template_service: Option<Arc<TemplateService>>,
+    ai_generation_service: Option<Arc<AIGenerationService>>,
+    adaptive_learning_service: Option<Arc<AdaptiveLearningService>>,
 }
 
 impl QuizEngine {
@@ -118,6 +149,62 @@ impl QuizEngine {
             },
         };
 
+        // Create the collaboration service
+        let collaboration_service = {
+            let collaboration_service = CollaborationService::new(
+                store.get_sqlite_pool().clone(),
+                store.clone()
+            );
+            Some(Arc::new(collaboration_service))
+        };
+
+        // Create the template service
+        let template_service = {
+            let template_service = TemplateService::new(
+                store.get_sqlite_pool().clone(),
+                store.clone()
+            );
+            Some(Arc::new(template_service))
+        };
+
+        // Create the AI generation service
+        let ai_generation_service = {
+            let mut ai_service = AIGenerationService::new(
+                store.get_sqlite_pool().clone(),
+                store.clone()
+            );
+
+            // Register model providers
+            ai_service.register_model_provider(Box::new(MockAIModelProvider));
+
+            // Register OpenAI provider if API key is available
+            if let Some(openai_api_key) = std::env::var("OPENAI_API_KEY").ok() {
+                ai_service.register_model_provider(Box::new(OpenAIModelProvider::new(
+                    openai_api_key,
+                    "gpt-4".to_string(),
+                )));
+            }
+
+            // Register Anthropic provider if API key is available
+            if let Some(anthropic_api_key) = std::env::var("ANTHROPIC_API_KEY").ok() {
+                ai_service.register_model_provider(Box::new(AnthropicModelProvider::new(
+                    anthropic_api_key,
+                    "claude-3-opus".to_string(),
+                )));
+            }
+
+            Some(Arc::new(ai_service))
+        };
+
+        // Create the adaptive learning service
+        let adaptive_learning_service = {
+            let adaptive_learning_service = AdaptiveLearningService::new(
+                store.get_sqlite_pool().clone(),
+                store.clone()
+            );
+            Some(Arc::new(adaptive_learning_service))
+        };
+
         Ok(Self {
             store,
             scheduler,
@@ -128,6 +215,10 @@ impl QuizEngine {
             auth_service,
             auth_middleware,
             notification_service,
+            collaboration_service,
+            template_service,
+            ai_generation_service,
+            adaptive_learning_service,
         })
     }
 

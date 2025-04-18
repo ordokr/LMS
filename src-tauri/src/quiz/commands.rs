@@ -1,4 +1,5 @@
 use super::models::{Quiz, Question, Answer, QuestionContent, AnswerType, StudyMode, QuizVisibility, FlashcardData};
+use super::collaboration::{CollaborationRole, QuizCollaborator, CollaborationInvitation, QuizComment};
 use super::session::QuizSession;
 use super::storage::HybridQuizStore;
 use super::analytics::{TimePeriod, UserStudyStats, QuizAnalytics};

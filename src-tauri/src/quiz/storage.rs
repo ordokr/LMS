@@ -121,7 +121,26 @@ impl HybridQuizStore {
 
         // Initialize SQLite schema
         rt.block_on(async {
+            // Initialize base quiz schema
             sqlx::query(include_str!("../sql/quiz_schema.sql"))
+                .execute(&sqlite)
+                .await
+                .map_err(|e| StoreError::Sqlx(e))?;
+
+            // Initialize quiz templates schema
+            sqlx::query(include_str!("../sql/quiz_templates_schema.sql"))
+                .execute(&sqlite)
+                .await
+                .map_err(|e| StoreError::Sqlx(e))?;
+
+            // Initialize AI generation schema
+            sqlx::query(include_str!("../sql/quiz_ai_generation_schema.sql"))
+                .execute(&sqlite)
+                .await
+                .map_err(|e| StoreError::Sqlx(e))?;
+
+            // Initialize adaptive learning schema
+            sqlx::query(include_str!("../sql/quiz_adaptive_learning_schema.sql"))
                 .execute(&sqlite)
                 .await
                 .map_err(|e| StoreError::Sqlx(e))

@@ -20,7 +20,8 @@ members = [
     "tools",
     "blockchain-wasm",
     "modules/analyzer",
-    "src/tools/migration_utility"
+    "src/tools/migration_utility",
+    "tools/migration-test"
     # "src/services/migration" - Removed as this path doesn't exist
     # "src-tauri" - Removed as it has its own workspace
 , "redb-test-project"]

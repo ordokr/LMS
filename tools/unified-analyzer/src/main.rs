@@ -6,6 +6,7 @@ mod output_schema;
 mod utils;
 mod advisors;
 mod code_generators;
+mod migration;
 
 use crate::analyzers::modules::{api_analyzer::ApiAnalyzer, auth_flow_analyzer::AuthFlowAnalyzer, canvas_analyzer::CanvasAnalyzer, database_schema_analyzer::DatabaseSchemaAnalyzer, discourse_analyzer::DiscourseAnalyzer, ruby_rails_analyzer::RubyRailsAnalyzer,
     business_logic_analyzer::BusinessLogicAnalyzer, dependency_analyzer::DependencyAnalyzer,
@@ -37,6 +38,7 @@ use std::sync::Arc;
 use std::collections::HashMap;
 use crate::{generators::documentation_generator::generate_documentation, integrator::integrate_analysis_results};
 use crate::code_generators::{RubyToRustModelGenerator, RubyToRustControllerGenerator, RubyToLeptosViewGenerator, ReactToLeptosGenerator, EmberToLeptosGenerator, VueToLeptosGenerator, AngularToLeptosGenerator};
+use crate::migration::{MigrationManager, MigrationConfig, ComponentType, MigrationStatus};
 
 use crate::utils::performance::{AnalysisCache, PerformanceMetrics, measure_execution_time, new_shared_metrics};
 use crate::utils::activity_tracker::ActivityTracker;
@@ -343,6 +345,22 @@ async fn main() -> Result<()> {
             println!("Generating Leptos code from frontend components...");
             generate_leptos_code(&base_dir, &config).await?;
         },
+        "migration-init" => {
+            println!("Initializing incremental migration...");
+            initialize_migration(&base_dir, &config).await?;
+        },
+        "migration-next" => {
+            println!("Migrating next batch of components...");
+            migrate_next_batch(&base_dir, &config).await?;
+        },
+        "migration-status" => {
+            println!("Checking migration status...");
+            check_migration_status(&base_dir, &config).await?;
+        },
+        "migration-report" => {
+            println!("Generating migration report...");
+            generate_migration_report(&base_dir, &config).await?;
+        },
         _ => {
             println!("Unknown command: {}", command);
             println!("Available commands:");
@@ -361,6 +379,12 @@ async fn main() -> Result<()> {
             println!("  viz             Generate all visualizations");
             println!("  generate-rust   Generate Rust code from Ruby models, controllers, and views");
             println!("  generate-leptos Generate Leptos code from frontend components");
+            println!("");
+            println!("Migration Commands:");
+            println!("  migration-init   Initialize incremental migration tracking");
+            println!("  migration-next   Migrate next batch of components");
+            println!("  migration-status Check migration status");
+            println!("  migration-report Generate migration report");
             println!("");
             println!("Integration Advisor Commands:");
             println!("  integration-advisor  Run the Full Integration Advisor");
@@ -2057,7 +2081,299 @@ async fn generate_rust_code(base_dir: &PathBuf, config: &Config) -> Result<()> {
 async fn generate_leptos_code(base_dir: &PathBuf, config: &Config) -> Result<()> {
     println!("Generating Leptos code from frontend components...");
 
+    // Get paths to source code
+    let canvas_path = match config.get_path("canvas_path") {
+        Some(path) => path,
+        None => "C:\\Users\\Tim\\Desktop\\port\\canvas"
+    };
+    let discourse_path = match config.get_path("discourse_path") {
+        Some(path) => path,
+        None => "C:\\Users\\Tim\\Desktop\\port\\discourse"
+    };
+
+    // Ensure the paths exist
+    let canvas_dir = std::path::Path::new(canvas_path);
+    let discourse_dir = std::path::Path::new(discourse_path);
+
+    if !canvas_dir.exists() {
+        println!("Warning: Canvas directory not found at: {}", canvas_path);
+        return Ok(());
+    }
+
+    if !discourse_dir.exists() {
+        println!("Warning: Discourse directory not found at: {}", discourse_path);
+        return Ok(());
+    }
+
+    // Create output directory
+    let output_dir = base_dir.join("generated").join("leptos");
+    fs::create_dir_all(&output_dir)?;
+
+    // Initialize analyzers
+    let mut react_analyzer = EnhancedReactAnalyzer::new();
+    let mut ember_analyzer = EnhancedEmberAnalyzer::new();
+    let mut vue_analyzer = EnhancedVueAnalyzer::new();
+    let mut angular_analyzer = EnhancedAngularAnalyzer::new();
+
+    // Analyze React components
+    println!("Analyzing React components...");
+    react_analyzer.analyze_directory(&canvas_dir.join("app").join("jsx"))?;
+    react_analyzer.analyze_directory(&canvas_dir.join("ui").join("shared").join("react"))?;
+
+    // Analyze Ember components
+    println!("Analyzing Ember components...");
+    ember_analyzer.analyze_directory(&discourse_dir.join("app").join("assets").join("javascripts").join("discourse"))?;
+
+    // Analyze Vue.js components (if any)
+    println!("Analyzing Vue.js components...");
+    vue_analyzer.analyze_directory(canvas_dir)?;
+    vue_analyzer.analyze_directory(discourse_dir)?;
+
+    // Analyze Angular components (if any)
+    println!("Analyzing Angular components...");
+    angular_analyzer.analyze_directory(canvas_dir)?;
+    angular_analyzer.analyze_directory(discourse_dir)?;
+
+    // Initialize code generators
+    let react_generator = ReactToLeptosGenerator::new(&output_dir.join("components").join("react"));
+    let ember_generator = EmberToLeptosGenerator::new(&output_dir.join("components").join("ember"));
+    let vue_generator = VueToLeptosGenerator::new(&output_dir.join("components").join("vue"));
+    let angular_generator = AngularToLeptosGenerator::new(&output_dir.join("components").join("angular"));
+
+    // Generate Leptos components from React components
+    println!("Generating Leptos components from React components...");
+    for component in react_analyzer.components.values() {
+        println!("Generating React component: {}", component.name);
+        if let Err(e) = react_generator.generate_component(component) {
+            println!("Error generating React component {}: {}", component.name, e);
+        }
+    }
+
+    // Generate Leptos components from Ember components
+    println!("Generating Leptos components from Ember components...");
+    for component in ember_analyzer.components.values() {
+        println!("Generating Ember component: {}", component.name);
+        if let Err(e) = ember_generator.generate_component(component) {
+            println!("Error generating Ember component {}: {}", component.name, e);
+        }
+    }
+
+    // Generate Leptos components from Vue.js components
+    println!("Generating Leptos components from Vue.js components...");
+    for component in vue_analyzer.components.values() {
+        println!("Generating Vue.js component: {}", component.name);
+        if let Err(e) = vue_generator.generate_component(component) {
+            println!("Error generating Vue.js component {}: {}", component.name, e);
+        }
+    }
+
+    // Generate Leptos components from Angular components
+    println!("Generating Leptos components from Angular components...");
+    for component in angular_analyzer.components.values() {
+        println!("Generating Angular component: {}", component.name);
+        if let Err(e) = angular_generator.generate_component(component) {
+            println!("Error generating Angular component {}: {}", component.name, e);
+        }
+    }
+
+    println!("Leptos code generation complete. Output directory: {:?}", output_dir);
+
+    Ok(())
+}
+
+async fn initialize_migration(base_dir: &PathBuf, config: &Config) -> Result<()> {
+    println!("Initializing incremental migration...");
+
     // Get the source code paths
+    let canvas_path = match config.get_path("canvas_path") {
+        Some(path) => path,
+        None => "C:\\Users\\Tim\\Desktop\\port\\canvas"
+    };
+    let discourse_path = match config.get_path("discourse_path") {
+        Some(path) => path,
+        None => "C:\\Users\\Tim\\Desktop\\port\\discourse"
+    };
+
+    // Ensure the paths exist
+    let canvas_dir = std::path::Path::new(canvas_path);
+    let discourse_dir = std::path::Path::new(discourse_path);
+
+    if !canvas_dir.exists() {
+        println!("Warning: Canvas directory not found at: {}", canvas_path);
+        return Ok(());
+    }
+
+    if !discourse_dir.exists() {
+        println!("Warning: Discourse directory not found at: {}", discourse_path);
+        return Ok(());
+    }
+
+    // Create migration integration
+    let mut migration_integration = match migration::migration_integration::MigrationIntegration::new(
+        base_dir,
+        canvas_path,
+        discourse_path,
+    ) {
+        Ok(integration) => integration,
+        Err(e) => {
+            println!("Error initializing migration integration: {}", e);
+            return Ok(());
+        }
+    };
+
+    // Initialize migration
+    if let Err(e) = migration_integration.initialize() {
+        println!("Error initializing migration: {}", e);
+        return Ok(());
+    }
+
+    println!("Migration initialized successfully.");
+    println!("{}", migration_integration.migration_manager.tracker.get_progress_string());
+
+    Ok(())
+}
+
+async fn migrate_next_batch(base_dir: &PathBuf, config: &Config) -> Result<()> {
+    println!("Migrating next batch of components...");
+
+    // Get the source code paths
+    let canvas_path = match config.get_path("canvas_path") {
+        Some(path) => path,
+        None => "C:\\Users\\Tim\\Desktop\\port\\canvas"
+    };
+    let discourse_path = match config.get_path("discourse_path") {
+        Some(path) => path,
+        None => "C:\\Users\\Tim\\Desktop\\port\\discourse"
+    };
+
+    // Create migration integration
+    let mut migration_integration = match migration::migration_integration::MigrationIntegration::new(
+        base_dir,
+        canvas_path,
+        discourse_path,
+    ) {
+        Ok(integration) => integration,
+        Err(e) => {
+            println!("Error initializing migration integration: {}", e);
+            return Ok(());
+        }
+    };
+
+    // Migrate next batch
+    if let Err(e) = migration_integration.migrate_next_batch() {
+        println!("Error migrating batch: {}", e);
+        return Ok(());
+    }
+
+    println!("Batch migration completed successfully.");
+    println!("{}", migration_integration.migration_manager.tracker.get_progress_string());
+
+    Ok(())
+}
+
+async fn check_migration_status(base_dir: &PathBuf, config: &Config) -> Result<()> {
+    println!("Checking migration status...");
+
+    // Get the source code paths
+    let canvas_path = match config.get_path("canvas_path") {
+        Some(path) => path,
+        None => "C:\\Users\\Tim\\Desktop\\port\\canvas"
+    };
+    let discourse_path = match config.get_path("discourse_path") {
+        Some(path) => path,
+        None => "C:\\Users\\Tim\\Desktop\\port\\discourse"
+    };
+
+    // Create migration integration
+    let migration_integration = match migration::migration_integration::MigrationIntegration::new(
+        base_dir,
+        canvas_path,
+        discourse_path,
+    ) {
+        Ok(integration) => integration,
+        Err(e) => {
+            println!("Error initializing migration integration: {}", e);
+            return Ok(());
+        }
+    };
+
+    // Print migration status
+    println!("{}", migration_integration.migration_manager.tracker.get_progress_string());
+
+    // Print component counts by type
+    let tracker = &migration_integration.migration_manager.tracker;
+    let react_components = tracker.get_components_by_type(&ComponentType::React);
+    let ember_components = tracker.get_components_by_type(&ComponentType::Ember);
+    let vue_components = tracker.get_components_by_type(&ComponentType::Vue);
+    let angular_components = tracker.get_components_by_type(&ComponentType::Angular);
+
+    println!("\nComponents by Type:");
+    println!("React: {} components", react_components.len());
+    println!("Ember: {} components", ember_components.len());
+    println!("Vue: {} components", vue_components.len());
+    println!("Angular: {} components", angular_components.len());
+
+    // Print next batch
+    let next_batch = migration_integration.migration_manager.get_next_batch().unwrap_or_default();
+    if !next_batch.is_empty() {
+        println!("\nNext Batch to Migrate:");
+        for (i, component) in next_batch.iter().enumerate() {
+            println!("{}: {} ({})", i + 1, component.name, component.file_path);
+        }
+    } else {
+        println!("\nNo components left to migrate.");
+    }
+
+    Ok(())
+}
+
+async fn generate_migration_report(base_dir: &PathBuf, config: &Config) -> Result<()> {
+    println!("Generating migration report...");
+
+    // Get the source code paths
+    let canvas_path = match config.get_path("canvas_path") {
+        Some(path) => path,
+        None => "C:\\Users\\Tim\\Desktop\\port\\canvas"
+    };
+    let discourse_path = match config.get_path("discourse_path") {
+        Some(path) => path,
+        None => "C:\\Users\\Tim\\Desktop\\port\\discourse"
+    };
+
+    // Create migration integration
+    let migration_integration = match migration::migration_integration::MigrationIntegration::new(
+        base_dir,
+        canvas_path,
+        discourse_path,
+    ) {
+        Ok(integration) => integration,
+        Err(e) => {
+            println!("Error initializing migration integration: {}", e);
+            return Ok(());
+        }
+    };
+
+    // Generate report
+    if let Err(e) = migration_integration.generate_report(base_dir) {
+        println!("Error generating report: {}", e);
+        return Ok(());
+    }
+
+    // Generate visualization
+    if let Err(e) = migration_integration.generate_visualization(base_dir) {
+        println!("Error generating visualization: {}", e);
+        return Ok(());
+    }
+
+    println!("Migration report and visualization generated successfully.");
+
+    Ok(())
+}
+
+async fn generate_rust_code(base_dir: &PathBuf, config: &Config) -> Result<()> {
+    println!("Generating Rust code from Ruby models, controllers, and views...");
+
+    // Get paths to source code
     let canvas_path = match config.get_path("canvas_path") {
         Some(path) => path,
         None => "C:\\Users\\Tim\\Desktop\\port\\canvas"
