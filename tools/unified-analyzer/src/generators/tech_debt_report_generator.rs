@@ -26,7 +26,7 @@ pub fn generate_tech_debt_report(result: &AnalysisResult, base_dir: &Path) -> Re
 
     // Overview
     content.push_str("## Overview\n\n");
-    content.push_str("This report identifies areas of technical debt in the LMS project and provides recommendations for addressing them.\n\n");
+    content.push_str("This report identifies areas of technical debt in the Ordo project and provides recommendations for addressing them.\n\n");
 
     // Code Quality Metrics
     content.push_str("## Code Quality Metrics\n\n");

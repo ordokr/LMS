@@ -44,6 +44,11 @@ pub fn generate_all_documentation(result: &AnalysisResult, base_dir: &Path) -> G
         return Err(GeneratorError::ContentGeneration(format!("Failed to generate database architecture: {}", e)));
     }
 
+    // Generate migration guide
+    if let Err(e) = crate::generators::generate_migration_guide(result, base_dir) {
+        return Err(GeneratorError::ContentGeneration(format!("Failed to generate migration guide: {}", e)));
+    }
+
     // Create output directory if it doesn't exist
     let docs_dir = base_dir.join("docs");
     if !docs_dir.exists() {

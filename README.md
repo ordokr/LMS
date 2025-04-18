@@ -26,26 +26,10 @@ The project includes comprehensive tools for analyzing, documenting, and visuali
 
 ## Getting Started
 
-1. Clone the repository
-2. Install dependencies:
-
-```bash
-npm install
-```
 
 ## 👋 Welcome to the Project!
 
 This project implements integration between Canvas LMS and Discourse forum systems, combining the best of both platforms for educational institutions.
-
-## 🤖 For AI Assistants
-
-If you're an AI assistant (like GitHub Copilot) helping with this project, please refer to the [`AI_PROJECT_GUIDE.md`](AI_PROJECT_GUIDE.md) file for a comprehensive guide to the project structure, documentation, and development workflow.
-
-This guide will help you understand:
-- Where to find documentation
-- How the code is structured
-- The current development priorities
-- How to contribute to the feedback loop between code and documentation
 
 ## 👥 For Developers
 
@@ -54,18 +38,15 @@ This project uses a documentation-driven development approach with automated ana
 To get started:
 
 1. Review the central reference hub at [`docs/central_reference_hub.md`](docs/central_reference_hub.md)
-2. Set up your development environment following our [setup guide](docs/setup_guide.md)
-3. Run `node cli.js analyze` to see the current project status
-4. Check the [implementation plan](rag_knowledge_base/integration/status_and_plan.md) for current priorities
 
-EduConnect LMS & Forum
+Ordo LMS & Forum
 An offline-first learning management system with integrated discussion forums, built with Rust and modern web technologies.
 
 <img alt="Status: Early Development" src="https://img.shields.io/badge/status-early development-orange">
 🚀 Overview
-EduConnect is a modern learning management system that prioritizes offline-first functionality, enabling education to continue even in environments with limited or intermittent connectivity. It combines robust course management with integrated discussion forums to create a comprehensive learning ecosystem.
+Ordo is a modern learning management system that prioritizes offline-first functionality, enabling education to continue even in environments with limited or intermittent connectivity. It combines robust course management with integrated discussion forums to create a comprehensive learning ecosystem.
 
-Built with Tauri (Rust) for the backend and modern web technologies for the frontend, EduConnect offers a responsive, cross-platform experience while maintaining strong security, performance, and offline capabilities.
+Built with Tauri (Rust) for the backend and modern web technologies for the frontend, Ordo offers a responsive, cross-platform experience while maintaining strong security, performance, and offline capabilities.
 
 ✨ Features
 Learning Management
@@ -91,7 +72,7 @@ Frontend: Leptos (Rust) with Tailwind CSS (Standalone CLI)
 Sync Engine: Custom-built conflict resolution system
 Packaging: Native applications for Windows, macOS, and Linux
 🏗️ Project Status
-EduConnect is currently in early development phase:
+Ordo is currently in early development phase:
 
 ✅ Core data models (100% complete)
 ⏳ API layer (0% implemented)
@@ -102,12 +83,11 @@ See the generated project_status.md for detailed implementation metrics.
 🚀 Getting Started
 Prerequisites
 Rust (latest stable)
-Node.js (v16 or later)
 Tauri CLI
 Installation & Development
 Building for Production
 📐 Architecture
-EduConnect follows a multi-layer architecture:
+Ordo follows a multi-layer architecture:
 
 📊 Implementation Priorities
 Current development focus:
@@ -131,7 +111,7 @@ Project Lead - Tim Vail
 
 Project Repository: https://github.com/ordo/lms
 
-EduConnect - Connecting learners everywhere, with or without internet.
+Ordo - Connecting learners everywhere, with or without internet.
 
 # LMS Application
 

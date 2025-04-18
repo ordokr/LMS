@@ -5,10 +5,12 @@ pub mod error;
 pub mod api_doc_generator;
 pub mod implementation_details_generator;
 pub mod testing_doc_generator;
+pub mod component_doc_generator; // Added new component documentation generator
 pub mod tech_debt_report_generator;
 pub mod summary_report_generator;
 pub mod enhanced_central_hub_generator;
 pub mod migration_roadmap_generator;
+pub mod migration_guide_generator;
 pub mod component_tree_generator;
 pub mod api_map_generator;
 pub mod db_schema_generator;
@@ -33,10 +35,12 @@ pub mod all_generators;
 pub use api_doc_generator::generate_api_doc;
 pub use implementation_details_generator::generate_implementation_details;
 pub use testing_doc_generator::generate_testing_doc;
+pub use component_doc_generator::generate_component_doc; // Added export for component doc generator
 pub use tech_debt_report_generator::generate_tech_debt_report;
 pub use summary_report_generator::generate_summary_report;
 pub use enhanced_central_hub_generator::generate_enhanced_central_hub;
 pub use migration_roadmap_generator::MigrationRoadmapGenerator;
+pub use migration_guide_generator::generate_migration_guide;
 pub use component_tree_generator::ComponentTreeGenerator;
 pub use api_map_generator::ApiMapGenerator;
 pub use db_schema_generator::DbSchemaGenerator;

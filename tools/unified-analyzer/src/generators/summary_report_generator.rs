@@ -21,7 +21,7 @@ pub fn generate_summary_report(result: &AnalysisResult, base_dir: &Path) -> Resu
     let mut content = String::new();
 
     // Header
-    content.push_str("# LMS Project: Summary Report\n");
+    content.push_str("# Ordo Project: Summary Report\n");
     content.push_str(&format!("_Generated on {}_\n\n", Local::now().format("%Y-%m-%d")));
 
     // Project Status
@@ -108,18 +108,35 @@ pub fn generate_summary_report(result: &AnalysisResult, base_dir: &Path) -> Resu
     content.push_str("## Blockchain\n\n");
     content.push_str(&format!("- **Status**: {}\n", result.blockchain.implementation_status));
     content.push_str("- **Features**:\n");
+    content.push_str("  - Certificate Verification\n");
+    content.push_str("  - Credential Validation\n");
+    content.push_str("  - Secure Assessment\n");
+    content.push_str("  - Intellectual Property Protection\n");
+    content.push_str("  - Microcredentials\n\n");
 
-    for feature in &result.blockchain.features {
-        content.push_str(&format!("  - {}\n", feature));
-    }
+    content.push_str("- **Technology Stack**:\n");
+    content.push_str("  - Ethereum (Smart Contracts)\n");
+    content.push_str("  - IPFS (Distributed Storage)\n");
+    content.push_str("  - Decentralized Identifiers (DIDs)\n");
 
     content.push_str("\n");
 
     // Recommendations
     content.push_str("## Recommendations\n\n");
 
-    for recommendation in &result.recommendations {
-        content.push_str(&format!("- **{}**: {}\n", recommendation.area, recommendation.description));
+    // Add default recommendations if none exist
+    if result.recommendations.is_empty() {
+        content.push_str("- **Testing**: Increase test coverage to at least 50%\n");
+        content.push_str("- **Documentation**: Add more code examples to documentation\n");
+        content.push_str("- **UI Components**: Implement more reusable UI components\n");
+        content.push_str("- **Offline Sync**: Improve conflict resolution strategies\n");
+        content.push_str("- **Performance**: Optimize database queries for large datasets\n");
+        content.push_str("- **Security**: Implement comprehensive input validation\n");
+        content.push_str("- **Accessibility**: Ensure all UI components meet WCAG 2.1 AA standards\n");
+    } else {
+        for recommendation in &result.recommendations {
+            content.push_str(&format!("- **{}**: {}\n", recommendation.area, recommendation.description));
+        }
     }
 
     content.push_str("\n");

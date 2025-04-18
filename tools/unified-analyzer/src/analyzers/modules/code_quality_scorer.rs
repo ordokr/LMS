@@ -3,9 +3,30 @@ use std::path::{Path, PathBuf};
 use std::fs;
 use std::time::SystemTime;
 use serde::{Deserialize, Serialize};
-use anyhow::{Result, anyhow};
+use anyhow::{Result, anyhow, Context};
 use walkdir::WalkDir;
 use regex::Regex;
+use thiserror::Error;
+
+/// Custom error type for code quality scoring operations
+#[derive(Error, Debug)]
+pub enum CodeQualityError {
+    /// Error reading file
+    #[error("Failed to read file: {0}")]
+    FileReadError(#[from] std::io::Error),
+
+    /// Error parsing regex
+    #[error("Failed to parse regex: {0}")]
+    RegexError(#[from] regex::Error),
+
+    /// Error serializing to JSON
+    #[error("Failed to serialize to JSON: {0}")]
+    SerializationError(#[from] serde_json::Error),
+
+    /// General error
+    #[error("{0}")]
+    General(String),
+}
 
 /// Represents code metrics for a file
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -107,76 +128,153 @@ impl CodeQualityScorer {
     pub fn analyze_codebase(&mut self, path: &Path, source: &str) -> Result<()> {
         println!("Analyzing code quality for {} codebase at: {}", source, path.display());
 
-        for entry in WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
+        // Check if path exists
+        if !path.exists() {
+            return Err(anyhow!("Path does not exist: {}", path.display()));
+        }
+
+        // Check if path is a directory
+        if !path.is_dir() {
+            return Err(anyhow!("Path is not a directory: {}", path.display()));
+        }
+
+        // Supported file extensions
+        let supported_extensions = ["rb", "js", "ts", "jsx", "tsx", "rs", "hs"];
+        let mut analyzed_count = 0;
+        let mut cached_count = 0;
+        let mut error_count = 0;
+
+        // Walk the directory tree
+        for entry_result in WalkDir::new(path) {
+            let entry = match entry_result {
+                Ok(entry) => entry,
+                Err(e) => {
+                    eprintln!("Error accessing directory entry: {}", e);
+                    error_count += 1;
+                    continue;
+                }
+            };
+
             let file_path = entry.path();
 
-            if file_path.is_file() {
-                if let Some(ext) = file_path.extension() {
-                    let ext_str = ext.to_string_lossy().to_lowercase();
-                    if ["rb", "js", "ts", "jsx", "tsx", "rs", "hs"].contains(&ext_str.as_str()) {
-                        // Check if file is in cache and hasn't been modified
-                        let file_path_str = file_path.to_string_lossy().to_string();
-                        let should_analyze = if self.use_cache {
-                            match fs::metadata(file_path) {
-                                Ok(metadata) => {
-                                    if let Ok(modified_time) = metadata.modified() {
-                                        if let Ok(modified_secs) = modified_time.duration_since(SystemTime::UNIX_EPOCH) {
-                                            let modified_secs = modified_secs.as_secs();
-                                            if let Some(cache) = self.file_cache.get(&file_path_str) {
-                                                if cache.last_modified >= modified_secs {
-                                                    // File hasn't been modified, use cached metrics
-                                                    self.metrics.insert(file_path_str.clone(), cache.metrics.clone());
-                                                    println!("Using cached metrics for: {}", file_path_str);
-                                                    false
-                                                } else {
-                                                    true
-                                                }
-                                            } else {
-                                                true
-                                            }
-                                        } else {
-                                            true
-                                        }
-                                    } else {
-                                        true
-                                    }
-                                },
-                                Err(_) => true,
-                            }
-                        } else {
-                            true
-                        };
+            // Skip if not a file
+            if !file_path.is_file() {
+                continue;
+            }
 
-                        if should_analyze {
-                            if let Ok(content) = fs::read_to_string(file_path) {
-                                let metrics = self.calculate_metrics(file_path, &content);
+            // Check file extension
+            let extension = match file_path.extension() {
+                Some(ext) => ext.to_string_lossy().to_lowercase(),
+                None => continue, // Skip files without extension
+            };
 
-                                // Update cache
-                                if self.use_cache {
-                                    if let Ok(metadata) = fs::metadata(file_path) {
-                                        if let Ok(modified_time) = metadata.modified() {
-                                            if let Ok(modified_secs) = modified_time.duration_since(SystemTime::UNIX_EPOCH) {
-                                                let modified_secs = modified_secs.as_secs();
-                                                self.file_cache.insert(file_path_str.clone(), FileCache {
-                                                    last_modified: modified_secs,
-                                                    metrics: metrics.clone(),
-                                                });
-                                            }
-                                        }
-                                    }
-                                }
+            // Skip unsupported file types
+            if !supported_extensions.contains(&extension.as_str()) {
+                continue;
+            }
 
-                                self.metrics.insert(file_path_str, metrics);
-                            }
-                        }
+            // Get file path as string
+            let file_path_str = file_path.to_string_lossy().to_string();
+
+            // Check if we should analyze this file or use cached results
+            let should_analyze = if !self.use_cache {
+                true
+            } else {
+                self.should_analyze_file(file_path, &file_path_str)
+            };
+
+            if !should_analyze {
+                cached_count += 1;
+                continue;
+            }
+
+            // Read and analyze file
+            match fs::read_to_string(file_path) {
+                Ok(content) => {
+                    let metrics = self.calculate_metrics(file_path, &content);
+
+                    // Update cache if enabled
+                    if self.use_cache {
+                        self.update_cache(file_path, &file_path_str, &metrics);
                     }
+
+                    // Store metrics
+                    self.metrics.insert(file_path_str, metrics);
+                    analyzed_count += 1;
+                },
+                Err(e) => {
+                    eprintln!("Error reading file {}: {}", file_path.display(), e);
+                    error_count += 1;
                 }
             }
         }
 
-        println!("Analyzed {} files for code quality", self.metrics.len());
+        println!("Code quality analysis complete:");
+        println!("  - Analyzed: {} files", analyzed_count);
+        println!("  - Used cache: {} files", cached_count);
+        println!("  - Errors: {} files", error_count);
+        println!("  - Total processed: {} files", self.metrics.len());
 
         Ok(())
+    }
+
+    /// Determine if a file should be analyzed or if cached results can be used
+    fn should_analyze_file(&self, file_path: &Path, file_path_str: &str) -> bool {
+        // Get file metadata
+        let metadata = match fs::metadata(file_path) {
+            Ok(meta) => meta,
+            Err(_) => return true, // Analyze if we can't get metadata
+        };
+
+        // Get modification time
+        let modified_time = match metadata.modified() {
+            Ok(time) => time,
+            Err(_) => return true, // Analyze if we can't get modification time
+        };
+
+        // Convert to seconds since epoch
+        let modified_secs = match modified_time.duration_since(SystemTime::UNIX_EPOCH) {
+            Ok(duration) => duration.as_secs(),
+            Err(_) => return true, // Analyze if we can't convert time
+        };
+
+        // Check cache
+        if let Some(cache) = self.file_cache.get(file_path_str) {
+            if cache.last_modified >= modified_secs {
+                // File hasn't been modified, use cached metrics
+                self.metrics.insert(file_path_str.clone(), cache.metrics.clone());
+                return false; // Don't need to analyze
+            }
+        }
+
+        true // Need to analyze
+    }
+
+    /// Update the cache with new metrics
+    fn update_cache(&mut self, file_path: &Path, file_path_str: &str, metrics: &CodeMetrics) {
+        // Get file metadata
+        let metadata = match fs::metadata(file_path) {
+            Ok(meta) => meta,
+            Err(_) => return, // Skip caching if we can't get metadata
+        };
+
+        // Get modification time
+        let modified_time = match metadata.modified() {
+            Ok(time) => time,
+            Err(_) => return, // Skip caching if we can't get modification time
+        };
+
+        // Convert to seconds since epoch
+        let modified_secs = match modified_time.duration_since(SystemTime::UNIX_EPOCH) {
+            Ok(duration) => duration.as_secs(),
+            Err(_) => return, // Skip caching if we can't convert time
+        };
+
+        // Update cache
+        self.file_cache.insert(file_path_str.clone(), FileCache {
+            last_modified: modified_secs,
+            metrics: metrics.clone(),
+        });
     }
 
     /// Calculate metrics for a file
@@ -224,51 +322,53 @@ impl CodeQualityScorer {
         // Base complexity is 1
         let mut complexity = 1;
 
+        // Define regex patterns
+        let ruby_control_flow = r"\b(if|else|elsif|case|when|while|until|for|rescue)\b";
+        let rust_control_flow = r"\b(if|else|match|while|loop|for)\b";
+        let js_control_flow = r"\b(if|else|switch|case|while|do|for|try|catch)\b";
+        let haskell_control_flow = r"\b(case|if|of)\b";
+        let generic_control_flow = r"\b(if|else|switch|case|while|for)\b";
+        let logical_operators = r"&&|\|\|";
+        let ternary_operator = r"\?.*:";
+        let haskell_guards = r"\|";
+
+        // Helper function to safely compile and apply regex
+        let count_matches = |pattern: &str| -> u32 {
+            match Regex::new(pattern) {
+                Ok(regex) => regex.find_iter(content).count() as u32,
+                Err(_) => {
+                    // Log error but continue with 0 count
+                    eprintln!("Error compiling regex pattern: {}", pattern);
+                    0
+                }
+            }
+        };
+
         match ext {
             "rb" => {
-                // Ruby complexity: count if, else, elsif, case, when, while, until, for, rescue
-                let control_flow_regex = Regex::new(r"\b(if|else|elsif|case|when|while|until|for|rescue)\b").unwrap();
-                complexity += control_flow_regex.find_iter(content).count() as u32;
-
-                // Count && and || operators
-                let logical_op_regex = Regex::new(r"&&|\|\|").unwrap();
-                complexity += logical_op_regex.find_iter(content).count() as u32;
+                // Ruby complexity
+                complexity += count_matches(ruby_control_flow);
+                complexity += count_matches(logical_operators);
             },
             "rs" => {
-                // Rust complexity: count if, else, match, while, loop, for
-                let control_flow_regex = Regex::new(r"\b(if|else|match|while|loop|for)\b").unwrap();
-                complexity += control_flow_regex.find_iter(content).count() as u32;
-
-                // Count && and || operators
-                let logical_op_regex = Regex::new(r"&&|\|\|").unwrap();
-                complexity += logical_op_regex.find_iter(content).count() as u32;
+                // Rust complexity
+                complexity += count_matches(rust_control_flow);
+                complexity += count_matches(logical_operators);
             },
             "js" | "ts" | "jsx" | "tsx" => {
-                // JavaScript/TypeScript complexity: count if, else, switch, case, while, do, for, try, catch
-                let control_flow_regex = Regex::new(r"\b(if|else|switch|case|while|do|for|try|catch)\b").unwrap();
-                complexity += control_flow_regex.find_iter(content).count() as u32;
-
-                // Count && and || operators
-                let logical_op_regex = Regex::new(r"&&|\|\|").unwrap();
-                complexity += logical_op_regex.find_iter(content).count() as u32;
-
-                // Count ternary operators
-                let ternary_regex = Regex::new(r"\?.*:").unwrap();
-                complexity += ternary_regex.find_iter(content).count() as u32;
+                // JavaScript/TypeScript complexity
+                complexity += count_matches(js_control_flow);
+                complexity += count_matches(logical_operators);
+                complexity += count_matches(ternary_operator);
             },
             "hs" => {
-                // Haskell complexity: count case, if, guards (|)
-                let control_flow_regex = Regex::new(r"\b(case|if|of)\b").unwrap();
-                complexity += control_flow_regex.find_iter(content).count() as u32;
-
-                // Count guards
-                let guard_regex = Regex::new(r"\|").unwrap();
-                complexity += guard_regex.find_iter(content).count() as u32;
+                // Haskell complexity
+                complexity += count_matches(haskell_control_flow);
+                complexity += count_matches(haskell_guards);
             },
             _ => {
-                // Generic complexity: count if, else, switch, case, while, for
-                let control_flow_regex = Regex::new(r"\b(if|else|switch|case|while|for)\b").unwrap();
-                complexity += control_flow_regex.find_iter(content).count() as u32;
+                // Generic complexity
+                complexity += count_matches(generic_control_flow);
             }
         }
 
@@ -420,40 +520,32 @@ impl CodeQualityScorer {
             1.0
         };
 
-        // Count methods/functions
-        let mut method_count = 0;
+        // Define regex patterns for method/function detection
+        let ruby_method = r"\bdef\s+\w+";
+        let rust_function = r"\bfn\s+\w+";
+        let js_function = r"\bfunction\s+\w+|\w+\s*=\s*function|\w+\s*=\s*\(.*\)\s*=>";
+        let haskell_function = r"^[a-z]\w*\s+::|^[a-z]\w*\s+[a-z]";
+        let generic_function = r"\bfunction\s+\w+|\bdef\s+\w+";
 
-        match ext {
-            "rb" => {
-                // Ruby methods: def
-                let method_regex = Regex::new(r"\bdef\s+\w+").unwrap();
-                method_count = method_regex.find_iter(content).count();
-            },
-            "rs" => {
-                // Rust functions: fn
-                let method_regex = Regex::new(r"\bfn\s+\w+").unwrap();
-                method_count = method_regex.find_iter(content).count();
-            },
-            "js" | "ts" | "jsx" | "tsx" => {
-                // JavaScript/TypeScript functions: function or =>
-                let function_regex = Regex::new(r"\bfunction\s+\w+|\w+\s*=\s*function|\w+\s*=\s*\(.*\)\s*=>").unwrap();
-                method_count = function_regex.find_iter(content).count();
-            },
+        // Count methods/functions
+        let method_count = match ext {
+            "rb" => self.count_pattern_matches(ruby_method, content),
+            "rs" => self.count_pattern_matches(rust_function, content),
+            "js" | "ts" | "jsx" | "tsx" => self.count_pattern_matches(js_function, content),
             "hs" => {
-                // Haskell functions: function definitions
-                let function_regex = Regex::new(r"^[a-z]\w*\s+::|^[a-z]\w*\s+[a-z]").unwrap();
-                for line in &lines {
-                    if function_regex.is_match(line) {
-                        method_count += 1;
+                // For Haskell, we need to check line by line
+                match Regex::new(haskell_function) {
+                    Ok(regex) => {
+                        lines.iter().filter(|line| regex.is_match(line)).count()
+                    },
+                    Err(e) => {
+                        eprintln!("Error compiling Haskell function regex: {}", e);
+                        0
                     }
                 }
             },
-            _ => {
-                // Generic functions: function or def
-                let function_regex = Regex::new(r"\bfunction\s+\w+|\bdef\s+\w+").unwrap();
-                method_count = function_regex.find_iter(content).count();
-            }
-        }
+            _ => self.count_pattern_matches(generic_function, content),
+        };
 
         // Method count factor
         let method_factor = if method_count > 20 {
@@ -473,6 +565,17 @@ impl CodeQualityScorer {
 
         // Normalize to 0.0-1.0 range
         cohesion.max(0.0).min(1.0)
+    }
+
+    /// Helper method to safely count regex pattern matches
+    fn count_pattern_matches(&self, pattern: &str, content: &str) -> usize {
+        match Regex::new(pattern) {
+            Ok(regex) => regex.find_iter(content).count(),
+            Err(e) => {
+                eprintln!("Error compiling regex pattern '{}': {}", pattern, e);
+                0
+            }
+        }
     }
 
     /// Calculate usefulness score
@@ -612,5 +715,194 @@ impl CodeQualityScorer {
         }
 
         markdown
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs::File;
+    use std::io::Write;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_new() {
+        let scorer = CodeQualityScorer::new();
+        assert_eq!(scorer.metrics.len(), 0);
+        assert_eq!(scorer.usefulness_threshold_high, 80);
+        assert_eq!(scorer.usefulness_threshold_medium, 50);
+        assert!(scorer.use_cache);
+    }
+
+    #[test]
+    fn test_new_without_cache() {
+        let scorer = CodeQualityScorer::new_without_cache();
+        assert!(!scorer.use_cache);
+    }
+
+    #[test]
+    fn test_with_config() {
+        let scorer = CodeQualityScorer::with_config(90, 60, 0.3, 0.3, 0.2, 0.2);
+        assert_eq!(scorer.usefulness_threshold_high, 90);
+        assert_eq!(scorer.usefulness_threshold_medium, 60);
+        assert_eq!(scorer.complexity_weight, 0.3);
+        assert_eq!(scorer.loc_weight, 0.3);
+        assert_eq!(scorer.comment_coverage_weight, 0.2);
+        assert_eq!(scorer.cohesion_weight, 0.2);
+    }
+
+    #[test]
+    fn test_calculate_metrics() {
+        let scorer = CodeQualityScorer::new();
+        let content = r#"
+        fn test_function() {
+            // This is a test function
+            if true {
+                println!("Hello, world!");
+            }
+        }
+        "#;
+
+        let temp_dir = tempdir().unwrap();
+        let file_path = temp_dir.path().join("test.rs");
+        let path = file_path.as_path();
+
+        let metrics = scorer.calculate_metrics(path, content);
+
+        assert_eq!(metrics.file_path, path.to_string_lossy().to_string());
+        assert_eq!(metrics.loc, 8);
+        assert!(metrics.complexity > 1); // Should count at least the if statement
+        assert!(metrics.comment_coverage > 0.0); // Should detect the comment
+    }
+
+    #[test]
+    fn test_count_pattern_matches() {
+        let scorer = CodeQualityScorer::new();
+        let content = "if true { println!(\"test\"); } else { println!(\"else\"); }";
+
+        let count = scorer.count_pattern_matches(r"\b(if|else)\b", content);
+        assert_eq!(count, 2); // Should find 'if' and 'else'
+    }
+
+    #[test]
+    fn test_calculate_usefulness_score() {
+        let scorer = CodeQualityScorer::new();
+
+        // Low complexity, moderate size, good comments, high cohesion should score well
+        let score1 = scorer.calculate_usefulness_score(10, 100, 0.25, 0.9);
+
+        // High complexity, large size, poor comments, low cohesion should score poorly
+        let score2 = scorer.calculate_usefulness_score(60, 600, 0.05, 0.3);
+
+        assert!(score1 > score2);
+        assert!(score1 >= 80); // Should be recommended for reuse
+        assert!(score2 < 50);  // Should be recommended for rebuild
+    }
+
+    #[test]
+    fn test_analyze_codebase() -> Result<()> {
+        let mut scorer = CodeQualityScorer::new_without_cache();
+
+        // Create a temporary directory with test files
+        let temp_dir = tempdir()?;
+
+        // Create a Rust file
+        let rs_file_path = temp_dir.path().join("test.rs");
+        let mut rs_file = File::create(&rs_file_path)?;
+        writeln!(rs_file, "fn main() {{
+    // This is a test
+    println!(\"Hello, world!\");
+}}")?;
+
+        // Create a JavaScript file
+        let js_file_path = temp_dir.path().join("test.js");
+        let mut js_file = File::create(&js_file_path)?;
+        writeln!(js_file, "function test() {{
+    // This is a test
+    console.log(\"Hello, world!\");
+}}")?;
+
+        // Analyze the codebase
+        scorer.analyze_codebase(temp_dir.path(), "test")?;
+
+        // Should have analyzed both files
+        assert_eq!(scorer.metrics.len(), 2);
+
+        // Check that metrics were calculated for both files
+        assert!(scorer.metrics.contains_key(&rs_file_path.to_string_lossy().to_string()));
+        assert!(scorer.metrics.contains_key(&js_file_path.to_string_lossy().to_string()));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_generate_metrics_report() -> Result<()> {
+        let mut scorer = CodeQualityScorer::new();
+
+        // Add a test metric
+        let metrics = CodeMetrics {
+            file_path: "test.rs".to_string(),
+            loc: 100,
+            complexity: 10,
+            comment_coverage: 0.2,
+            cohesion: 0.8,
+            usefulness_score: 85,
+            recommendation: "reuse".to_string(),
+        };
+
+        scorer.metrics.insert("test.rs".to_string(), metrics);
+
+        // Generate report
+        let report = scorer.generate_metrics_report()?;
+
+        // Check that the report contains the expected data
+        assert!(report.contains("test.rs"));
+        assert!(report.contains("85"));
+        assert!(report.contains("reuse"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_generate_quality_markdown() {
+        let mut scorer = CodeQualityScorer::new();
+
+        // Add test metrics
+        let reuse_metrics = CodeMetrics {
+            file_path: "good.rs".to_string(),
+            loc: 100,
+            complexity: 10,
+            comment_coverage: 0.2,
+            cohesion: 0.8,
+            usefulness_score: 85,
+            recommendation: "reuse".to_string(),
+        };
+
+        let rebuild_metrics = CodeMetrics {
+            file_path: "bad.rs".to_string(),
+            loc: 500,
+            complexity: 50,
+            comment_coverage: 0.05,
+            cohesion: 0.3,
+            usefulness_score: 40,
+            recommendation: "rebuild".to_string(),
+        };
+
+        scorer.metrics.insert("good.rs".to_string(), reuse_metrics);
+        scorer.metrics.insert("bad.rs".to_string(), rebuild_metrics);
+
+        // Generate markdown
+        let markdown = scorer.generate_quality_markdown();
+
+        // Check that the markdown contains the expected sections and data
+        assert!(markdown.contains("# Code Quality Analysis Report"));
+        assert!(markdown.contains("## Summary"));
+        assert!(markdown.contains("Total Files Analyzed: 2"));
+        assert!(markdown.contains("Recommended for Reuse: 1"));
+        assert!(markdown.contains("Recommended for Rebuild: 1"));
+        assert!(markdown.contains("## Top Files for Reuse"));
+        assert!(markdown.contains("good.rs"));
+        assert!(markdown.contains("## Files Recommended for Rebuild"));
+        assert!(markdown.contains("bad.rs"));
     }
 }

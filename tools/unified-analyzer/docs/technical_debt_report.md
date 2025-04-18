@@ -3,7 +3,7 @@ _Generated on 2025-04-17_
 
 ## Overview
 
-This report identifies areas of technical debt in the LMS project and provides recommendations for addressing them.
+This report identifies areas of technical debt in the Ordo project and provides recommendations for addressing them.
 
 ## Code Quality Metrics
 

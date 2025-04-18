@@ -9,6 +9,9 @@ This directory contains all documentation for the Ordo project. The documentatio
 - [Architecture Documentation](architecture/overview.md) - Documentation for the architecture
 - [Models Documentation](models/overview.md) - Documentation for the data models
 - [Integration Documentation](integration/overview.md) - Documentation for integration points
+- [Security Documentation](security/implementation.md) - Documentation for security implementation
+- [UI Components](ui/overview.md) - Overview of UI components
+- [UI Component Strategy](ui/component_strategy.md) - Documentation for UI component implementation
 - [Technical Documentation](technical/overview.md) - Technical documentation
 
 ## Visualizations

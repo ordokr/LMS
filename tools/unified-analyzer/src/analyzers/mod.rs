@@ -35,6 +35,7 @@ use modules::ember_analyzer::EmberAnalyzer;
 use modules::react_analyzer::ReactAnalyzer;
 use modules::template_analyzer::TemplateAnalyzer;
 use modules::route_analyzer::RouteAnalyzer;
+use modules::enhanced_api_analyzer::ApiAnalyzer as EnhancedApiAnalyzer;
 use modules::api_analyzer::ApiAnalyzer;
 use modules::dependency_analyzer::DependencyAnalyzer;
 use modules::auth_flow_analyzer::AuthFlowAnalyzer;
@@ -59,6 +60,7 @@ pub fn run_all_analyzers(
     let template_analyzer = TemplateAnalyzer::new();
     let route_analyzer = RouteAnalyzer::new();
     let api_analyzer = ApiAnalyzer::new();
+    let enhanced_api_analyzer = EnhancedApiAnalyzer::new();
     let dependency_analyzer = DependencyAnalyzer::new();
     let auth_flow_analyzer = AuthFlowAnalyzer::new();
     let offline_first_readiness_analyzer = OfflineFirstReadinessAnalyzer::new();
@@ -75,6 +77,7 @@ pub fn run_all_analyzers(
         template_analyzer.analyze(&path_buf),
         route_analyzer.analyze(&path_buf),
         api_analyzer.analyze(&path_buf),
+        enhanced_api_analyzer.analyze(&path_buf),
         dependency_analyzer.analyze(&path_buf),
         auth_flow_analyzer.analyze(&path_buf),
         offline_first_readiness_analyzer.analyze(&path_buf),

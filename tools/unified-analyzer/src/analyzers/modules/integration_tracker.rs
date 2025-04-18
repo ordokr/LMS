@@ -5,6 +5,19 @@ use anyhow::{Result, anyhow};
 use crate::analyzers::modules::entity_mapper::EntityMapper;
 use crate::analyzers::modules::feature_detector::{FeatureDetector, Feature};
 
+/// Integration statistics for reporting
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IntegrationStats {
+    /// Overall integration percentage (0.0-1.0)
+    pub overall_integration_percentage: f32,
+    /// Entity integration percentage (0.0-1.0)
+    pub entity_integration_percentage: f32,
+    /// Feature integration percentage (0.0-1.0)
+    pub feature_integration_percentage: f32,
+    /// Integration percentage by category
+    pub integration_by_category: HashMap<String, f32>,
+}
+
 /// Represents integration progress for entities and features
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IntegrationProgress {
@@ -302,6 +315,25 @@ impl IntegrationTracker {
     pub fn generate_progress_report(&self) -> Result<String> {
         let report = serde_json::to_string_pretty(&self.progress)?;
         Ok(report)
+    }
+
+    /// Get integration statistics
+    pub fn get_stats(&self) -> Option<IntegrationStats> {
+        // Calculate entity integration percentage
+        let entity_integration_percentage = self.progress.entity_progress.values().sum::<f32>() /
+            self.progress.entity_progress.len().max(1) as f32;
+
+        // Calculate feature integration percentage
+        let feature_integration_percentage = self.progress.feature_progress.values().sum::<f32>() /
+            self.progress.feature_progress.len().max(1) as f32;
+
+        // Create integration stats
+        Some(IntegrationStats {
+            overall_integration_percentage: self.progress.overall_progress,
+            entity_integration_percentage,
+            feature_integration_percentage,
+            integration_by_category: self.progress.category_progress.clone(),
+        })
     }
 
     /// Generate a Markdown report of integration progress

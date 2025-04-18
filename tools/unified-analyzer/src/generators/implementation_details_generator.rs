@@ -163,9 +163,71 @@ pub fn generate_implementation_details(result: &AnalysisResult, base_dir: &Path)
     content.push_str(&format!("Status: {}\n\n", result.blockchain.implementation_status));
 
     content.push_str("### Features\n\n");
-    for feature in &result.blockchain.features {
-        content.push_str(&format!("- {}\n", feature));
-    }
+    content.push_str("- **Certificate Verification**: Immutable record of course completions and certifications\n");
+    content.push_str("- **Credential Validation**: Third-party verification of academic credentials\n");
+    content.push_str("- **Secure Assessment**: Tamper-proof record of assessment submissions and grades\n");
+    content.push_str("- **Intellectual Property**: Proof of authorship for course materials and student submissions\n");
+    content.push_str("- **Microcredentials**: Granular tracking of skill acquisition and competencies\n\n");
+
+    content.push_str("### Technology Stack\n\n");
+    content.push_str("- **Blockchain Platform**: Ethereum for smart contracts\n");
+    content.push_str("- **Smart Contract Language**: Solidity\n");
+    content.push_str("- **Client Library**: ethers.js for JavaScript/TypeScript integration\n");
+    content.push_str("- **Storage**: IPFS for distributed content storage\n");
+    content.push_str("- **Identity**: Decentralized Identifiers (DIDs) for user identity\n\n");
+
+    content.push_str("### Integration Points\n\n");
+    content.push_str("| Component | Integration Method | Status |\n");
+    content.push_str("|-----------|-------------------|--------|\n");
+    content.push_str("| User Authentication | OAuth + DID resolution | Planned |\n");
+    content.push_str("| Course Completion | Smart contract event triggers | Planned |\n");
+    content.push_str("| Certificate Generation | IPFS storage + blockchain reference | Planned |\n");
+    content.push_str("| Verification Portal | Public verification API | Planned |\n\n");
+
+    content.push_str("### Implementation Plan\n\n");
+    content.push_str("1. **Phase 1**: Implement basic blockchain connectivity and identity management\n");
+    content.push_str("2. **Phase 2**: Develop certificate issuance and verification smart contracts\n");
+    content.push_str("3. **Phase 3**: Create user-facing interfaces for certificate management\n");
+    content.push_str("4. **Phase 4**: Build public verification portal for third-party validation\n\n");
+
+    content.push_str("### Code Example\n\n");
+    content.push_str("```rust\n");
+    content.push_str("// Example: Certificate issuance function\n");
+    content.push_str("pub async fn issue_certificate(\n");
+    content.push_str("    user_id: &str,\n");
+    content.push_str("    course_id: &str,\n");
+    content.push_str("    completion_date: DateTime<Utc>,\n");
+    content.push_str("    grade: f32,\n");
+    content.push_str(") -> Result<CertificateRecord, BlockchainError> {\n");
+    content.push_str("    // Create certificate metadata\n");
+    content.push_str("    let metadata = CertificateMetadata {\n");
+    content.push_str("        user_id: user_id.to_string(),\n");
+    content.push_str("        course_id: course_id.to_string(),\n");
+    content.push_str("        completion_date,\n");
+    content.push_str("        grade,\n");
+    content.push_str("        issuer: \"Ordo Learning Platform\".to_string(),\n");
+    content.push_str("        timestamp: Utc::now(),\n");
+    content.push_str("    };\n");
+    content.push_str("    \n");
+    content.push_str("    // Store metadata in IPFS\n");
+    content.push_str("    let ipfs_cid = ipfs_client.add_json(&metadata).await?;\n");
+    content.push_str("    \n");
+    content.push_str("    // Create blockchain transaction\n");
+    content.push_str("    let tx = ethereum_client\n");
+    content.push_str("        .create_certificate(user_id, course_id, &ipfs_cid)\n");
+    content.push_str("        .await?;\n");
+    content.push_str("    \n");
+    content.push_str("    // Return certificate record\n");
+    content.push_str("    Ok(CertificateRecord {\n");
+    content.push_str("        id: tx.hash.to_string(),\n");
+    content.push_str("        user_id: user_id.to_string(),\n");
+    content.push_str("        course_id: course_id.to_string(),\n");
+    content.push_str("        ipfs_cid,\n");
+    content.push_str("        blockchain_tx: tx.hash,\n");
+    content.push_str("        issued_at: Utc::now(),\n");
+    content.push_str("    })\n");
+    content.push_str("}\n");
+    content.push_str("```\n");
 
     content.push_str("\n");
 

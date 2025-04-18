@@ -4,3 +4,4 @@ pub mod generators;
 pub mod config;
 pub mod integrator;
 pub mod output_schema;
+pub mod advisors;

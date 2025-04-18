@@ -118,6 +118,82 @@ impl ApiAnalyzer {
                                     Some("JSON".to_string()) // Default for API routes
                                 };
 
+                                // Extract API description from comments
+                                let description_regex = Regex::new(r#"#\s*([^\n]+)\s*\n\s*(get|post|put|patch|delete)\s+['"]([^'"]+)['"]\s*"#).unwrap();
+                                let description = description_regex
+                                    .captures_iter(&content)
+                                    .filter_map(|desc_cap| {
+                                        let desc = desc_cap.get(1)?.as_str();
+                                        let method = desc_cap.get(2)?.as_str().to_uppercase();
+                                        let route = desc_cap.get(3)?.as_str();
+
+                                        if method == method_str && route == path {
+                                            Some(desc.to_string())
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .next();
+
+                                // Check for rate limiting
+                                let rate_limited = content.contains("throttle") ||
+                                                 content.contains("rate_limit") ||
+                                                 content.contains("RateLimit");
+
+                                // Extract required permissions
+                                let mut required_permissions = Vec::new();
+                                let permission_regex = Regex::new(r#"(authorize|can\?|authorize!|permission|role)\s*[\(:]?\s*['"]([\w_]+)['"]\s*"#).unwrap();
+
+                                for perm_cap in permission_regex.captures_iter(&content) {
+                                    if let Some(permission) = perm_cap.get(2) {
+                                        required_permissions.push(permission.as_str().to_string());
+                                    }
+                                }
+
+                                // Look for controller file to extract more information
+                                let mut request_body_params = Vec::new();
+                                let mut response_fields = Vec::new();
+
+                                if let Some(controller_name) = &controller {
+                                    let controller_path = self.find_controller_file(base_dir, controller_name);
+
+                                    if let Some(controller_path) = controller_path {
+                                        if let Ok(controller_content) = fs::read_to_string(&controller_path) {
+                                            // Extract request body parameters
+                                            let params_regex = Regex::new(r#"params\.(?:require|permit)\(:\w+\)\.permit\(([^\)]+)\)"#).unwrap();
+
+                                            for params_cap in params_regex.captures_iter(&controller_content) {
+                                                if let Some(params_str) = params_cap.get(1) {
+                                                    let params = params_str.as_str();
+                                                    let param_names_regex = Regex::new(r#":([a-zA-Z0-9_]+)"#).unwrap();
+
+                                                    for param_name_cap in param_names_regex.captures_iter(params) {
+                                                        if let Some(param_name) = param_name_cap.get(1) {
+                                                            request_body_params.push(param_name.as_str().to_string());
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            // Extract response fields
+                                            let render_regex = Regex::new(r#"render\s+(?:json|xml):\s*\{([^\}]+)\}"#).unwrap();
+
+                                            for render_cap in render_regex.captures_iter(&controller_content) {
+                                                if let Some(fields_str) = render_cap.get(1) {
+                                                    let fields = fields_str.as_str();
+                                                    let field_names_regex = Regex::new(r#"(\w+)\s*[=:]"#).unwrap();
+
+                                                    for field_name_cap in field_names_regex.captures_iter(fields) {
+                                                        if let Some(field_name) = field_name_cap.get(1) {
+                                                            response_fields.push(field_name.as_str().to_string());
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
                                 let path_str = path.to_string();
                                 let endpoint = ApiEndpoint {
                                     path: path_str.clone(),
@@ -128,11 +204,11 @@ impl ApiAnalyzer {
                                     parameters,
                                     response_format,
                                     source_file: path.to_string(),
-                                    description: None,
-                                    rate_limited: false,
-                                    required_permissions: Vec::new(),
-                                    request_body_params: Vec::new(),
-                                    response_fields: Vec::new(),
+                                    description,
+                                    rate_limited,
+                                    required_permissions,
+                                    request_body_params,
+                                    response_fields,
                                 };
 
                                 let key = format!("{}:{}", method_str, path);
@@ -202,6 +278,23 @@ impl ApiAnalyzer {
                                         });
                                     }
                                 }
+
+                                // Look for GraphQL queries and mutations
+                                let graphql_query_regex = Regex::new(r#"(query|mutation)\s+(\w+)\s*\{([^}]+)\}"#).unwrap();
+
+                                for cap in graphql_query_regex.captures_iter(&content) {
+                                    if let (Some(operation_type), Some(operation_name)) = (cap.get(1), cap.get(2)) {
+                                        let method = if operation_type.as_str() == "query" { "GET" } else { "POST" };
+                                        let endpoint = format!("/graphql/{}", operation_name.as_str());
+
+                                        self.clients.push(ApiClient {
+                                            endpoint,
+                                            method: method.to_string(),
+                                            client_type: "graphql".to_string(),
+                                            source_file: path.to_string_lossy().to_string(),
+                                        });
+                                    }
+                                }
                             }
                         }
                     }
@@ -248,6 +341,31 @@ impl ApiAnalyzer {
         }
         if !resource_pattern.is_empty() {
             patterns.insert("Resource-based API".to_string(), resource_pattern);
+        }
+
+        // GraphQL pattern
+        let mut graphql_pattern = Vec::new();
+        for client in &self.clients {
+            if client.client_type == "graphql" {
+                graphql_pattern.push(client.endpoint.clone());
+            }
+        }
+        if !graphql_pattern.is_empty() {
+            patterns.insert("GraphQL API".to_string(), graphql_pattern);
+        }
+
+        // JSON:API pattern
+        let mut jsonapi_pattern = Vec::new();
+        for (_, endpoint) in &self.endpoints {
+            if !endpoint.response_fields.is_empty() &&
+               (endpoint.response_fields.contains(&"data".to_string()) ||
+                endpoint.response_fields.contains(&"attributes".to_string()) ||
+                endpoint.response_fields.contains(&"relationships".to_string())) {
+                jsonapi_pattern.push(endpoint.path.clone());
+            }
+        }
+        if !jsonapi_pattern.is_empty() {
+            patterns.insert("JSON:API".to_string(), jsonapi_pattern);
         }
 
         self.route_patterns = patterns;

@@ -1,11 +1,12 @@
 # Central Reference Hub
 
-Generated on: 2025-04-17 19:20:06
+Generated on: 2025-04-17 21:16:29
 
 ## Table of Contents
 
 - [File Structure](file_structure.md)
 - [API Documentation](api_documentation.md)
+- [UI Components](ui_components.md)
 - [Database Schema](database_schema.md)
 - [Business Logic](business_logic.md)
 - [Offline-First Readiness](offline_readiness.md)

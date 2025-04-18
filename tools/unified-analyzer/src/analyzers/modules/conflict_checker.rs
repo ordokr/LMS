@@ -6,6 +6,36 @@ use anyhow::{Result, anyhow};
 // We'll need to import the EntityMapper module
 use crate::analyzers::modules::entity_mapper::{EntityMapper, EntityMapping};
 
+/// Type of conflict
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum ConflictType {
+    /// Naming conflict (same name, different semantics)
+    NamingConflict,
+    /// Structural conflict (different structure for same concept)
+    StructuralConflict,
+    /// Semantic conflict (different meaning for same name)
+    SemanticConflict,
+    /// Relationship conflict (different relationships for same entity)
+    RelationshipConflict,
+}
+
+/// Represents a conflict between entities or features
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Conflict {
+    /// Conflict type
+    pub conflict_type: ConflictType,
+    /// Source entity or feature
+    pub source: String,
+    /// Target entity or feature
+    pub target: String,
+    /// Conflict description
+    pub description: String,
+    /// Suggested resolution
+    pub suggested_resolution: String,
+    /// Severity (1-5, with 5 being highest)
+    pub severity: u8,
+}
+
 /// Represents a naming or semantic conflict between entities
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NamingConflict {

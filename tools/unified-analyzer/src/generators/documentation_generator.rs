@@ -22,10 +22,11 @@ pub fn generate_documentation(unified_output: &Value, base_dir: &PathBuf) -> Res
     let technical_dir = docs_dir.join("technical");
     let visualizations_dir = docs_dir.join("visualizations");
     let analysis_dir = docs_dir.join("analysis");
+    let ui_components_dir = docs_dir.join("ui_components"); // Add UI components directory
 
     // Create directories if they don't exist
     for dir in &[&api_dir, &architecture_dir, &models_dir, &integration_dir,
-                 &technical_dir, &visualizations_dir, &analysis_dir] {
+                 &technical_dir, &visualizations_dir, &analysis_dir, &ui_components_dir] { // Include UI components directory
         if !dir.exists() {
             fs::create_dir_all(dir)
                 .context(format!("Failed to create directory: {}", dir.display()))?;
@@ -42,6 +43,9 @@ pub fn generate_documentation(unified_output: &Value, base_dir: &PathBuf) -> Res
 
     // Generate API documentation
     generate_api_doc(unified_output, base_dir)?;
+
+    // Generate UI component documentation
+    generate_component_doc(unified_output, base_dir)?;
 
     // Generate database schema documentation
     generate_database_schema_doc(unified_output, base_dir)?;
@@ -69,6 +73,7 @@ fn generate_central_hub(_unified_output: &Value, base_dir: &PathBuf) -> Result<(
     content.push_str("## Table of Contents\n\n");
     content.push_str("- [File Structure](file_structure.md)\n");
     content.push_str("- [API Documentation](api_documentation.md)\n");
+    content.push_str("- [UI Components](ui_components.md)\n");
     content.push_str("- [Database Schema](database_schema.md)\n");
     content.push_str("- [Business Logic](business_logic.md)\n");
     content.push_str("- [Offline-First Readiness](offline_readiness.md)\n");
@@ -231,6 +236,54 @@ fn generate_api_doc(unified_output: &Value, base_dir: &PathBuf) -> Result<()> {
     let path = PathBuf::from("C:\\Users\\Tim\\Desktop\\LMS\\docs").join("api").join("overview.md");
     std::fs::write(&path, content).context("Failed to write API documentation")?;
     info!("Generated API documentation at {}", path.display());
+    Ok(())
+}
+
+fn generate_component_doc(unified_output: &Value, base_dir: &PathBuf) -> Result<()> {
+    let mut content = String::from("# UI Components Documentation\n\n");
+
+    if let Some(components) = unified_output.get("ui_components") {
+        content.push_str("## Component List\n\n");
+
+        if let Some(component_list) = components.get("components") {
+            if let Some(components_array) = component_list.as_array() {
+                for component in components_array {
+                    let name = component.get("name").and_then(|v| v.as_str()).unwrap_or("Unknown Component");
+                    let description = component.get("description").and_then(|v| v.as_str()).unwrap_or("No description available");
+
+                    content.push_str(&format!("### {}\n\n", name));
+                    content.push_str(&format!("{} \n\n", description));
+
+                    // Add props if available
+                    if let Some(props) = component.get("props").and_then(|v| v.as_array()) {
+                        content.push_str("**Props**:\n\n");
+                        for prop in props {
+                            let prop_name = prop.get("name").and_then(|v| v.as_str()).unwrap_or("Unknown Prop");
+                            let prop_type = prop.get("type").and_then(|v| v.as_str()).unwrap_or("Unknown Type");
+                            let prop_desc = prop.get("description").and_then(|v| v.as_str()).unwrap_or("No description");
+
+                            content.push_str(&format!("- **{}** ({}): {}\n", prop_name, prop_type, prop_desc));
+                        }
+                        content.push_str("\n");
+                    }
+
+                    // Add example usage if available
+                    if let Some(example) = component.get("example").and_then(|v| v.as_str()) {
+                        content.push_str("**Example Usage**:\n\n");
+                        content.push_str("```\n");
+                        content.push_str(example);
+                        content.push_str("\n```\n\n");
+                    }
+                }
+            }
+        }
+    } else {
+        content.push_str("No UI component information available.\n");
+    }
+
+    let path = PathBuf::from("C:\\Users\\Tim\\Desktop\\LMS\\docs").join("ui_components").join("overview.md");
+    std::fs::write(&path, content).context("Failed to write UI components documentation")?;
+    info!("Generated UI components documentation at {}", path.display());
     Ok(())
 }
 

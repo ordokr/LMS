@@ -29,6 +29,8 @@ pub mod template_analyzer;
 pub mod route_analyzer;
 // Responsible for analyzing API endpoints and interactions
 pub mod api_analyzer;
+// Enhanced API analyzer with detailed pattern matching
+pub mod enhanced_api_analyzer;
 // Responsible for analyzing project dependencies
 pub mod dependency_analyzer;
 // Responsible for analyzing authentication and authorization flows
