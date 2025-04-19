@@ -31,6 +31,10 @@ pub mod adaptive_learning;
 pub mod adaptive_learning_retrieve;
 pub mod adaptive_learning_storage;
 pub mod adaptive_learning_progress;
+
+// Performance optimization modules
+pub mod query_optimizer;
+pub mod asset_cache;
 pub mod adaptive_learning_methods;
 
 #[cfg(test)]
@@ -40,6 +44,7 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 use serde::{Serialize, Deserialize};
 use std::path::Path;
+use std::collections::HashMap;
 
 use crate::core::config::Config;
 use crate::db::HybridStore;
@@ -58,6 +63,8 @@ use templates::{TemplateService, QuizTemplate, QuestionTemplate, TemplateCategor
 use ai_generation::{AIGenerationService, AIGenerationRequest, AIGenerationResult, AISourceType, AIModelType, AIGenerationStatus, AIModelProvider};
 use ai_generation_providers::{MockAIModelProvider, OpenAIModelProvider, AnthropicModelProvider};
 use adaptive_learning::{AdaptiveLearningService, AdaptiveLearningPath, LearningPathNode, LearningPathEdge, LearningPathNodeType, EdgeConditionType, UserLearningPathProgress, LearningPathRecommendation};
+use query_optimizer::{QuizQueryOptimizer, QuizFilters};
+use asset_cache::{AssetCache, AssetCacheConfig, AssetMetadata, AssetType};
 
 #[derive(Clone)]
 pub struct QuizEngine {
@@ -74,6 +81,10 @@ pub struct QuizEngine {
     template_service: Option<Arc<TemplateService>>,
     ai_generation_service: Option<Arc<AIGenerationService>>,
     adaptive_learning_service: Option<Arc<AdaptiveLearningService>>,
+
+    // Performance optimization components
+    query_optimizer: Arc<QuizQueryOptimizer>,
+    asset_cache: Arc<AssetCache>,
 }
 
 impl QuizEngine {
@@ -205,6 +216,55 @@ impl QuizEngine {
             Some(Arc::new(adaptive_learning_service))
         };
 
+        // Create the query optimizer
+        let query_optimizer = Arc::new(QuizQueryOptimizer::new(store.get_sqlite_pool().clone())
+            .with_cache_config(
+                std::time::Duration::from_secs(300), // 5 minute cache TTL
+                1000 // Maximum cache entries
+            ));
+
+        // Create the asset cache
+        let asset_cache_config = AssetCacheConfig {
+            cache_dir: config.data_dir.join("cache/assets"),
+            max_memory_size: 100 * 1024 * 1024, // 100 MB
+            ttl: std::time::Duration::from_secs(3600), // 1 hour
+            preload_assets: true,
+        };
+
+        let asset_cache = match AssetCache::new(asset_cache_config).await {
+            Ok(cache) => Arc::new(cache),
+            Err(e) => {
+                eprintln!("Failed to initialize asset cache: {}", e);
+                // Create a fallback cache with default settings
+                let fallback_config = AssetCacheConfig {
+                    cache_dir: config.data_dir.join("cache/assets"),
+                    preload_assets: false,
+                    ..Default::default()
+                };
+                Arc::new(AssetCache::new(fallback_config).await?)
+            }
+        };
+
+        // Start a background task to periodically clear expired cache entries
+        let query_optimizer_clone = query_optimizer.clone();
+        let asset_cache_clone = asset_cache.clone();
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(300)); // 5 minutes
+            loop {
+                interval.tick().await;
+
+                // Clear expired query cache entries
+                if let Err(e) = query_optimizer_clone.clear_expired_cache().await {
+                    eprintln!("Failed to clear expired query cache: {}", e);
+                }
+
+                // Clear expired asset cache entries
+                if let Err(e) = asset_cache_clone.clear_expired().await {
+                    eprintln!("Failed to clear expired asset cache: {}", e);
+                }
+            }
+        });
+
         Ok(Self {
             store,
             scheduler,
@@ -219,6 +279,8 @@ impl QuizEngine {
             template_service,
             ai_generation_service,
             adaptive_learning_service,
+            query_optimizer,
+            asset_cache,
         })
     }
 
@@ -740,6 +802,67 @@ impl QuizEngine {
         self.store.get_quiz_attempt(attempt_id).await
             .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
     }
+
+    // Performance-optimized methods
+
+    /// Get quizzes with optimized query and caching
+    pub async fn get_quizzes_optimized(&self, filters: QuizFilters) -> Result<Vec<models::Quiz>, Box<dyn std::error::Error + Send + Sync>> {
+        self.query_optimizer.fetch_quizzes(&filters).await
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+    }
+
+    /// Get questions for a quiz with optimized loading and caching
+    pub async fn get_quiz_questions_optimized(&self, quiz_id: uuid::Uuid) -> Result<Vec<models::Question>, Box<dyn std::error::Error + Send + Sync>> {
+        self.query_optimizer.load_quiz_questions(quiz_id).await
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+    }
+
+    /// Batch load questions for multiple quizzes with optimized loading and caching
+    pub async fn batch_load_questions_optimized(&self, quiz_ids: &[uuid::Uuid]) -> Result<HashMap<uuid::Uuid, Vec<models::Question>>, Box<dyn std::error::Error + Send + Sync>> {
+        self.query_optimizer.batch_load_questions(quiz_ids).await
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+    }
+
+    /// Get query optimizer cache statistics
+    pub async fn get_query_cache_stats(&self) -> (u64, u64, f64) {
+        self.query_optimizer.get_cache_stats()
+    }
+
+    // Asset cache methods
+
+    /// Store an asset in the cache
+    pub async fn store_asset(&self, data: Vec<u8>, filename: &str, quiz_id: Option<uuid::Uuid>, question_id: Option<uuid::Uuid>) -> Result<AssetMetadata, Box<dyn std::error::Error + Send + Sync>> {
+        self.asset_cache.store_asset(data, filename, quiz_id, question_id).await
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+    }
+
+    /// Get an asset by ID
+    pub async fn get_asset(&self, asset_id: &str) -> Result<(Vec<u8>, AssetType, String), Box<dyn std::error::Error + Send + Sync>> {
+        self.asset_cache.get_asset(asset_id).await
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+    }
+
+    /// Get asset metadata by ID
+    pub async fn get_asset_metadata(&self, asset_id: &str) -> Result<AssetMetadata, Box<dyn std::error::Error + Send + Sync>> {
+        self.asset_cache.get_asset_metadata(asset_id).await
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+    }
+
+    /// Get all assets for a quiz
+    pub async fn get_quiz_assets(&self, quiz_id: uuid::Uuid) -> Result<Vec<AssetMetadata>, Box<dyn std::error::Error + Send + Sync>> {
+        self.asset_cache.get_quiz_assets(quiz_id).await
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+    }
+
+    /// Delete an asset
+    pub async fn delete_asset(&self, asset_id: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        self.asset_cache.delete_asset(asset_id).await
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+    }
+
+    /// Get asset cache statistics
+    pub async fn get_asset_cache_stats(&self) -> Result<asset_cache::AssetCacheStats, Box<dyn std::error::Error + Send + Sync>> {
+        self.asset_cache.get_stats().await
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+    }
 }
-
-

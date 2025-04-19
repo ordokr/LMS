@@ -1,16 +1,18 @@
-# Source Code Migration Approach
+# Source Code Porting Approach
+
+> **Important Disclaimer:** This document describes the process of porting and transforming source code, models, and features from Canvas LMS and Discourse to Ordo. It does **not** cover data migration, user import, or live system integration. All references to “migration,” “integration,” or “import” refer solely to source code, schema, or feature porting, not to data or live system interoperability.
 
 _Last updated: 2025-04-18_
 
-This document outlines the approach for migrating the Canvas LMS and Discourse forum source code to the Ordo platform. This approach focuses exclusively on source code migration, not data migration from built applications.
+This document outlines the approach for porting the Canvas LMS and Discourse forum source code to the Ordo platform. This approach focuses exclusively on source code and feature porting, not data migration from built applications or production systems.
 
 ## Key Principles
 
-1. **Source Code Only**: This migration approach works exclusively with source code, not with built applications or databases.
-2. **Static Analysis**: The analyzers extract information from source files through static analysis.
-3. **Code Transformation**: The migration process transforms Ruby/JavaScript code to Rust/Haskell.
-4. **Incremental Migration**: Components are migrated incrementally, with continuous testing.
-5. **Preserve Functionality**: The migrated code must maintain the same functionality as the original.
+1. **Source Code Only**: This porting approach works exclusively with source code, not with built applications or databases.
+2. **Static Analysis**: The analyzers extract information from source files through static analysis (no live data or database connection required).
+3. **Code Transformation**: The porting process transforms Ruby/JavaScript code to Rust/Haskell.
+4. **Incremental Porting**: Components are ported incrementally, with continuous testing.
+5. **Preserve Functionality**: The ported code must maintain the same functionality as the original.
 
 ## Source Code Analysis
 

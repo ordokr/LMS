@@ -1,4 +1,5 @@
 # Run the unified analyzer
+# IMPORTANT: The unified analyzer is for source-to-source/code/feature porting only. It does NOT support or perform data migration, user import, or live system integration. All analysis and recommendations are for codebase transformation and feature parity only.
 $ErrorActionPreference = "Stop"
 
 # Get the directory of the script
@@ -6,6 +7,12 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 # Change to the script directory
 Set-Location $scriptDir
+
+Write-Host "============================================================" -ForegroundColor Yellow
+Write-Host "Unified Analyzer: Source-to-Source Porting Only" -ForegroundColor Yellow
+Write-Host "This tool does NOT perform data migration or live system integration." -ForegroundColor Yellow
+Write-Host "All analysis is for code, schema, and feature porting only." -ForegroundColor Yellow
+Write-Host "============================================================" -ForegroundColor Yellow
 
 # Check if a path was provided
 if ($args.Count -gt 0) {

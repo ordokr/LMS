@@ -1,3 +1,6 @@
+// This module provides API endpoints for mapping and tracking ported assignment entities between Canvas and Ordo at the code/schema level.
+// It does NOT support or perform data migration, user import, or live system integration. All references to 'migration' refer to code/schema/feature mapping only.
+
 use axum::{Router, routing::{get, post}, extract::{State, Path, Json}, http::StatusCode};
 use serde::{Serialize, Deserialize};
 use std::sync::Arc;
@@ -13,6 +16,7 @@ pub struct CanvasAssignment {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+/// Represents a mapping between Canvas and Ordo assignments at the code/schema level (not data migration).
 pub struct AssignmentMigration {
     pub canvas_assignment_id: String,
     pub ordo_assignment_id: String,
@@ -20,7 +24,7 @@ pub struct AssignmentMigration {
 
 static ASSIGNMENT_MAPPINGS: once_cell::sync::Lazy<std::sync::Mutex<Vec<AssignmentMigration>>> = once_cell::sync::Lazy::new(|| std::sync::Mutex::new(vec![]));
 
-// POST /api/integration/map_assignment
+/// Map a Canvas assignment to an Ordo assignment (code/schema mapping, not data migration).
 async fn map_assignment(
     Json(mapping): Json<AssignmentMigration>,
     _state: Arc<AppState>,
@@ -30,7 +34,7 @@ async fn map_assignment(
     (StatusCode::CREATED, Json(mapping))
 }
 
-// GET /api/integration/assignment/:canvas_assignment_id
+/// Get a code/schema assignment mapping by Canvas assignment ID (not data migration).
 async fn get_assignment_mapping(
     Path(canvas_assignment_id): Path<String>,
     _state: Arc<AppState>,

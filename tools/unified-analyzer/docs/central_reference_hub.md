@@ -1,5 +1,7 @@
 # Ordo Central Reference Hub
 
+> **Important Disclaimer:** All references to “integration,” “migration,” and “feature mapping” in this document and the unified analyzer refer solely to source code, schema, or feature porting. The unified analyzer does **not** support or perform data migration, user import, or live system integration. All analysis and recommendations are for codebase transformation and feature parity only.
+
 This document serves as the central reference for the Ordo project.
 
 ## 🎯 Project Vision
@@ -89,9 +91,9 @@ Ordo follows a client-server architecture with offline-first capabilities:
    - Data sovereignty
    - Privacy by design
 
-## 🔄 Migration Strategy
+## 🔄 Porting Strategy (formerly Migration Strategy)
 
-The migration from Canvas and Discourse to Ordo will follow these steps:
+The porting from Canvas and Discourse to Ordo will follow these steps (source-to-source/code/feature only):
 
 1. Analyze existing codebases
 2. Extract core functionality

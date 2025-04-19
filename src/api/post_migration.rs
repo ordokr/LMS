@@ -1,3 +1,6 @@
+// This module provides API endpoints for mapping and tracking ported post entities between Discourse and Ordo at the code/schema level.
+// It does NOT support or perform data migration, user import, or live system integration. All references to 'migration' refer to code/schema/feature mapping only.
+
 use axum::{Router, routing::{get, post}, extract::{State, Path, Json}, http::StatusCode};
 use serde::{Serialize, Deserialize};
 use std::sync::Arc;
@@ -12,6 +15,7 @@ pub struct DiscoursePost {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+/// Represents a mapping between Discourse and Ordo posts at the code/schema level (not data migration).
 pub struct PostMigration {
     pub discourse_post_id: String,
     pub ordo_post_id: String,
@@ -19,7 +23,7 @@ pub struct PostMigration {
 
 static POST_MAPPINGS: once_cell::sync::Lazy<std::sync::Mutex<Vec<PostMigration>>> = once_cell::sync::Lazy::new(|| std::sync::Mutex::new(vec![]));
 
-// POST /api/integration/map_post
+/// Map a Discourse post to an Ordo post (code/schema mapping, not data migration).
 async fn map_post(
     Json(mapping): Json<PostMigration>,
     _state: Arc<AppState>,
@@ -29,7 +33,7 @@ async fn map_post(
     (StatusCode::CREATED, Json(mapping))
 }
 
-// GET /api/integration/post/:discourse_post_id
+/// Get a code/schema post mapping by Discourse post ID (not data migration).
 async fn get_post_mapping(
     Path(discourse_post_id): Path<String>,
     _state: Arc<AppState>,

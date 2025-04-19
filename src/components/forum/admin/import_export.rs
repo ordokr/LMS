@@ -5,6 +5,10 @@ use crate::services::admin::AdminService;
 use crate::models::admin::{ExportOptions, ImportOptions};
 use gloo_file::Blob;
 
+// This component provides import/export features for forum data for test/demo purposes only.
+// It is NOT intended for production data migration or live system import. Ordo is a source-to-source port and does not support or recommend live data migration or user import from existing systems.
+// All references to 'import' or 'export' in this file refer to test/demo data workflows, not production data migration.
+
 #[component]
 pub fn ImportExport() -> impl IntoView {
     // Admin permission check
@@ -260,6 +264,10 @@ pub fn ImportExport() -> impl IntoView {
 
     view! {
         <div class="import-export">
+            <div class="alert alert-warning mb-3">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                <b>Important:</b> Import/Export features are for test/demo data only. Ordo does <u>not</u> support production data migration or live system import. All references to import/export refer to test/demo workflows, not live data.
+            </div>
             {move || if !is_admin() {
                 view! {
                     <div class="alert alert-danger">

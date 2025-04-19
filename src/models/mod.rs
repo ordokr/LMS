@@ -16,6 +16,9 @@ pub mod quiz_template;
 pub mod quiz_ai_generation;
 pub mod quiz_adaptive_learning;
 
+// Network module
+pub mod network;
+
 // Re-export the canvas models
 pub mod canvas {
     pub mod user;

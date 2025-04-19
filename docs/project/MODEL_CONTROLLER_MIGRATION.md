@@ -1,12 +1,14 @@
-# Model and Controller Migration Candidates
+# Model and Controller Porting Candidates
+
+> **Important Disclaimer:** This document describes the process of porting and transforming source code, models, and controllers from Canvas LMS and Discourse to Ordo. It does **not** cover data migration, user import, or live system integration. All references to “migration,” “integration,” or “import” refer solely to source code, schema, or feature porting, not to data or live system interoperability.
 
 _Last updated: 2025-04-18_
 
-This document provides a comprehensive list of models and controllers from Canvas LMS and Discourse that are candidates for migration to the Ordo platform. It serves as a reference for developers implementing the migration plan outlined in [MIGRATION_PLAN.md](MIGRATION_PLAN.md).
+This document provides a comprehensive list of models and controllers from Canvas LMS and Discourse that are candidates for porting to the Ordo platform. It serves as a reference for developers implementing the porting plan outlined in [MIGRATION_PLAN.md](MIGRATION_PLAN.md).
 
 ## Core Models
 
-These models represent the fundamental data structures that exist in both Canvas and Discourse and should be prioritized for migration.
+These models represent the fundamental data structures that exist in both Canvas and Discourse and should be prioritized for porting (source-to-source, not data migration).
 
 | Model | Canvas | Discourse | Priority | Notes |
 |-------|--------|-----------|----------|-------|
@@ -29,7 +31,7 @@ These models represent the fundamental data structures that exist in both Canvas
 
 ## Core Controllers
 
-These controllers handle the core functionality that exists in both Canvas and Discourse and should be prioritized for migration.
+These controllers handle the core functionality that exists in both Canvas and Discourse and should be prioritized for porting (source-to-source, not data migration).
 
 | Controller | Canvas | Discourse | Priority | Notes |
 |------------|--------|-----------|----------|-------|
@@ -49,9 +51,9 @@ These controllers handle the core functionality that exists in both Canvas and D
 | SearchController | ✅ | ✅ | Medium | Search functionality |
 | EnrollmentsController/MembershipsController | ✅ | ✅ | High | Enrollment/Membership management |
 
-## Canvas-Specific Models Worth Migrating
+## Canvas-Specific Models Worth Porting
 
-These models are unique to Canvas but provide valuable functionality that should be incorporated into the Ordo platform.
+These models are unique to Canvas but provide valuable functionality that should be incorporated into the Ordo platform (source-to-source, not data migration).
 
 | Model | Priority | Notes |
 |-------|----------|-------|
@@ -70,9 +72,9 @@ These models are unique to Canvas but provide valuable functionality that should
 | WikiPage | Medium | Collaborative content |
 | ExternalTool | Medium | LTI integrations |
 
-## Discourse-Specific Models Worth Migrating
+## Discourse-Specific Models Worth Porting
 
-These models are unique to Discourse but provide valuable functionality that should be incorporated into the Ordo platform.
+These models are unique to Discourse but provide valuable functionality that should be incorporated into the Ordo platform (source-to-source, not data migration).
 
 | Model | Priority | Notes |
 |-------|----------|-------|
@@ -93,7 +95,7 @@ These models are unique to Discourse but provide valuable functionality that sho
 
 ## Integration Considerations
 
-When implementing these models and controllers, consider the following integration points:
+When implementing these models and controllers, consider the following integration points (all integration is at the code/feature level, not data or live system integration):
 
 1. **Authentication Systems**:
    - Both systems have complex authentication mechanisms

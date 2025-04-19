@@ -8,12 +8,17 @@ use tokio::task;
 use std::sync::Arc;
 use log::{info, error};
 
+// This module provides a CanvasImporter for development, testing, or demonstration purposes only.
+// It is NOT intended for production data migration from live Canvas deployments. Ordo is a source-to-source port and does not support or recommend live data migration or user import from existing systems.
+// All references to 'import' or 'migration' in this file refer to test/demo data workflows, not production data migration.
+
 pub struct CanvasImporter {
     db: SqlitePool,
     canvas_client: CanvasClient,
 }
 
 impl CanvasImporter {
+    /// Create a new CanvasImporter for test/demo use only (not for production data migration).
     pub fn new(db: SqlitePool, canvas_url: &str, canvas_token: &str) -> Self {
         Self {
             db,
@@ -21,6 +26,7 @@ impl CanvasImporter {
         }
     }
     
+    /// Import Canvas courses for development/testing/demo only. Not for production data migration.
     pub async fn import_courses(&self) -> Result<(usize, usize, Vec<String>), String> {
         info!("Starting Canvas course import");
         let mut imported = 0;
@@ -47,6 +53,7 @@ impl CanvasImporter {
         Ok((imported, updated, errors))
     }
     
+    /// Import a single Canvas course for development/testing/demo only.
     async fn import_single_course(&self, canvas_course: &CanvasCourse) -> Result<bool, String> {
         // Check if course already exists
         let existing = sqlx::query!(
@@ -117,6 +124,7 @@ impl CanvasImporter {
         }
     }
     
+    /// Import course enrollments for development/testing/demo only.
     async fn import_course_enrollments(&self, course_id: String, canvas_course_id: i64) -> Result<(), String> {
         let enrollments = self.canvas_client.get_course_enrollments(canvas_course_id).await
             .map_err(|e| format!("Failed to fetch enrollments: {}", e))?;
@@ -149,6 +157,7 @@ impl CanvasImporter {
         Ok(())
     }
     
+    /// Ensure a user exists for development/testing/demo only.
     async fn ensure_user_exists(&self, canvas_user: &CanvasUser) -> Result<String, String> {
         // Check if user already exists
         if let Some(row) = sqlx::query!(

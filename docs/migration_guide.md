@@ -1,19 +1,21 @@
 # Canvas and Discourse Source Code Migration Guide
 
+> **Important Disclaimer:** This guide describes the process of porting and transforming source code and features from Canvas LMS and Discourse to Ordo. It does **not** cover data migration, user import, or live system integration. All references to “migration,” “integration,” or “import” refer solely to source code, schema, or feature porting, not to data or live system interoperability.
+
 _Generated on: 2025-04-18_
 
-This guide outlines the process for migrating the source code from Canvas LMS and Discourse forum systems to the Ordo platform. This guide focuses exclusively on source code migration, not data migration from built applications.
+This guide outlines the process for porting and transforming the source code from Canvas LMS and Discourse forum systems to the Ordo platform. This guide focuses exclusively on source code and feature migration, not data migration from built applications or production systems.
 
 ## Migration Overview
 
-The source code migration process follows these high-level steps:
+The source code porting process follows these high-level steps:
 
 1. **Assessment**: Analyze Canvas and Discourse source code structure
-2. **Preparation**: Set up Ordo development environment and migration tools
-3. **Code Migration**: Transform source code from Ruby/JavaScript to Rust/Haskell
+2. **Preparation**: Set up Ordo development environment and porting tools
+3. **Code Porting**: Transform source code from Ruby/JavaScript to Rust/Haskell
 4. **Validation**: Verify code functionality through tests
-5. **Integration**: Ensure all migrated components work together
-6. **Documentation**: Update technical documentation for the migrated codebase
+5. **Integration**: Ensure all ported components work together
+6. **Documentation**: Update technical documentation for the ported codebase
 
 ## Development Environment Requirements
 
@@ -299,28 +301,30 @@ pub fn CourseView(cx: Scope, course_id: String) -> impl IntoView {
 
 ### API Compatibility
 
-For API compatibility with existing systems:
+> **Note:** All API compatibility work described here is for re-implementing API endpoints at the source code level within Ordo. This does not involve connecting to, importing from, or synchronizing with live Canvas or Discourse deployments. Any references to API compatibility, mapping, or integration refer solely to code-level feature parity and not to data migration or live system interoperability.
 
-1. Implement Canvas API compatibility layer in Rust
-2. Implement Discourse API compatibility where needed
-3. Document API differences for integrating systems
+1. Implement Canvas API compatibility layer in Rust (for Ordo's internal use)
+2. Implement Discourse API compatibility where needed (for Ordo's internal use)
+3. Document API differences for integrating ported features within Ordo
 
 ## Testing Strategy
 
-1. **Unit Tests**: Write comprehensive tests for all migrated components
-2. **Integration Tests**: Test interactions between components
-3. **Behavior Tests**: Ensure migrated code behaves identically to original
+> **Note:** All testing described here is for verifying the correctness and feature parity of ported source code. No tests are performed against live or production systems, and no data migration is validated.
+
+1. **Unit Tests**: Write comprehensive tests for all ported components
+2. **Integration Tests**: Test interactions between ported components
+3. **Behavior Tests**: Ensure ported code behaves identically to original open-source code
 4. **Performance Tests**: Verify performance meets or exceeds original code
 5. **UI Tests**: Test frontend components for correct rendering and behavior
 
 ## Documentation
 
-Documentation is critical for source code migration:
+> **Note:** All documentation and migration decisions refer to code and feature porting only. No data migration or live system integration is performed or supported.
 
 1. **Code Comments**: Document complex algorithms and business logic
 2. **API Documentation**: Document all public interfaces
 3. **Architecture Documentation**: Document system design and component interactions
-4. **Migration Decisions**: Document key decisions made during migration
+4. **Migration Decisions**: Document key decisions made during code/feature porting
 
 ## Source Code Migration Timeline
 

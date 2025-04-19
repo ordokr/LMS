@@ -13,6 +13,10 @@ mod drag_drop_question;
 mod hotspot_question;
 mod rich_text_editor;
 mod media_uploader;
+mod responsive_quiz_view;
+pub mod mobile;
+pub mod virtualized_list;
+pub mod lazy_media;
 
 pub use quiz_view::QuizView;
 pub use question_view::QuestionView;
@@ -27,3 +31,6 @@ pub use drag_drop_question::DragDropQuestion;
 pub use hotspot_question::HotspotQuestion;
 pub use rich_text_editor::RichTextEditor;
 pub use media_uploader::{MediaUploader, MediaPreview, MediaFile, MediaType};
+pub use responsive_quiz_view::ResponsiveQuizView;
+pub use virtualized_list::{VirtualizedList, VirtualizedGrid};
+pub use lazy_media::{LazyMedia, LazyImage, LazyAudio, LazyVideo};

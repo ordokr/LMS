@@ -1,5 +1,7 @@
 # Ordo & Forum: Central Reference Hub
 
+> **Important Disclaimer:** Ordo is a source-to-source port of Canvas and Discourse. This project does **not** migrate or import user data, content, or live system state from existing deployments. All features are re-implemented from open-source code. Any references to “migration,” “integration,” or “synchronization” refer solely to the process of porting and re-implementing features, not to data migration or live system interoperability.
+
 _Last updated: 2025-04-18_
 
 <img alt="Status: Early Development" src="https://img.shields.io/badge/status-early%20development-orange">
@@ -248,13 +250,13 @@ impl SyncEngine {
 }
 ```
 
-## 🔗 Integration Architecture
+## 🔗 Porting Architecture (formerly Integration Architecture)
 
-Ordo integrates Canvas LMS and Discourse forum functionality into a unified application:
+Ordo ports Canvas LMS and Discourse forum functionality into a unified application by re-implementing their features at the source code level. **No data, user content, or live system state is imported or synchronized from existing deployments.**
 
-### Integration Status
+### Porting Status
 
-| Integration | Source | Target | Status |
+| Feature | Source | Target | Status |
 |-------------|--------|--------|--------|
 | Canvas Course Management | Canvas | Ordo | In Progress |
 | Canvas Assignments | Canvas | Ordo | In Progress |
@@ -263,19 +265,19 @@ Ordo integrates Canvas LMS and Discourse forum functionality into a unified appl
 | Discourse User System | Discourse | Ordo | In Progress |
 | Blockchain Certification | Native | Ordo | In Progress |
 
-### Integration Strategy
+### Porting Strategy
 
-The integration between Canvas and Discourse uses:
+The porting process uses:
 
-1. **Event-Driven Architecture**: For data synchronization
-2. **Conflict Resolution**: Source of truth policies based on entity type
-3. **Offline-First Capabilities**: Local storage, change tracking, sync queue
-4. **Unified Authentication**: Single sign-on across all components
+1. **Event-Driven Architecture**: For internal Ordo data flow and state management (not for syncing with external systems)
+2. **Conflict Resolution**: For Ordo's own offline-first operation, not for reconciling with legacy data
+3. **Offline-First Capabilities**: Local storage, change tracking, sync queue (all within Ordo)
+4. **Unified Authentication**: Single sign-on across all Ordo components
 5. **Consistent UI/UX**: Unified design language across all features
 
 ### Model Mapping
 
-Key entity mappings between source systems and Ordo:
+Key entity mappings between source systems and Ordo (for code and schema equivalence only):
 
 | Canvas | Discourse | Ordo | Notes |
 |--------|-----------|------------|-------|
@@ -287,36 +289,18 @@ Key entity mappings between source systems and Ordo:
 | User | User | User | Unified user model |
 | - | Tags | Tags | Discourse-only |
 
-## 🛠️ Development Guidelines
-
-### Coding Standards
-
-1. **Type Safety**: Use strong typing throughout the codebase
-2. **Error Handling**: Use Result types for error propagation
-3. **Documentation**: Document all public APIs and complex functions
-4. **Testing**: Write unit tests for all business logic
-5. **Naming**: Use descriptive names that reflect domain concepts
-
-### Best Practices
-
-1. **API Responses**: Standardize response format across all endpoints
-2. **Database Queries**: Use indexing and prepared statements for optimization
-3. **UI Components**: Create reusable components with clear interfaces
-4. **State Management**: Use reactive state management patterns
-5. **Offline Support**: Design all features with offline-first in mind
-
 ## 📑 Documentation
 
 ### Generated Documentation
 
 - [Architecture Documentation](architecture/overview.md)
 - [Models Documentation](models/overview.md)
-- [Integration Documentation](integration/overview.md)
+- [Porting Documentation](integration/overview.md) <!-- renamed from Integration Documentation -->
 - [API Documentation](api/overview.md)
 - [Implementation Details](technical/implementation_details.md)
 - [Testing Documentation](technical/tests.md)
 - [Technical Debt Report](technical/technical_debt_report.md)
-- [Synchronization Architecture](architecture/synchronization.md)
+- [Synchronization Architecture](architecture/synchronization.md) <!-- internal to Ordo only -->
 - [Database Architecture](architecture/database.md)
 
 ### Visualizations
@@ -324,14 +308,14 @@ Key entity mappings between source systems and Ordo:
 - [API Map](visualizations/api_map/api_map.html)
 - [Component Tree](visualizations/component_tree/component_tree.html)
 - [Database Schema](visualizations/db_schema/db_schema.html)
-- [Migration Roadmap](visualizations/migration_roadmap/migration_roadmap.html)
+- [Feature Parity Roadmap](visualizations/migration_roadmap/migration_roadmap.html) <!-- renamed from Migration Roadmap -->
 
 ### Implementation Guides
 
 - [Implementation Roadmap](integration/roadmap.md)
 - [Offline-First Implementation](technical/offline_readiness.md)
 - [Authentication Implementation](technical/authentication_implementation.md)
-- [Data Synchronization](technical/data_synchronization.md)
+- [Data Synchronization](technical/data_synchronization.md) <!-- internal to Ordo only -->
 
 ### Development Resources
 
@@ -369,7 +353,8 @@ This section contains structured information to help AI coding agents understand
       "depends_on": ["database", "models"],
       "used_by": ["api"]
     }
-  }
+  },
+  "migration_scope": "source-to-source (no data migration, no live system integration)"
 }
 ```
 
@@ -411,6 +396,4 @@ Current development focus areas:
 
 ## 👋 Conclusion
 
-Ordo represents a significant advancement in learning management systems by prioritizing offline-first capabilities and integrating forum functionality directly into the core platform. By combining the best features of Canvas LMS and Discourse, while addressing their limitations, we're creating a more robust, performant, and accessible educational platform.
-
-This central reference hub will be continuously updated as the project evolves. All documentation is automatically generated from the codebase analysis to ensure it remains accurate and up-to-date.
+Ordo is a source-to-source port of Canvas and Discourse. All references to migration, integration, or synchronization refer solely to the process of porting and re-implementing features, not to data migration or live system interoperability. This central reference hub will be continuously updated as the project evolves. All documentation is automatically generated from the codebase analysis to ensure it remains accurate and up-to-date.

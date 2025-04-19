@@ -1,3 +1,6 @@
+// This module provides API endpoints for mapping and tracking ported discussion entities between Discourse and Ordo at the code/schema level.
+// It does NOT support or perform data migration, user import, or live system integration. All references to 'migration' refer to code/schema/feature mapping only.
+
 use axum::{Router, routing::{get, post}, extract::{State, Path, Json}, http::StatusCode};
 use serde::{Serialize, Deserialize};
 use std::sync::Arc;
@@ -12,6 +15,7 @@ pub struct DiscourseTopic {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+/// Represents a mapping between Discourse and Ordo discussions at the code/schema level (not data migration).
 pub struct DiscussionMigration {
     pub discourse_topic_id: String,
     pub ordo_discussion_id: String,
@@ -19,7 +23,7 @@ pub struct DiscussionMigration {
 
 static DISCUSSION_MAPPINGS: once_cell::sync::Lazy<std::sync::Mutex<Vec<DiscussionMigration>>> = once_cell::sync::Lazy::new(|| std::sync::Mutex::new(vec![]));
 
-// POST /api/integration/map_discussion
+/// Map a Discourse topic to an Ordo discussion (code/schema mapping, not data migration).
 async fn map_discussion(
     Json(mapping): Json<DiscussionMigration>,
     _state: Arc<AppState>,
@@ -29,7 +33,7 @@ async fn map_discussion(
     (StatusCode::CREATED, Json(mapping))
 }
 
-// GET /api/integration/discussion/:discourse_topic_id
+/// Get a code/schema discussion mapping by Discourse topic ID (not data migration).
 async fn get_discussion_mapping(
     Path(discourse_topic_id): Path<String>,
     _state: Arc<AppState>,
