@@ -6,21 +6,21 @@ rust-version = "1.76.0" # Latest stable as of April 2025
 
 [dependencies]
 serde_json = "1.0"
-leptos = { version = "0.1", features = ["serde", "nightly"] }
-leptos_axum = { version = "0.1", optional = true }
-leptos_wasi = { version = "0.1", optional = true }
-reqwest = { version = "0.11", features = ["blocking", "json", "default"] }
-axum = { version = "0.6", optional = true }
-sqlx = { version = "0.7.0", features = ["runtime-tokio", "sqlite", "postgres", "macros"] }
-tokio = { version = "1", features = ["full"], optional = true }
+leptos = { version = "0.7.8", features = ["serde"] }
+leptos_axum = { version = "0.7.8", optional = true }
+leptos_wasi = { version = "0.7.8", optional = true }
+reqwest = { version = "0.12", features = ["blocking", "json", "default"] }
+axum = { version = "0.7", optional = true }
+sqlx = { version = "0.8.3", features = ["runtime-tokio", "sqlite", "postgres", "macros"] }
+tokio = { version = "1.28", features = ["full"], optional = true }
 serde = { version = "1.0", features = ["derive"] }
-wasm-bindgen = "0.2"
+wasm-bindgen = "0.2.102"
 js-sys = "0.3"
 web-sys = { version = "0.3", features = ["HtmlCanvasElement", "CanvasRenderingContext2d", "Window", "Document", "Element", "DomRect", "CssStyleDeclaration"] }
-base64 = "0.13"
-oauth = "0.5"
+base64 = "0.22.1"
+oauth2 = "5.0.0"
 url = "2.3"
-zip = "0.6"
+zip = "2.6.1"
 tracing = "0.1"
 anyhow = "1.0"
 chrono = { version = "0.4", features = ["serde"] }

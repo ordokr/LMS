@@ -1,38 +1,63 @@
 #!/bin/bash
-echo "Launching Ordo Quiz Standalone..."
 
-# Check if the binary exists in the target directory
-if [ -f "target/release/quiz-standalone" ]; then
-    echo "Found release binary, launching..."
-    "./target/release/quiz-standalone" &
-    exit 0
+echo "Launching Ordo Quiz Module Standalone..."
+
+# Change to the src-tauri directory
+cd src-tauri
+
+# Check if we're in development or production mode
+if [ -f "Cargo.toml" ]; then
+    echo "Development environment detected"
+    
+    # Try to build and run with Tauri
+    echo "Building and running with Tauri..."
+    if command -v cargo &> /dev/null; then
+        if cargo tauri dev; then
+            echo "Ordo Quiz launched successfully with Tauri"
+            exit 0
+        else
+            echo "Failed to launch with Tauri, trying direct binary..."
+        fi
+    else
+        echo "Cargo not found, trying direct binary..."
+    fi
+    
+    # Try to run the binary directly
+    if [ -f "target/debug/quiz-standalone" ]; then
+        echo "Running debug binary..."
+        ./target/debug/quiz-standalone
+        exit $?
+    elif [ -f "target/release/quiz-standalone" ]; then
+        echo "Running release binary..."
+        ./target/release/quiz-standalone
+        exit $?
+    else
+        echo "Building binary..."
+        cargo build --bin quiz-standalone
+        if [ $? -eq 0 ]; then
+            echo "Running newly built binary..."
+            ./target/debug/quiz-standalone
+            exit $?
+        else
+            echo "Failed to build binary"
+            exit 1
+        fi
+    fi
+else
+    echo "Production environment detected"
+    
+    # Try to find and run the binary
+    if [ -f "quiz-standalone" ]; then
+        ./quiz-standalone
+        exit $?
+    elif [ -f "bin/quiz-standalone" ]; then
+        ./bin/quiz-standalone
+        exit $?
+    else
+        echo "Could not find Ordo Quiz binary"
+        exit 1
+    fi
 fi
 
-if [ -f "target/debug/quiz-standalone" ]; then
-    echo "Found debug binary, launching..."
-    "./target/debug/quiz-standalone" &
-    exit 0
-fi
-
-if [ -f "src-tauri/target/debug/quiz-standalone" ]; then
-    echo "Found debug binary in src-tauri, launching..."
-    "./src-tauri/target/debug/quiz-standalone" &
-    exit 0
-fi
-
-# If binary not found, try to build the minimal version
-echo "Binary not found, attempting to build minimal version..."
-
-# Run the minimal build script
-./build-minimal-ordo-quiz.sh
-
-# Check if the build was successful
-if [ -f "src-tauri/target/debug/quiz-standalone" ]; then
-    echo "Build successful, launching..."
-    "./src-tauri/target/debug/quiz-standalone" &
-    exit 0
-fi
-
-echo "Could not find or build the Ordo Quiz module."
-echo "Please check the error messages above."
-read -p "Press Enter to continue..."
+echo "Failed to launch Ordo Quiz Module"
+exit 1

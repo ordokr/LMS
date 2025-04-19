@@ -4,6 +4,9 @@
 // Export the AppState
 pub mod app_state;
 
+// Export the protocol handler
+pub mod protocol_handler;
+
 // Export all the modules needed by other workspace members
 pub mod api {
     pub mod auth;
@@ -55,6 +58,9 @@ pub mod ai {
     pub mod gemini_analyzer;
 }
 
+// Export the unified error handling system
+pub mod errors;
+
 // Re-export important types for easier access
 pub use crate::api::auth::*;
 pub use crate::core::auth::*;
@@ -64,3 +70,10 @@ pub use crate::database::repositories::quiz_repository::*;
 pub use crate::shared::models::user::*;
 pub use crate::models::quiz::*;
 pub use crate::app_state::AppState;
+
+// Re-export unified error handling for easier access
+pub use crate::errors::error::{Error, ErrorKind, ErrorCode, Result};
+pub use crate::errors::api_error::{ApiError, ApiErrorKind, ApiResult};
+pub use crate::errors::error_handler::{ErrorHandler, handle_error, handle_api_error, get_global_error_handler};
+pub use crate::errors::error_context::{ErrorContext, with_context, with_context_fn};
+pub use crate::errors::error_mapper::{ErrorMapper, map_error, map_api_error};

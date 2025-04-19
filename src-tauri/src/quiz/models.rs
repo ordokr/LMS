@@ -12,7 +12,7 @@ pub struct Quiz {
     pub updated_at: DateTime<Utc>,
     pub questions: Vec<Question>,
     pub settings: QuizSettings,
-    // Adding Quenti-specific fields
+    // Adding Ordo Quiz-specific fields
     pub author_id: Option<Uuid>,
     pub visibility: QuizVisibility,
     pub tags: Vec<String>,

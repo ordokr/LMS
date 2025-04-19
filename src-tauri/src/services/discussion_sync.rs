@@ -2,7 +2,9 @@ use std::sync::Arc;
 use crate::models::discussion_mapping::{
     DiscussionMapping, SyncResult, CanvasDiscussionEntry, DiscoursePost
 };
+// Import both old and new clients for backward compatibility
 use crate::api::{canvas::CanvasClient, discourse::DiscourseClient};
+use crate::api::unified_clients::{CanvasApiClient, DiscourseApiClient};
 use crate::db::{DbPool, discussion_mappings};
 use crate::models::course_category::{CourseCategory, SyncDirection};
 use crate::error::Error;
@@ -26,24 +28,24 @@ impl DiscussionSyncService {
             discourse_client,
         }
     }
-    
+
     pub async fn sync_discussion(
         &self,
         mapping_id: &str,
     ) -> Result<SyncResult, Error> {
         let mapping = discussion_mappings::get_discussion_mapping(&self.pool, mapping_id).await?;
-        
+
         if !mapping.sync_enabled {
             let mut result = SyncResult::new(mapping_id);
             result.status = "skipped".to_string();
             return Ok(result);
         }
-        
+
         // Get parent course mapping to determine sync direction
         let course_category = self.get_course_category(&mapping.course_category_id).await?;
-        
+
         let mut result = SyncResult::new(mapping_id);
-        
+
         // Sync discussion topics (titles, content)
         match self.sync_discussion_topics(&mapping, &course_category, &mut result).await {
             Ok(_) => (),
@@ -52,7 +54,7 @@ impl DiscussionSyncService {
                 return Ok(result);
             }
         }
-        
+
         // Sync discussion entries/posts if enabled
         if mapping.sync_posts {
             match self.sync_discussion_posts(&mapping, &course_category, &mut result).await {
@@ -62,22 +64,22 @@ impl DiscussionSyncService {
                 }
             }
         }
-        
+
         // Update last sync timestamp
         if let Err(e) = discussion_mappings::update_sync_timestamp(&self.pool, mapping_id).await {
             result.add_error(format!("Failed to update sync timestamp: {}", e));
         }
-        
+
         result.complete();
         Ok(result)
     }
-    
+
     async fn get_course_category(&self, id: &str) -> Result<CourseCategory, Error> {
         // This would call your course_category database function
         // For now, using a placeholder
         // Implement get_course_category (TODO)
     }
-    
+
     async fn sync_discussion_topics(
         &self,
         mapping: &DiscussionMapping,
@@ -96,11 +98,11 @@ impl DiscussionSyncService {
                 let canvas_discussion = self.canvas_client
                     .get_discussion(&mapping.canvas_discussion_id)
                     .await?;
-                
+
                 let discourse_topic = self.discourse_client
                     .get_topic(&mapping.discourse_topic_id)
                     .await?;
-                
+
                 if canvas_discussion.updated_at > discourse_topic.updated_at {
                     self.sync_canvas_to_discourse_topic(mapping, result).await?;
                 } else if discourse_topic.updated_at > canvas_discussion.updated_at {
@@ -108,10 +110,10 @@ impl DiscussionSyncService {
                 }
             }
         }
-        
+
         Ok(())
     }
-    
+
     async fn sync_canvas_to_discourse_topic(
         &self,
         mapping: &DiscussionMapping,
@@ -120,7 +122,7 @@ impl DiscussionSyncService {
         let canvas_discussion = self.canvas_client
             .get_discussion(&mapping.canvas_discussion_id)
             .await?;
-        
+
         let update_result = self.discourse_client
             .update_topic(
                 &mapping.discourse_topic_id,
@@ -128,11 +130,11 @@ impl DiscussionSyncService {
                 &canvas_discussion.message,
             )
             .await;
-            
+
         match update_result {
             Ok(_) => {
                 result.discourse_updates += 1;
-                info!("Updated Discourse topic {} from Canvas discussion {}", 
+                info!("Updated Discourse topic {} from Canvas discussion {}",
                       mapping.discourse_topic_id, mapping.canvas_discussion_id);
                 Ok(())
             }
@@ -142,7 +144,7 @@ impl DiscussionSyncService {
             }
         }
     }
-    
+
     async fn sync_discourse_to_canvas_topic(
         &self,
         mapping: &DiscussionMapping,
@@ -151,11 +153,11 @@ impl DiscussionSyncService {
         let discourse_topic = self.discourse_client
             .get_topic_with_posts(&mapping.discourse_topic_id)
             .await?;
-        
+
         // For Discourse, the first post is the topic content
         let first_post = discourse_topic.posts.first()
             .ok_or_else(|| Error::NotFound("Discourse topic has no posts".into()))?;
-        
+
         let update_result = self.canvas_client
             .update_discussion(
                 &mapping.canvas_discussion_id,
@@ -163,11 +165,11 @@ impl DiscussionSyncService {
                 &first_post.content,
             )
             .await;
-            
+
         match update_result {
             Ok(_) => {
                 result.canvas_updates += 1;
-                info!("Updated Canvas discussion {} from Discourse topic {}", 
+                info!("Updated Canvas discussion {} from Discourse topic {}",
                       mapping.canvas_discussion_id, mapping.discourse_topic_id);
                 Ok(())
             }
@@ -177,7 +179,7 @@ impl DiscussionSyncService {
             }
         }
     }
-    
+
     async fn sync_discussion_posts(
         &self,
         mapping: &DiscussionMapping,
@@ -196,16 +198,16 @@ impl DiscussionSyncService {
                 if let Err(e) = self.sync_canvas_to_discourse_posts(mapping, result).await {
                     result.add_error(format!("Error syncing Canvas to Discourse posts: {}", e));
                 }
-                
+
                 if let Err(e) = self.sync_discourse_to_canvas_posts(mapping, result).await {
                     result.add_error(format!("Error syncing Discourse to Canvas posts: {}", e));
                 }
             }
         }
-        
+
         Ok(())
     }
-    
+
     async fn sync_canvas_to_discourse_posts(
         &self,
         mapping: &DiscussionMapping,
@@ -215,23 +217,23 @@ impl DiscussionSyncService {
         let entries = self.canvas_client
             .get_discussion_entries(&mapping.canvas_discussion_id)
             .await?;
-        
+
         // Get all posts from Discourse topic (skip the first one, which is the topic itself)
         let discourse_posts = self.discourse_client
             .get_topic_posts(&mapping.discourse_topic_id)
             .await?;
-        
+
         let mut posts_created = 0;
         let mut posts_updated = 0;
-        
+
         for entry in entries {
             // Create a unique external ID for this Canvas entry
             let external_id = format!("canvas-entry-{}", entry.id);
-            
+
             // Check if this entry already exists in Discourse
             let existing_post = discourse_posts.iter()
                 .find(|p| p.external_id.as_deref() == Some(&external_id));
-            
+
             if let Some(post) = existing_post {
                 // If post exists and content is different, update it
                 if post.content != entry.message {
@@ -266,13 +268,13 @@ impl DiscussionSyncService {
                 }
             }
         }
-        
-        info!("Synced {} entries from Canvas to Discourse: {} created, {} updated", 
+
+        info!("Synced {} entries from Canvas to Discourse: {} created, {} updated",
               entries.len(), posts_created, posts_updated);
-        
+
         Ok(())
     }
-    
+
     async fn sync_discourse_to_canvas_posts(
         &self,
         mapping: &DiscussionMapping,
@@ -282,30 +284,30 @@ impl DiscussionSyncService {
         let discourse_posts = self.discourse_client
             .get_topic_posts(&mapping.discourse_topic_id)
             .await?;
-            
+
         if discourse_posts.len() <= 1 {
             // Only the topic post exists, nothing to sync
             return Ok(());
         }
-        
+
         // Skip the first post (topic content)
         let reply_posts = &discourse_posts[1..];
-        
+
         // Get all entries from Canvas discussion
         let canvas_entries = self.canvas_client
             .get_discussion_entries(&mapping.canvas_discussion_id)
             .await?;
-        
+
         let mut entries_created = 0;
         let mut entries_updated = 0;
-        
+
         for post in reply_posts {
             // Skip posts without external_id as they might be created in Discourse directly
             // and we want to avoid duplicating them in Canvas
             if post.external_id.is_some() && !post.external_id.as_ref().unwrap().starts_with("canvas-entry-") {
                 continue;
             }
-            
+
             // For posts created in Discourse, create entries in Canvas
             let canvas_entry = if let Some(external_id) = &post.external_id {
                 // This was originally from Canvas, find the matching entry
@@ -314,7 +316,7 @@ impl DiscussionSyncService {
             } else {
                 None
             };
-            
+
             if let Some(entry) = canvas_entry {
                 // If content is different, update Canvas entry
                 if entry.message != post.content {
@@ -343,7 +345,7 @@ impl DiscussionSyncService {
                         // Update the post with the Canvas entry ID for future reference
                         let external_id = format!("canvas-entry-{}", entry_id);
                         if self.discourse_client.update_post_external_id(
-                            &post.id, 
+                            &post.id,
                             &external_id
                         ).await.is_ok() {
                             entries_created += 1;
@@ -356,13 +358,13 @@ impl DiscussionSyncService {
                 }
             }
         }
-        
-        info!("Synced {} posts from Discourse to Canvas: {} created, {} updated", 
+
+        info!("Synced {} posts from Discourse to Canvas: {} created, {} updated",
               reply_posts.len(), entries_created, entries_updated);
-        
+
         Ok(())
     }
-    
+
     pub async fn sync_all_for_course(
         &self,
         course_category_id: &str,
@@ -370,14 +372,14 @@ impl DiscussionSyncService {
         let mappings = discussion_mappings::get_discussion_mappings_by_course(
             &self.pool, course_category_id
         ).await?;
-        
+
         let mut results = Vec::new();
-        
+
         for mapping in mappings {
             let result = self.sync_discussion(&mapping.id).await?;
             results.push(result);
         }
-        
+
         Ok(results)
     }
 }

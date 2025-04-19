@@ -31,6 +31,10 @@ pub mod adaptive_learning;
 pub mod adaptive_learning_retrieve;
 pub mod adaptive_learning_storage;
 pub mod adaptive_learning_progress;
+pub mod taking;
+pub mod ui_handler;
+pub mod ui_controller;
+pub mod taking_controller;
 
 // Performance optimization modules
 pub mod query_optimizer;

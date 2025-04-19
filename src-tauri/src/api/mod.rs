@@ -6,19 +6,48 @@ mod integration;
 mod discussion_routes;
 pub mod notification_commands;
 
-use axum::{Router, routing::get};
+use axum::{Router, routing::{get, post, put, delete}, middleware};
 use std::sync::Arc;
-use crate::db::AppState;
+use crate::app_state::AppState;
 use reqwest::{Client, header};
 use std::sync::OnceLock;
 use std::time::Duration;
+use crate::middleware::auth::verify_auth;
+use crate::api::forum::{get_categories, create_category, get_category, update_category, delete_category};
+use crate::api::forum::{get_topics, create_topic, get_topic, update_topic, delete_topic};
 
+// Import modules
+pub mod auth;
+pub mod courses;
+pub mod users;
+pub mod forum;
+pub mod quiz;
+pub mod integration;
+
+// Unified API clients
+pub mod unified_clients;
+
+// Re-export unified clients and adapters
+pub use unified_clients::{ApiClient, ApiClientConfig, ApiError, Result};
+pub use unified_clients::{CanvasApiClient, DiscourseApiClient};
+pub use unified_clients::{create_canvas_client, create_discourse_client, create_client};
+pub use unified_clients::{CanvasClientAdapter, DiscourseClientAdapter};
+pub use unified_clients::{create_canvas_client_adapter, create_discourse_client_adapter};
+
+/// Create the main API router with all routes
+///
+/// # Arguments
+/// * `state` - The application state
+///
+/// # Returns
+/// A Router with all API routes
 pub fn create_router(state: Arc<AppState>) -> Router {
     Router::new()
         .nest("/api/auth", auth::auth_routes())
         .nest("/api/courses", courses::course_routes())
         .nest("/api/users", users::user_routes())
         .nest("/api/forum", forum::forum_routes())
+        .nest("/api/quizzes", quiz::quiz_routes())
         .route("/api/health", get(health_check))
         .route(
             "/api/courses/:id/category",
@@ -47,17 +76,18 @@ async fn health_check() -> &'static str {
     "OK"
 }
 
-pub mod forum;
-pub mod courses;
-
-use axum::Router;
-use std::sync::Arc;
-use crate::AppState;
-
+/// Create a unified API router for the application
+///
+/// # Returns
+/// A Router with all API routes
 pub fn api_router() -> Router<Arc<AppState>> {
     Router::new()
-        .nest("/forum", forum::forum_routes())
-        .nest("/lms", courses::course_routes())
+        .nest("/api/forum", forum_router())
+        .nest("/api/courses", courses::course_routes())
+        .nest("/api/users", users::user_routes())
+        .nest("/api/auth", auth::auth_routes())
+        .nest("/api/quizzes", quiz::quiz_routes())
+        .route("/api/health", get(health_check))
 }
 
 // Organize routes by domain with middleware layers

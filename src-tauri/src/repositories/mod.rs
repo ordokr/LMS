@@ -1,33 +1,15 @@
-use async_trait::async_trait;
-use uuid::Uuid;
-use crate::error::Error;
-use crate::db::DB;
+// Export unified repositories
+pub mod unified_repositories;
+pub mod consolidated;
 
-#[async_trait]
-pub trait Repository<T> {
-    /// Find an entity by its ID
-    async fn find_by_id(&self, id: Uuid) -> Result<T, Error>;
-    
-    /// Find all entities
-    async fn find_all(&self) -> Result<Vec<T>, Error>;
-    
-    /// Create a new entity
-    async fn create(&self, entity: &T) -> Result<Uuid, Error>;
-    
-    /// Update an existing entity
-    async fn update(&self, entity: &T) -> Result<(), Error>;
-    
-    /// Delete an entity by its ID
-    async fn delete(&self, id: Uuid) -> Result<(), Error>;
-}
+// Re-export repository interfaces
+pub use unified_repositories::{Repository, PaginatedRepository, FilteredRepository, SortedRepository, FullRepository};
+pub use unified_repositories::{UserRepository, CourseRepository, GroupRepository, AssignmentRepository, TopicRepository, SubmissionRepository};
 
-// Export forum repository
-pub mod forum;
+// Re-export consolidated repositories
+pub use consolidated::{Repository as ConsolidatedRepository, PaginatedRepository as ConsolidatedPaginatedRepository, FilteredRepository as ConsolidatedFilteredRepository, SortedRepository as ConsolidatedSortedRepository, FullRepository as ConsolidatedFullRepository};
+pub use consolidated::{UserRepository as ConsolidatedUserRepository, SqliteUserRepository};
+pub use consolidated::{RepositoryConfig, RepositoryFactory, RepositoryRegistry, get_repository_registry};
 
-pub mod user_repository;
-pub mod course_repository;
-pub mod topic_repository;
-pub mod post_repository;
-pub mod assignment_repository;
-pub mod submission_repository;
-pub mod integration_repository;
+// Re-export repository implementations
+pub use unified_repositories::{SqliteUserRepository, SqliteCourseRepository, SqliteGroupRepository, SqliteAssignmentRepository, SqliteTopicRepository, SqliteSubmissionRepository};

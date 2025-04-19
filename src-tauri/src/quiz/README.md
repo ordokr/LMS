@@ -1,6 +1,6 @@
-# Quiz Module
+# Ordo Quiz Module
 
-This module provides a comprehensive quiz system ported from Quenti, with enhanced performance optimizations and testing.
+This module provides a comprehensive quiz system with enhanced performance optimizations and testing.
 
 ## Features
 

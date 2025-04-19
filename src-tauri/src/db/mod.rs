@@ -1,5 +1,11 @@
-use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
+use sqlx::{sqlite::{SqlitePoolOptions, SqliteConnectOptions}, Pool, Sqlite, SqlitePool};
 use std::sync::Arc;
+use std::str::FromStr;
+use std::time::Duration;
+use anyhow::{Result, Context};
+
+// Re-export database initialization functions from database module
+pub use crate::database::init::{init_db, optimize_db, init_quiz_db};
 
 // Database modules
 pub mod optimize;
@@ -16,25 +22,20 @@ pub mod tests {
     pub mod redb_transaction_advanced_tests;
 }
 
-// Setup the database pool for the new Ordo application
-// NOTE: This sets up a fresh database for the new application and does NOT migrate data from existing systems
-// This is for the source-to-source ported application's own data storage
+/// Setup the database pool for the new Ordo application
+/// This is a wrapper around the more comprehensive init_db function in database/init.rs
+///
+/// # Arguments
+/// * `db_path` - The path to the SQLite database file
+///
+/// # Returns
+/// A Result containing the SQLite connection pool wrapped in an Arc or an error
 pub async fn setup_database(db_path: &str) -> Result<Arc<SqlitePool>, sqlx::Error> {
-    let db_url = format!("sqlite:{}?mode=rwc&cache=shared", db_path);
-
-    // Create connection pool with optimized settings
-    let pool = SqlitePoolOptions::new()
-        .max_connections(16)
-        .connect(&db_url)
-        .await?;
-
-    // Apply optimizations
-    optimize::optimize_db_connection(&pool).await?;
-
-    // Run migrations if you have them
-    // sqlx::migrate!("./migrations").run(&pool).await?;
-
-    Ok(Arc::new(pool))
+    // Call the more comprehensive init_db function
+    match crate::database::init::init_db(Some(db_path), Some(16)).await {
+        Ok(pool) => Ok(Arc::new(pool)),
+        Err(e) => Err(sqlx::Error::Configuration(Box::new(e)))
+    }
 }
 
 pub struct DB {

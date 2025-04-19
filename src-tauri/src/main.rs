@@ -21,11 +21,13 @@ mod tasks;
 mod monitoring;
 mod search;
 mod metrics;
-mod error;
+mod errors; // Unified error handling system
+mod error; // Legacy error handling (to be deprecated)
 // mod analyzers; // Analyzers have been moved to tools/unified-analyzer
 mod ai;
 mod examples; // Examples for demonstrating features
 mod launchers; // Launchers for external applications
+mod migrations; // Data migration utilities
 
 use axum::{
     routing::{get, post},
@@ -375,6 +377,25 @@ pub fn run() {
             // Initialize database
             let db = db::init_db().expect("Failed to initialize database");
 
+            // Create the unified services
+            let jwt_secret = "your-jwt-secret-key".as_bytes().to_vec(); // In production, load from environment or config
+
+            // Create service configurations
+            let auth_config = services::unified_services::ServiceConfig::new("auth")
+                .with_db_pool(db.clone())
+                .with_parameter("token_expiration", "3600");
+
+            let notification_config = services::unified_services::ServiceConfig::new("notification")
+                .with_db_pool(db.clone());
+
+            // Create services
+            let auth_service = Arc::new(services::unified_services::AuthService::new(auth_config, jwt_secret.clone()));
+            let notification_service = Arc::new(services::unified_services::NotificationService::new(notification_config));
+
+            // Initialize service registry
+            services::unified_services::init_services(vec![auth_service.clone(), notification_service.clone()]).await
+                .expect("Failed to initialize services");
+
             // Create the integration services
             let canvas_service = Arc::new(CanvasIntegrationService::new(db.clone()));
             let discourse_service = Arc::new(DiscourseIntegrationService::new(db.clone()));
@@ -421,14 +442,25 @@ pub fn run() {
                 scorm_package_dir
             ).expect("Failed to create SCORM service")));
 
-            // Make services available to the app
+            // Create repositories
+            let user_repository = repositories::SqliteUserRepository::new(db.clone());
+
+            // Create repository registry
+            let mut registry = repositories::RepositoryRegistry::new();
+            registry.register::<models::unified_models::User, String, repositories::SqliteUserRepository>("user", user_repository)
+                .expect("Failed to register user repository");
+
+            // Make services and repositories available to the app
             app.manage(db);
+            app.manage(auth_service);
+            app.manage(notification_service);
             app.manage(canvas_service);
             app.manage(discourse_service);
             app.manage(sync_service);
             app.manage(batch_sync_service_arc);
             app.manage(cmi5_service.clone());
             app.manage(scorm_service.clone());
+            app.manage(registry);
 
             // Spawn the server within the runtime
             rt.spawn(async {
@@ -683,8 +715,15 @@ pub fn run() {
             commands::scorm_commands::get_scorm_user_sessions,
             commands::scorm_commands::handle_scorm_api_call,
 
-            // Quenti commands
+            // Ordo Quiz commands
+            commands::ordo_quiz_commands::launch_ordo_quiz_app,
+            // Quenti commands (for backward compatibility)
             commands::quenti_commands::launch_quenti_app,
+
+            // Migration commands
+            commands::migration_commands::run_user_migration,
+            commands::migration_commands::run_course_migration,
+            commands::migration_commands::run_group_migration,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -701,7 +740,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     tracing::info!(event = "application_start", version = env!("CARGO_PKG_VERSION"));
 
     // Initialize database connection pool
-    let db_url = "sqlite:educonnect.db?mode=rwc&cache=shared";
+    let db_url = "sqlite:ordo.db?mode=rwc&cache=shared";
     let db_pool = SqlitePoolOptions::new()
         .max_connections(16) // Adjust based on expected load
         .connect(db_url)
@@ -902,7 +941,7 @@ fn main() {
 
     rt.block_on(async {
         // Initialize database
-        let db_path = "educonnect.db";
+        let db_path = "ordo.db";
         let pool = db::setup_database(db_path)
             .await
             .expect("Failed to initialize database");
@@ -996,7 +1035,7 @@ fn main() {
         info!("Starting optimized forum application");
 
         // Initialize database with optimizations
-        let db_path = "educonnect.db";
+        let db_path = "ordo.db";
         let pool = match METRICS.measure_async("db_setup", || db::setup_database(db_path)).await {
             Ok(p) => p,
             Err(e) => {
@@ -1071,7 +1110,7 @@ async fn main() {
     env_logger::init();
 
     // Initialize database
-    let db_path = std::env::var("DATABASE_URL").unwrap_or_else(|_| "educonnect.db".to_string());
+    let db_path = std::env::var("DATABASE_URL").unwrap_or_else(|_| "ordo.db".to_string());
     let pool = match db::setup_database(&db_path).await {
         Ok(p) => Arc::new(p),
         Err(e) => {
@@ -1165,15 +1204,41 @@ async fn main() {
     let app_data_dir = tauri::api::path::app_data_dir(&tauri::Config::default())
         .expect("Failed to get app data directory");
 
-    // Initialize database
-    let db_path = app_data_dir.join("educonnect.db").to_string_lossy().to_string();
-    let pool = match db::setup_database(&db_path).await {
-        Ok(p) => Arc::new(p),
+    // Initialize database with improved initialization function
+    let db_path = app_data_dir.join("ordo.db").to_string_lossy().to_string();
+    let pool = match database::init::init_db(Some(&db_path), Some(16)).await {
+        Ok(p) => p,
         Err(e) => {
             log::error!("Failed to initialize database: {:?}", e);
             std::process::exit(1);
         }
     };
+
+    // Initialize quiz database
+    if let Err(e) = database::init::init_quiz_db(&pool).await {
+        log::warn!("Failed to initialize quiz database: {:?}", e);
+        log::info!("Quiz functionality may be limited");
+    }
+
+    // Create JWT secret
+    let jwt_secret = std::env::var("JWT_SECRET")
+        .unwrap_or_else(|_| "ordo_lms_secret_key".to_string())
+        .into_bytes();
+
+    // Initialize AppState with all repositories and services
+    let app_state = match crate::app_state::AppState::new_initialized(
+        pool.clone(),
+        jwt_secret,
+        app_data_dir.clone()
+    ).await {
+        Ok(state) => Arc::new(state),
+        Err(e) => {
+            log::error!("Failed to initialize application state: {:?}", e);
+            std::process::exit(1);
+        }
+    };
+
+    log::info!("Application state initialized successfully");
 
     // Initialize embedded Meilisearch
     let embedded_meili = match setup_meilisearch(&app_data_dir).await {
@@ -1236,10 +1301,8 @@ async fn main() {
         search_client: search_client.clone(),
     });
 
-    // Create API router
-    let app = Router::new()
-        .nest("/api/forum", forum_router().with_state(forum_state))
-        .nest("/api/search", search_router().with_state(search_state));
+    // Create API router with unified AppState
+    let app = api::api_router().with_state(app_state.clone());
 
     // Start server
     let addr = "127.0.0.1:3000".parse().expect("Invalid server address");

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ordo Quiz - Results</title>
+    <link rel="stylesheet" href="quiz-taking.css">
+    <link rel="stylesheet" href="quiz-results.css">
+</head>
+<body>
+    <div class="quiz-container results-container">
+        <header class="quiz-header">
+            <div class="quiz-title-container">
+                <h1 id="quiz-title">Quiz Title</h1>
+                <p id="quiz-description">Quiz description will appear here.</p>
+            </div>
+        </header>
+
+        <main class="quiz-content">
+            <div class="results-summary">
+                <div class="score-container">
+                    <div class="score-circle">
+                        <div class="score-value" id="score-value">85%</div>
+                    </div>
+                    <div class="score-label">Your Score</div>
+                </div>
+
+                <div class="results-stats">
+                    <div class="stat-item">
+                        <div class="stat-label">Time Taken</div>
+                        <div class="stat-value" id="time-taken">5:23</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Correct Answers</div>
+                        <div class="stat-value" id="correct-answers">17/20</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Passing Score</div>
+                        <div class="stat-value" id="passing-score">70%</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="results-message" id="results-message">
+                <h2>Congratulations!</h2>
+                <p>You've successfully passed the quiz.</p>
+            </div>
+
+            <div class="results-questions">
+                <h3>Question Review</h3>
+                <div class="question-list" id="question-list">
+                    <!-- Question items will be inserted here -->
+                    <div class="question-item">
+                        <div class="question-item-header">
+                            <div class="question-number">1</div>
+                            <div class="question-text">What is the capital of France?</div>
+                            <div class="question-status correct">Correct</div>
+                        </div>
+                        <div class="question-item-details">
+                            <div class="question-answer">Your answer: <span class="answer-text">Paris</span></div>
+                            <div class="question-correct-answer">Correct answer: <span class="answer-text">Paris</span></div>
+                        </div>
+                    </div>
+
+                    <div class="question-item">
+                        <div class="question-item-header">
+                            <div class="question-number">2</div>
+                            <div class="question-text">What is the largest planet in our solar system?</div>
+                            <div class="question-status incorrect">Incorrect</div>
+                        </div>
+                        <div class="question-item-details">
+                            <div class="question-answer">Your answer: <span class="answer-text">Saturn</span></div>
+                            <div class="question-correct-answer">Correct answer: <span class="answer-text">Jupiter</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="quiz-footer">
+            <div class="quiz-navigation">
+                <button class="nav-button" id="review-button" onclick="window.location.href='tauri://toggle-question-details'">Review All Questions</button>
+                <button class="nav-button primary" id="finish-button" onclick="window.location.href='tauri://finish-quiz'">Finish</button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- All functionality is implemented in Rust via Tauri's custom protocol -->
+    <!-- No JavaScript is used in this application -->
+</body>
+</html>

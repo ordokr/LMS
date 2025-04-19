@@ -34,7 +34,7 @@
     ]
   },
   "package": {
-    "productName": "EduConnect Forum",
+    "productName": "Ordo LMS",
     "version": "1.0.0"
   },
   "tauri": {
@@ -75,8 +75,8 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "identifier": "com.educonnect.forum",
-      "longDescription": "A high-performance forum system for education platforms",
+      "identifier": "com.ordo.lms",
+      "longDescription": "A high-performance learning management system with integrated forum",
       "macOS": {
         "entitlements": null,
         "exceptionDomain": "",
@@ -85,7 +85,7 @@
         "signingIdentity": null
       },
       "resources": ["resources"],
-      "shortDescription": "Education forum system",
+      "shortDescription": "Ordo Learning Management System",
       "targets": "all",
       "windows": {
         "certificateThumbprint": null,
@@ -111,7 +111,7 @@
         "fullscreen": false,
         "height": 800,
         "resizable": true,
-        "title": "EduConnect Forum",
+        "title": "Ordo LMS",
         "width": 1200,
         "fileDropEnabled": false
       }
