@@ -18,6 +18,9 @@ use api::webhooks::webhook_routes;
 use api::file_routes::file_routes;
 use api::submission_attachment_routes::submission_attachment_routes;
 use api::forum_attachment_routes::forum_attachment_routes;
+use api::sync_api::sync_api_routes;
+use api::config_api::config_api_routes;
+use api::error_api::error_api_routes;
 use jobs::sync_scheduler::init_sync_scheduler;
 use middleware::tracing::correlation_id_middleware;
 use monitoring::api_health_check::ApiHealthCheck;
@@ -167,6 +170,9 @@ async fn main() {
         .merge(file_routes())
         .merge(submission_attachment_routes())
         .merge(forum_attachment_routes())
+        .merge(sync_api_routes(Arc::new(app_state.clone())))
+        .merge(config_api_routes(Arc::new(app_state.clone())))
+        .merge(error_api_routes(Arc::new(app_state.clone())))
         .merge(auth_routes::auth_routes()) // Mount authentication routes
         // Apply middleware
         .layer(middleware::from_fn(correlation_id_middleware))

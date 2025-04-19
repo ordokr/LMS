@@ -24,16 +24,15 @@
 | created_at | datetime |
 | updated_at | datetime |
 
-#### submissions
+#### courses
 
 | Column | Type |
 |--------|------|
 | id | integer |
-| assignment_id | integer |
-| user_id | integer |
-| grade | string |
-| score | float |
-| submitted_at | datetime |
+| name | string |
+| account_id | integer |
+| root_account_id | integer |
+| enrollment_term_id | integer |
 | created_at | datetime |
 | updated_at | datetime |
 
@@ -48,28 +47,30 @@
 | created_at | datetime |
 | updated_at | datetime |
 
-#### courses
+#### submissions
 
 | Column | Type |
 |--------|------|
 | id | integer |
-| name | string |
-| account_id | integer |
-| root_account_id | integer |
-| enrollment_term_id | integer |
+| assignment_id | integer |
+| user_id | integer |
+| grade | string |
+| score | float |
+| submitted_at | datetime |
 | created_at | datetime |
 | updated_at | datetime |
 
 ### Discourse Tables
 
-#### users
+#### posts
 
 | Column | Type |
 |--------|------|
 | id | integer |
-| username | string |
-| name | string |
-| email | string |
+| topic_id | integer |
+| user_id | integer |
+| raw | text |
+| cooked | text |
 | created_at | datetime |
 | updated_at | datetime |
 
@@ -82,6 +83,17 @@
 | created_at | datetime |
 | updated_at | datetime |
 
+#### users
+
+| Column | Type |
+|--------|------|
+| id | integer |
+| username | string |
+| name | string |
+| email | string |
+| created_at | datetime |
+| updated_at | datetime |
+
 #### topics
 
 | Column | Type |
@@ -90,18 +102,6 @@
 | title | string |
 | user_id | integer |
 | category_id | integer |
-| created_at | datetime |
-| updated_at | datetime |
-
-#### posts
-
-| Column | Type |
-|--------|------|
-| id | integer |
-| topic_id | integer |
-| user_id | integer |
-| raw | text |
-| cooked | text |
 | created_at | datetime |
 | updated_at | datetime |
 

@@ -16,7 +16,9 @@ pub mod tests {
     pub mod redb_transaction_advanced_tests;
 }
 
-// Setup the database pool
+// Setup the database pool for the new Ordo application
+// NOTE: This sets up a fresh database for the new application and does NOT migrate data from existing systems
+// This is for the source-to-source ported application's own data storage
 pub async fn setup_database(db_path: &str) -> Result<Arc<SqlitePool>, sqlx::Error> {
     let db_url = format!("sqlite:{}?mode=rwc&cache=shared", db_path);
 
@@ -54,7 +56,9 @@ impl DB {
             .connect(database_url)
             .await?;
 
-        // Run migrations
+        // Run schema migrations to set up the new database structure
+        // These migrations create tables for the new application based on source code analysis
+        // They do NOT import or migrate data from existing Canvas or Discourse deployments
         sqlx::migrate!("./migrations")
             .run(&pool)
             .await?;

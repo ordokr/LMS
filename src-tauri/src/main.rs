@@ -25,6 +25,7 @@ mod error;
 // mod analyzers; // Analyzers have been moved to tools/unified-analyzer
 mod ai;
 mod examples; // Examples for demonstrating features
+mod launchers; // Launchers for external applications
 
 use axum::{
     routing::{get, post},
@@ -174,6 +175,8 @@ struct AppState {
 pub struct AppState {
     db_pool: sqlx::SqlitePool,
     jwt_secret: Vec<u8>,
+    cmi5_service: Arc<quiz::cmi5::Cmi5Service>,
+    scorm_service: Arc<Mutex<quiz::scorm::ScormService>>,
 }
 
 // --- Query Parameter Structs ---
@@ -398,12 +401,34 @@ pub fn run() {
                 }
             });
 
+            // Initialize cmi5 service (primary standard)
+            let launch_service = Arc::new(quiz::cmi5::LaunchService::new(
+                "https://example.com/lrs",
+                "https://example.com/lrs/auth"
+            ));
+
+            let cmi5_service = Arc::new(quiz::cmi5::Cmi5Service::new(
+                "https://example.com/lrs",
+                Some("test:test"),
+                launch_service
+            ).expect("Failed to create cmi5 service"));
+
+            // Initialize SCORM service (backup standard)
+            let scorm_package_dir = app_dir.join("scorm_packages");
+            std::fs::create_dir_all(&scorm_package_dir).expect("Failed to create SCORM package directory");
+
+            let scorm_service = Arc::new(Mutex::new(quiz::scorm::ScormService::new(
+                scorm_package_dir
+            ).expect("Failed to create SCORM service")));
+
             // Make services available to the app
             app.manage(db);
             app.manage(canvas_service);
             app.manage(discourse_service);
             app.manage(sync_service);
             app.manage(batch_sync_service_arc);
+            app.manage(cmi5_service.clone());
+            app.manage(scorm_service.clone());
 
             // Spawn the server within the runtime
             rt.spawn(async {
@@ -641,6 +666,25 @@ pub fn run() {
             quiz::adaptive_learning_commands::move_to_next_learning_path_node,
             quiz::adaptive_learning_commands::get_learning_path_recommendations,
             quiz::adaptive_learning_commands::generate_learning_path_recommendations,
+
+            // cmi5 commands (primary standard)
+            commands::cmi5_commands::import_cmi5_course,
+            commands::cmi5_commands::get_cmi5_courses,
+            commands::cmi5_commands::launch_cmi5_assignable_unit,
+            commands::cmi5_commands::get_cmi5_user_sessions,
+            commands::cmi5_commands::complete_cmi5_session,
+            commands::cmi5_commands::abandon_cmi5_session,
+            commands::cmi5_commands::waive_cmi5_session,
+
+            // SCORM commands (backup standard)
+            commands::scorm_commands::import_scorm_package,
+            commands::scorm_commands::get_scorm_packages,
+            commands::scorm_commands::launch_scorm_package,
+            commands::scorm_commands::get_scorm_user_sessions,
+            commands::scorm_commands::handle_scorm_api_call,
+
+            // Quenti commands
+            commands::quenti_commands::launch_quenti_app,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

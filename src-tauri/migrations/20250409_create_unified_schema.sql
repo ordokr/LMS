@@ -1,6 +1,8 @@
--- Create tables for unified models
+-- IMPORTANT: This schema is for the new Ordo application and is NOT used for migrating data from existing systems.
+-- This file defines the database schema for the new application based on source code analysis of Canvas and Discourse.
+-- No data is imported or migrated from existing deployments - this is a clean, new database for the ported application.
 
--- Users table
+-- Users table - This is a new table for the Ordo application, not for importing existing users
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -80,7 +82,8 @@ CREATE TABLE IF NOT EXISTS notifications (
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
--- Sync status table
+-- Sync status table - For tracking Ordo's internal offline-first synchronization
+-- This is NOT for syncing with external Canvas or Discourse systems, but for Ordo's own offline capabilities
 CREATE TABLE IF NOT EXISTS sync_status (
     id TEXT PRIMARY KEY,
     entity_type TEXT NOT NULL,

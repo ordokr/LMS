@@ -57,6 +57,7 @@ Learning Management
 📊 Student progress tracking
 🗂️ Content organization with modules and sections
 📅 Course scheduling and deadlines
+📋 Comprehensive quiz module with multiple question types
 Discussion Forums
 💬 Course-integrated discussion boards
 🏷️ Topic categorization and tagging
@@ -81,8 +82,27 @@ Ordo is currently in early development phase:
 🚧 Model migration (50% complete)
 ⏳ Controller migration (10% complete)
 ⏳ View migration (5% complete)
+✅ Ordo Quiz module (75% complete)
 🧪 Test coverage (6%)
 See the generated project_status.md for detailed implementation metrics.
+
+## Ordo Quiz Module
+
+The Ordo Quiz module provides comprehensive quiz functionality with support for multiple question types, quiz attempts tracking, and CMI5 integration. It can be run both as part of the main application and as a standalone module.
+
+### Key Features
+
+- Multiple question types (multiple choice, true/false, short answer, matching, essay)
+- Quiz attempts tracking and scoring
+- Rich content support for questions and answers
+- CMI5 integration for learning record tracking
+- Offline-first with sync capabilities
+
+### Documentation
+
+- [Ordo Quiz Module Overview](docs/ORDO-QUIZ-MODULE.md)
+- [Technical Reference](docs/ORDO-QUIZ-TECHNICAL-REFERENCE.md)
+- [Quick Start Guide](docs/ORDO-QUIZ-QUICKSTART.md)
 
 🚀 Getting Started
 Prerequisites

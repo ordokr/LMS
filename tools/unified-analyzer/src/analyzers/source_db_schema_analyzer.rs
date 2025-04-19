@@ -33,12 +33,17 @@ pub struct ForeignKey {
     pub references_column: String,
 }
 
-/// Analyzer for extracting database schema from source code (not from built databases)
+/// Analyzer for extracting database schema from source code files (not from built databases)
+///
+/// IMPORTANT: This analyzer performs static analysis of source code files only.
+/// It does NOT connect to any database, import any data, or perform any data migration.
+/// The purpose is to understand the schema structure from the original source code
+/// to inform the design of the new application's schema.
 pub struct SourceDbSchemaAnalyzer {
     canvas_path: PathBuf,
     discourse_path: PathBuf,
     tables: HashMap<String, DbTable>,
-    source_code_only: bool,
+    source_code_only: bool, // Always true - this analyzer only works with source code
 }
 
 impl SourceDbSchemaAnalyzer {
@@ -52,11 +57,19 @@ impl SourceDbSchemaAnalyzer {
     }
 
     /// Analyze the source code to extract database schema (no database connection required)
+    ///
+    /// This method performs static analysis of Ruby source files to extract schema information.
+    /// It does NOT connect to any database, import any data, or perform any data migration.
+    /// The extracted schema is used only to inform the design of the new application's schema.
+    ///
+    /// This is part of the source-to-source migration process, not a data migration process.
     pub fn analyze(&mut self) -> Result<()> {
-        println!("Analyzing Canvas source code for database schema (no database connection required)...");
+        println!("Analyzing Canvas source code for database schema through static source code analysis...");
+        println!("NOTE: This does NOT connect to any database or perform data migration.");
         self.analyze_canvas()?;
 
-        println!("Analyzing Discourse source code for database schema (no database connection required)...");
+        println!("Analyzing Discourse source code for database schema through static source code analysis...");
+        println!("NOTE: This does NOT connect to any database or perform data migration.");
         self.analyze_discourse()?;
 
         Ok(())

@@ -2,6 +2,7 @@ use serde::{Serialize, Deserialize};
 use uuid::Uuid;
 use std::collections::HashMap;
 use chrono::{DateTime, Utc};
+use crate::models::quiz_question_types::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Quiz {
@@ -36,6 +37,11 @@ pub struct QuestionContent {
     pub audio_url: Option<String>,
     pub drag_drop_content: Option<DragDropContent>,
     pub hotspot_content: Option<HotspotContent>,
+    pub drawing_content: Option<DrawingContent>,
+    pub code_execution_content: Option<CodeExecutionContent>,
+    pub math_equation_content: Option<MathEquationContent>,
+    pub timeline_content: Option<TimelineContent>,
+    pub diagram_labeling_content: Option<DiagramLabelingContent>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,6 +61,11 @@ pub enum Answer {
     DragDrop(HashMap<String, String>),
     Hotspot(Vec<String>),
     Ordering(Vec<Uuid>),
+    Drawing(String),
+    CodeExecution(CodeExecutionAnswer),
+    MathEquation(String),
+    Timeline(Vec<TimelineEvent>),
+    DiagramLabeling(HashMap<String, String>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -67,6 +78,11 @@ pub enum AnswerType {
     Ordering,
     DragDrop,
     Hotspot,
+    Drawing,
+    CodeExecution,
+    MathEquation,
+    Timeline,
+    DiagramLabeling,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -207,7 +223,7 @@ impl Quiz {
             },
         }
     }
-    
+
     pub fn add_question(&mut self, question: Question) {
         self.questions.push(question);
         self.updated_at = Some(Utc::now());
@@ -226,7 +242,7 @@ impl Question {
             explanation: None,
         }
     }
-    
+
     pub fn add_choice(&mut self, text: String) -> Uuid {
         let choice = Choice {
             id: Uuid::new_v4(),
@@ -234,13 +250,13 @@ impl Question {
             rich_text: None,
             image_url: None,
         };
-        
+
         let choice_id = choice.id;
         self.choices.push(choice);
-        
+
         choice_id
     }
-    
+
     pub fn set_correct_answer(&mut self, answer: Answer) {
         self.correct_answer = answer;
     }

@@ -15,6 +15,7 @@ use crate::utils::file_system::FileSystemUtils;
 // use crate::analyzers::modules::js_migration_analyzer::JsMigrationAnalyzer;
 // use crate::analyzers::modules::tech_debt_analyzer::TechDebtAnalyzer;
 use crate::analyzers::modules::enhanced_tech_debt_analyzer::EnhancedTechDebtAnalyzer;
+use crate::analyzers::modules::redundancy_analyzer::RedundancyAnalyzer;
 use crate::analyzers::modules::db_schema_fix;
 // use crate::analyzers::modules::trend_analyzer::TrendAnalyzer;
 // use crate::analyzers::modules::unified_project_analyzer::UnifiedProjectAnalyzer as ExternalProjectAnalyzer;
@@ -320,6 +321,7 @@ impl UnifiedProjectAnalyzer {
         self.analyze_components().await?;
         self.analyze_dependencies().await?;
         self.analyze_code_quality().await?;
+        self.analyze_redundancies().await?;
         self.analyze_tests().await?;
         self.analyze_integration().await?;
         self.analyze_architecture().await?;
@@ -616,6 +618,51 @@ impl UnifiedProjectAnalyzer {
                 eprintln!("Error loading tech debt analyzer configuration: {}", e);
             }
         }
+    }
+
+    // Analyze redundancies
+    pub async fn analyze_redundancies(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        println!("Analyzing code redundancies...");
+
+        // Create a new redundancy analyzer
+        let mut redundancy_analyzer = crate::analyzers::modules::redundancy_analyzer::RedundancyAnalyzer::new(self.base_dir.clone());
+
+        // Load configuration if it exists
+        let config_path = self.base_dir.join("tools").join("unified-analyzer").join("redundancy_analyzer_config.toml");
+        if config_path.exists() {
+            println!("Loading redundancy analyzer configuration from {}", config_path.display());
+            if let Err(e) = redundancy_analyzer.load_config(&config_path) {
+                eprintln!("Error loading redundancy analyzer configuration: {}", e);
+            }
+        }
+
+        // Run the analysis
+        match redundancy_analyzer.analyze() {
+            Ok(redundancy_result) => {
+                println!("Found {} redundancy groups with {} redundant files",
+                    redundancy_result.redundancy_groups.len(),
+                    redundancy_result.total_redundant_files);
+
+                // Save the results to a file
+                let output_path = self.base_dir.join("docs").join("unified-analyzer").join("redundancy_analysis.md");
+                if let Err(e) = redundancy_analyzer.save_results(&output_path) {
+                    eprintln!("Error saving redundancy analysis results: {}", e);
+                }
+
+                // Update the analysis result
+                let mut result = self.result.lock().await;
+                result.code_quality.redundancy_groups = redundancy_result.redundancy_groups.len();
+                result.code_quality.redundant_files = redundancy_result.total_redundant_files;
+                result.code_quality.redundant_lines = redundancy_result.total_redundant_lines;
+                result.code_quality.estimated_reduction_percentage = redundancy_result.estimated_reduction_percentage;
+            },
+            Err(e) => {
+                eprintln!("Error analyzing redundancies: {}", e);
+            }
+        }
+
+        Ok(())
+    }
 
         println!("Using incremental analysis for tech debt detection");
 

@@ -35,13 +35,24 @@ pub mod adaptive_learning_progress;
 // Performance optimization modules
 pub mod query_optimizer;
 pub mod asset_cache;
+pub mod sync_manager;
+pub mod lti;
+pub mod scorm;
+pub mod xapi;
 pub mod adaptive_learning_methods;
 
 #[cfg(test)]
 mod tests;
 
 use std::sync::Arc;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, Mutex};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::io::Seek;
+
+// External system integration modules
+pub mod cmi5;  // Primary standard for LMS integration
+pub mod scorm; // Backup standard for compatibility
 use serde::{Serialize, Deserialize};
 use std::path::Path;
 use std::collections::HashMap;
@@ -65,6 +76,10 @@ use ai_generation_providers::{MockAIModelProvider, OpenAIModelProvider, Anthropi
 use adaptive_learning::{AdaptiveLearningService, AdaptiveLearningPath, LearningPathNode, LearningPathEdge, LearningPathNodeType, EdgeConditionType, UserLearningPathProgress, LearningPathRecommendation};
 use query_optimizer::{QuizQueryOptimizer, QuizFilters};
 use asset_cache::{AssetCache, AssetCacheConfig, AssetMetadata, AssetType};
+use sync_manager::{SyncManager, SyncManagerConfig, SyncPriority, ConflictStrategy, SyncNotification};
+use lti::{LtiService, LtiPlatformConfig, LtiVersion, LtiLaunchRequest, LtiRole};
+use scorm::{ScormService, ScormPackageMetadata, ScormSession, ScormActivityState};
+use xapi::{XApiClient, XApiClientConfig, XApiStatement, XApiStatementBuilder};
 
 #[derive(Clone)]
 pub struct QuizEngine {
@@ -85,6 +100,12 @@ pub struct QuizEngine {
     // Performance optimization components
     query_optimizer: Arc<QuizQueryOptimizer>,
     asset_cache: Arc<AssetCache>,
+    sync_manager: Arc<SyncManager>,
+
+    // External system integration components
+    lti_service: Arc<Mutex<LtiService>>,
+    scorm_service: Arc<ScormService>,
+    xapi_client: Option<Arc<XApiClient>>,
 }
 
 impl QuizEngine {
@@ -245,6 +266,86 @@ impl QuizEngine {
             }
         };
 
+        // Create the sync manager
+        let (notification_tx, mut notification_rx) = mpsc::channel(100);
+
+        let sync_config = SyncManagerConfig {
+            sync_interval: 60, // 1 minute
+            max_retries: 5,
+            initial_retry_delay: 5, // 5 seconds
+            max_retry_delay: 3600, // 1 hour
+            default_conflict_strategy: ConflictStrategy::Merge,
+            auto_sync: true,
+            show_notifications: true,
+            batch_size: 10,
+        };
+
+        let sync_manager = Arc::new(SyncManager::new(
+            store.clone(),
+            sync_config,
+            notification_tx,
+        ));
+
+        // Start the sync manager
+        sync_manager.start().await?;
+
+        // Forward sync notifications to the notification service
+        if let Some(notification_service) = &notification_service {
+            let notification_service_clone = notification_service.clone();
+            tokio::spawn(async move {
+                while let Some(sync_notification) = notification_rx.recv().await {
+                    let _ = notification_service_clone.send_notification(
+                        "Sync".to_string(),
+                        sync_notification.title,
+                        sync_notification.message,
+                        None,
+                    ).await;
+                }
+            });
+        }
+
+        // Initialize LTI service
+        let lti_service = Arc::new(Mutex::new(LtiService::new()));
+
+        // Initialize SCORM service
+        let scorm_package_dir = config.data_dir.join("scorm/packages");
+        let scorm_service = match ScormService::new(scorm_package_dir) {
+            Ok(service) => Arc::new(service),
+            Err(e) => {
+                eprintln!("Failed to initialize SCORM service: {}", e);
+                return Err(Box::new(e));
+            }
+        };
+
+        // Initialize xAPI client if configured
+        let xapi_client = if let Some(xapi_config) = config.get_table("xapi").ok() {
+            if let (Some(endpoint), Some(username), Some(password)) = (
+                xapi_config.get("endpoint").and_then(|v| v.as_str()),
+                xapi_config.get("username").and_then(|v| v.as_str()),
+                xapi_config.get("password").and_then(|v| v.as_str()),
+            ) {
+                match XApiClient::new(XApiClientConfig {
+                    endpoint: endpoint.to_string(),
+                    username: username.to_string(),
+                    password: password.to_string(),
+                    version: xapi_config.get("version")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("1.0.3")
+                        .to_string(),
+                }) {
+                    Ok(client) => Some(Arc::new(client)),
+                    Err(e) => {
+                        eprintln!("Failed to initialize xAPI client: {}", e);
+                        None
+                    }
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         // Start a background task to periodically clear expired cache entries
         let query_optimizer_clone = query_optimizer.clone();
         let asset_cache_clone = asset_cache.clone();
@@ -281,6 +382,10 @@ impl QuizEngine {
             adaptive_learning_service,
             query_optimizer,
             asset_cache,
+            sync_manager,
+            lti_service,
+            scorm_service,
+            xapi_client,
         })
     }
 
@@ -864,5 +969,219 @@ impl QuizEngine {
     pub async fn get_asset_cache_stats(&self) -> Result<asset_cache::AssetCacheStats, Box<dyn std::error::Error + Send + Sync>> {
         self.asset_cache.get_stats().await
             .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+    }
+
+    // Sync manager methods
+
+    /// Get the current sync status
+    pub async fn get_sync_status(&self) -> crate::models::network::SyncStatus {
+        self.sync_manager.get_sync_status().await
+    }
+
+    /// Get the current connection status
+    pub async fn get_connection_status(&self) -> crate::models::network::ConnectionStatus {
+        self.sync_manager.get_connection_status().await
+    }
+
+    /// Set the connection status
+    pub async fn set_connection_status(&self, status: crate::models::network::ConnectionStatus) {
+        self.sync_manager.set_connection_status(status).await;
+    }
+
+    /// Trigger an immediate sync
+    pub async fn sync_now(&self) {
+        self.sync_manager.sync_now().await;
+    }
+
+    /// Get the number of pending sync items
+    pub async fn get_pending_sync_count(&self) -> usize {
+        self.sync_manager.get_pending_count().await
+    }
+
+    /// Get all pending sync items
+    pub async fn get_pending_sync_items(&self) -> Vec<crate::models::network::SyncItem> {
+        self.sync_manager.get_pending_items().await
+    }
+
+    /// Clear all pending sync items
+    pub async fn clear_pending_sync_items(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        self.sync_manager.clear_pending_items().await
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+    }
+
+    /// Queue a quiz for sync
+    pub async fn queue_quiz_sync(&self, quiz: &models::Quiz, operation: crate::models::network::SyncOperation, priority: SyncPriority) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let payload = serde_json::to_value(quiz)?;
+        self.sync_manager.queue_sync_item(
+            "quiz",
+            &quiz.id.to_string(),
+            operation,
+            payload,
+            priority,
+        ).await
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+    }
+
+    /// Queue a question for sync
+    pub async fn queue_question_sync(&self, question: &models::Question, operation: crate::models::network::SyncOperation, priority: SyncPriority) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let payload = serde_json::to_value(question)?;
+        self.sync_manager.queue_sync_item(
+            "question",
+            &question.id.to_string(),
+            operation,
+            payload,
+            priority,
+        ).await
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+    }
+
+    // LTI integration methods
+
+    /// Add an LTI platform configuration
+    pub async fn add_lti_platform(&self, config: LtiPlatformConfig) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let mut lti_service = self.lti_service.lock().await;
+        lti_service.add_platform(config);
+        Ok(())
+    }
+
+    /// Get an LTI platform configuration
+    pub async fn get_lti_platform(&self, id: &Uuid) -> Result<Option<LtiPlatformConfig>, Box<dyn std::error::Error + Send + Sync>> {
+        let lti_service = self.lti_service.lock().await;
+        Ok(lti_service.get_platform(id).cloned())
+    }
+
+    /// Remove an LTI platform configuration
+    pub async fn remove_lti_platform(&self, id: &Uuid) -> Result<Option<LtiPlatformConfig>, Box<dyn std::error::Error + Send + Sync>> {
+        let mut lti_service = self.lti_service.lock().await;
+        Ok(lti_service.remove_platform(id))
+    }
+
+    /// Validate an LTI launch request
+    pub async fn validate_lti_launch_request(&self, platform_id: &Uuid, params: &HashMap<String, String>) -> Result<LtiLaunchRequest, Box<dyn std::error::Error + Send + Sync>> {
+        let lti_service = self.lti_service.lock().await;
+        lti_service.validate_launch_request(platform_id, params)
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+    }
+
+    // SCORM integration methods
+
+    /// Import a SCORM package
+    pub async fn import_scorm_package(&self, package_path: &Path) -> Result<Uuid, Box<dyn std::error::Error + Send + Sync>> {
+        let mut scorm_service = self.scorm_service.clone();
+        scorm_service.import_package(package_path)
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+    }
+
+    /// Get a SCORM package by ID
+    pub async fn get_scorm_package(&self, id: &Uuid) -> Result<Option<ScormPackageMetadata>, Box<dyn std::error::Error + Send + Sync>> {
+        Ok(self.scorm_service.get_package(id).cloned())
+    }
+
+    /// Get all SCORM packages
+    pub async fn get_scorm_packages(&self) -> Result<Vec<ScormPackageMetadata>, Box<dyn std::error::Error + Send + Sync>> {
+        Ok(self.scorm_service.get_packages().into_iter().cloned().collect())
+    }
+
+    /// Delete a SCORM package
+    pub async fn delete_scorm_package(&self, id: &Uuid) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let mut scorm_service = self.scorm_service.clone();
+        scorm_service.delete_package(id)
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+    }
+
+    /// Create a new SCORM session
+    pub async fn create_scorm_session(&self, package_id: &Uuid, user_id: &Uuid) -> Result<Uuid, Box<dyn std::error::Error + Send + Sync>> {
+        let mut scorm_service = self.scorm_service.clone();
+        scorm_service.create_session(package_id, user_id)
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+    }
+
+    /// Get a SCORM session by ID
+    pub async fn get_scorm_session(&self, id: &Uuid) -> Result<Option<ScormSession>, Box<dyn std::error::Error + Send + Sync>> {
+        Ok(self.scorm_service.get_session(id).cloned())
+    }
+
+    /// Update a SCORM session
+    pub async fn update_scorm_session(&self, session: ScormSession) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let mut scorm_service = self.scorm_service.clone();
+        scorm_service.update_session(session)
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+    }
+
+    /// Get the launch URL for a SCORM package
+    pub async fn get_scorm_launch_url(&self, package_id: &Uuid) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        self.scorm_service.get_launch_url(package_id)
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+    }
+
+    // xAPI integration methods
+
+    /// Send an xAPI statement
+    pub async fn send_xapi_statement(&self, statement: &XApiStatement) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        if let Some(client) = &self.xapi_client {
+            client.send_statement(statement).await
+                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+        } else {
+            Err(Box::new(std::io::Error::new(std::io::ErrorKind::NotFound, "xAPI client not configured")) as Box<dyn std::error::Error + Send + Sync>)
+        }
+    }
+
+    /// Get an xAPI statement by ID
+    pub async fn get_xapi_statement(&self, statement_id: &str) -> Result<XApiStatement, Box<dyn std::error::Error + Send + Sync>> {
+        if let Some(client) = &self.xapi_client {
+            client.get_statement(statement_id).await
+                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+        } else {
+            Err(Box::new(std::io::Error::new(std::io::ErrorKind::NotFound, "xAPI client not configured")) as Box<dyn std::error::Error + Send + Sync>)
+        }
+    }
+
+    /// Query xAPI statements
+    pub async fn query_xapi_statements(&self, params: &HashMap<String, String>) -> Result<Vec<XApiStatement>, Box<dyn std::error::Error + Send + Sync>> {
+        if let Some(client) = &self.xapi_client {
+            client.query_statements(params).await
+                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+        } else {
+            Err(Box::new(std::io::Error::new(std::io::ErrorKind::NotFound, "xAPI client not configured")) as Box<dyn std::error::Error + Send + Sync>)
+        }
+    }
+
+    /// Track a quiz start event with xAPI
+    pub async fn track_quiz_started(&self, user_id: &str, user_name: &str, user_email: &str, quiz_id: &str, quiz_name: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        if let Some(client) = &self.xapi_client {
+            let statement = xapi::create_quiz_started_statement(user_id, user_name, user_email, quiz_id, quiz_name);
+            client.send_statement(&statement).await
+                .map(|_| ())
+                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+        } else {
+            // If xAPI is not configured, just return success
+            Ok(())
+        }
+    }
+
+    /// Track a quiz completion event with xAPI
+    pub async fn track_quiz_completed(&self, user_id: &str, user_name: &str, user_email: &str, quiz_id: &str, quiz_name: &str, score: f32, max_score: f32, success: bool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        if let Some(client) = &self.xapi_client {
+            let statement = xapi::create_quiz_completed_statement(user_id, user_name, user_email, quiz_id, quiz_name, score, max_score, success);
+            client.send_statement(&statement).await
+                .map(|_| ())
+                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+        } else {
+            // If xAPI is not configured, just return success
+            Ok(())
+        }
+    }
+
+    /// Track a question answered event with xAPI
+    pub async fn track_question_answered(&self, user_id: &str, user_name: &str, user_email: &str, quiz_id: &str, quiz_name: &str, question_id: &str, question_text: &str, response: &str, success: bool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        if let Some(client) = &self.xapi_client {
+            let statement = xapi::create_question_answered_statement(user_id, user_name, user_email, quiz_id, quiz_name, question_id, question_text, response, success);
+            client.send_statement(&statement).await
+                .map(|_| ())
+                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+        } else {
+            // If xAPI is not configured, just return success
+            Ok(())
+        }
     }
 }

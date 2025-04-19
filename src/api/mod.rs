@@ -1,4 +1,3 @@
-```rust
 // src/api/mod.rs
 
 pub mod auth;
@@ -15,6 +14,34 @@ pub mod discussion_migration;
 pub mod post_migration;
 pub mod sync;
 pub mod sync_status;
+pub mod base_client;
+pub mod canvas_client;
+pub mod discourse_client;
+pub mod discourse_models;
+pub mod sync_api;
+pub mod config_api;
+pub mod error_api;
+
+// Re-export the API clients
+pub use canvas_client::{CanvasApiClient, CanvasApi};
+pub use discourse_client::{DiscourseApiClient, DiscourseApi};
+pub use base_client::{ApiClient, ApiClientConfig};
+pub use sync_api::sync_api_routes;
+pub use config_api::config_api_routes;
+pub use error_api::error_api_routes;
+
+// Re-export the models
+pub use canvas_client::{
+    CanvasUser, CanvasCourse, CanvasDiscussion, CanvasDiscussionEntry,
+    CanvasEnrollment, CanvasGrades, CanvasCalendar, CanvasTerm, CanvasCourseProgress,
+    CanvasLockInfo, CanvasContextModule, CanvasGroupTopicChild, CanvasAttachment
+};
+pub use discourse_models::{
+    DiscourseUser, DiscourseGroup, DiscourseGroupUser, DiscourseUserOption,
+    DiscourseCategory, DiscourseRequiredTagGroup, DiscourseTopic, DiscoursePoster,
+    DiscourseParticipant, DiscourseTopicDetails, DiscoursePost, DiscourseActionSummary,
+    DiscourseTag, DiscourseTagGroup
+};
 
 use axum::Router;
 use std::sync::Arc;
@@ -37,4 +64,3 @@ pub fn api_router(state: Arc<AppState>) -> Router {
         .nest("/api", sync::sync_routes(state.clone()))
         .nest("/api", sync_status::sync_status_routes(state.clone()))
 }
-```

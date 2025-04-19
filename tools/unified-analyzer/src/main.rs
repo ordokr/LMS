@@ -72,100 +72,144 @@ async fn main() -> Result<()> {
     // Parse arguments
     let mut i = 1;
     while i < args.len() {
-        match args[i].as_str() {
-            "full" => command = "full",
-            "quick" => command = "quick",
-            "update-hub" => command = "update-hub",
-            "summary" => command = "summary",
-            "update-rag" => command = "update-rag",
-            "add-activity" => command = "add-activity",
-            "roadmap" => command = "roadmap",
-            "component-tree" => command = "component-tree",
-            "api-map" => command = "api-map",
-            "db-schema" => command = "db-schema",
-            "viz" => command = "viz",
-            "integration-advisor" => command = "integration-advisor",
-            "entity-mapping" => command = "entity-mapping",
-            "feature-detection" => command = "feature-detection",
-            "code-quality" => command = "code-quality",
-            "conflict-detection" => command = "conflict-detection",
-            "integration-tracking" => command = "integration-tracking",
-            "recommendations" => command = "recommendations",
-            "--path" => {
-                if i + 1 < args.len() {
-                    path = Some(PathBuf::from(&args[i + 1]));
-                    i += 1;
-                }
-            },
-            "--parallel" => {
-                config.performance.parallel_processing = true;
-            },
-            "--cache" => {
-                config.performance.enable_caching = true;
-            },
-            "--no-cache" => {
-                config.performance.enable_caching = false;
-            },
-            "--incremental" => {
-                config.performance.incremental_analysis = true;
-            },
-            "--memory" => {
-                if i + 1 < args.len() {
-                    if let Ok(memory) = args[i + 1].parse::<usize>() {
-                        config.performance.max_memory_mb = memory;
-                    }
-                    i += 1;
-                }
-            },
-            "--timeout" => {
-                if i + 1 < args.len() {
-                    if let Ok(timeout) = args[i + 1].parse::<u64>() {
-                        config.performance.timeout_seconds = timeout;
-                    }
-                    i += 1;
-                }
-            },
-            "--canvas_path" => {
-                if i + 1 < args.len() {
-                    config.set_path("canvas_path", args[i + 1].clone());
-                    i += 1;
-                }
-            },
-            "--discourse_path" => {
-                if i + 1 < args.len() {
-                    config.set_path("discourse_path", args[i + 1].clone());
-                    i += 1;
-                }
-            },
-            "--lms_path" => {
-                if i + 1 < args.len() {
-                    config.set_path("lms_path", args[i + 1].clone());
-                    i += 1;
-                }
-            },
-            "--moodle_path" => {
-                if i + 1 < args.len() {
-                    config.set_path("moodle_path", args[i + 1].clone());
-                    i += 1;
-                }
-            },
-            "--wordpress_path" => {
-                if i + 1 < args.len() {
-                    config.set_path("wordpress_path", args[i + 1].clone());
-                    i += 1;
-                }
-            },
-            _ => {
-                if args[i].starts_with("--path=") {
-                    let parts: Vec<&str> = args[i].splitn(2, '=').collect();
-                    if parts.len() == 2 {
-                        path = Some(PathBuf::from(parts[1]));
-                    }
-                } else {
-                    path = Some(PathBuf::from(&args[i]));
+        let arg = args[i].as_str();
+
+        // Check if this is a command
+        if !arg.starts_with("-") {
+            match arg {
+                "full" => command = "full",
+                "quick" => command = "quick",
+                "update-hub" => command = "update-hub",
+                "summary" => command = "summary",
+                "update-rag" => command = "update-rag",
+                "add-activity" => command = "add-activity",
+                "roadmap" => command = "roadmap",
+                "component-tree" => command = "component-tree",
+                "api-map" => command = "api-map",
+                "db-schema" => command = "db-schema",
+                "viz" => command = "viz",
+                "integration-advisor" => command = "integration-advisor",
+                "entity-mapping" => command = "entity-mapping",
+                "feature-detection" => command = "feature-detection",
+                "code-quality" => command = "code-quality",
+                "conflict-detection" => command = "conflict-detection",
+                "integration-tracking" => command = "integration-tracking",
+                "recommendations" => command = "recommendations",
+                "redundancy" => command = "redundancy",
+                _ => {
+                    println!("Warning: Unknown command '{}', treating as path", arg);
+                    path = Some(PathBuf::from(arg));
                 }
             }
         }
+        // Check if this is an option
+        else if arg.starts_with("--") {
+            match arg {
+                "--full" => command = "full",
+                "--quick" => command = "quick",
+                "--path" => {
+                    if i + 1 < args.len() {
+                        path = Some(PathBuf::from(&args[i + 1]));
+                        i += 1;
+                    }
+                },
+                "--parallel" => {
+                    config.performance.parallel_processing = true;
+                },
+                "--cache" => {
+                    config.performance.enable_caching = true;
+                },
+                "--no-cache" => {
+                    config.performance.enable_caching = false;
+                },
+                "--incremental" => {
+                    config.performance.incremental_analysis = true;
+                },
+                "--memory" => {
+                    if i + 1 < args.len() {
+                        if let Ok(memory) = args[i + 1].parse::<usize>() {
+                            config.performance.max_memory_mb = memory;
+                        }
+                        i += 1;
+                    }
+                },
+                "--timeout" => {
+                    if i + 1 < args.len() {
+                        if let Ok(timeout) = args[i + 1].parse::<u64>() {
+                            config.performance.timeout_seconds = timeout;
+                        }
+                        i += 1;
+                    }
+                },
+                "--canvas-path" | "--canvas_path" => {
+                    if i + 1 < args.len() {
+                        config.set_path("canvas_path", args[i + 1].clone());
+                        i += 1;
+                    }
+                },
+                "--discourse-path" | "--discourse_path" => {
+                    if i + 1 < args.len() {
+                        config.set_path("discourse_path", args[i + 1].clone());
+                        i += 1;
+                    }
+                },
+                "--lms-path" | "--lms_path" => {
+                    if i + 1 < args.len() {
+                        config.set_path("lms_path", args[i + 1].clone());
+                        i += 1;
+                    }
+                },
+                "--moodle-path" | "--moodle_path" => {
+                    if i + 1 < args.len() {
+                        config.set_path("moodle_path", args[i + 1].clone());
+                        i += 1;
+                    }
+                },
+                "--wordpress-path" | "--wordpress_path" => {
+                    if i + 1 < args.len() {
+                        config.set_path("wordpress_path", args[i + 1].clone());
+                        i += 1;
+                    }
+                },
+                "--output-path" | "--output_path" => {
+                    if i + 1 < args.len() {
+                        config.set_path("output_path", args[i + 1].clone());
+                        i += 1;
+                    }
+                },
+                _ => {
+                    if arg.starts_with("--path=") {
+                        let parts: Vec<&str> = arg.splitn(2, '=').collect();
+                        if parts.len() == 2 {
+                            path = Some(PathBuf::from(parts[1]));
+                        }
+                    } else {
+                        println!("Warning: Unknown option '{}', ignoring", arg);
+                    }
+                }
+            }
+        }
+        // Check if this is a short option
+        else if arg.starts_with("-") {
+            match arg {
+                "-f" => command = "full",
+                "-q" => command = "quick",
+                "-p" => {
+                    if i + 1 < args.len() {
+                        path = Some(PathBuf::from(&args[i + 1]));
+                        i += 1;
+                    }
+                },
+                _ => {
+                    println!("Warning: Unknown option '{}', ignoring", arg);
+                }
+            }
+        }
+        // If it's not a command or option, treat it as a path
+        else {
+            path = Some(PathBuf::from(arg));
+        }
+
         i += 1;
     }
 
@@ -246,14 +290,36 @@ async fn main() -> Result<()> {
 
             if !canvas_dir.exists() {
                 println!("Warning: Canvas directory not found at: {}", canvas_path);
+                println!("Please specify a valid Canvas path using --canvas-path option.");
+                return Ok(());
             }
 
             if !discourse_dir.exists() {
                 println!("Warning: Discourse directory not found at: {}", discourse_path);
+                println!("Please specify a valid Discourse path using --discourse-path option.");
+                return Ok(());
             }
+
+            // Determine the output directory
+            let output_dir = match config.get_path("output_path") {
+                Some(path) => PathBuf::from(path),
+                None => base_dir.join("analysis_output")
+            };
+
+            // Create the output directory if it doesn't exist
+            if !output_dir.exists() {
+                println!("Creating output directory: {}", output_dir.display());
+                if let Err(e) = fs::create_dir_all(&output_dir) {
+                    println!("Warning: Failed to create output directory: {}", e);
+                    println!("Using current directory for output");
+                }
+            }
+
             println!("Analyzing Canvas at path: {}", canvas_path);
             println!("Analyzing Discourse at path: {}", discourse_path);
-            if let Err(e) = generators::generate_rust_source_db_visualization(canvas_path, discourse_path, &base_dir) {
+            println!("Output will be saved to: {}", output_dir.display());
+
+            if let Err(e) = generators::generate_rust_source_db_visualization(canvas_path, discourse_path, &output_dir) {
                 println!("Failed to generate source database schema visualization: {}", e);
             } else {
                 println!("Source database schema visualization generated successfully.");
@@ -291,6 +357,10 @@ async fn main() -> Result<()> {
             println!("Running Recommendation System...");
             run_recommendation_system(&base_dir, &config).await?
         },
+        "redundancy" => {
+            println!("Running Redundancy Analyzer...");
+            run_redundancy_analyzer(&base_dir, &config).await?
+        },
         "viz" => {
             println!("Generating all visualizations...");
             generate_migration_roadmap(&base_dir).await?;
@@ -323,15 +393,36 @@ async fn main() -> Result<()> {
 
             if !canvas_dir.exists() {
                 println!("Warning: Canvas directory not found at: {}", canvas_path);
+                println!("Please specify a valid Canvas path using --canvas-path option.");
+                return Ok(());
             }
 
             if !discourse_dir.exists() {
                 println!("Warning: Discourse directory not found at: {}", discourse_path);
+                println!("Please specify a valid Discourse path using --discourse-path option.");
+                return Ok(());
+            }
+
+            // Determine the output directory
+            let output_dir = match config.get_path("output_path") {
+                Some(path) => PathBuf::from(path),
+                None => base_dir.join("analysis_output")
+            };
+
+            // Create the output directory if it doesn't exist
+            if !output_dir.exists() {
+                println!("Creating output directory: {}", output_dir.display());
+                if let Err(e) = fs::create_dir_all(&output_dir) {
+                    println!("Warning: Failed to create output directory: {}", e);
+                    println!("Using current directory for output");
+                }
             }
 
             println!("Analyzing Canvas at path: {}", canvas_path);
             println!("Analyzing Discourse at path: {}", discourse_path);
-            if let Err(e) = generators::generate_rust_source_db_visualization(canvas_path, discourse_path, &base_dir) {
+            println!("Output will be saved to: {}", output_dir.display());
+
+            if let Err(e) = generators::generate_rust_source_db_visualization(canvas_path, discourse_path, &output_dir) {
                 println!("Failed to generate source database schema visualization: {}", e);
             } else {
                 println!("Source database schema visualization generated successfully.");
@@ -641,10 +732,37 @@ async fn run_analysis(base_dir: &PathBuf, config: &Config) -> Result<()> {
         )
     }, &mut metrics);
 
+    // Determine the output directory
+    let output_dir = match config.get_path("output_path") {
+        Some(path) => PathBuf::from(path),
+        None => base_dir.join("analysis_output")
+    };
+
+    // Create the output directory if it doesn't exist
+    if !output_dir.exists() {
+        println!("Creating output directory: {}", output_dir.display());
+        if let Err(e) = fs::create_dir_all(&output_dir) {
+            println!("Warning: Failed to create output directory: {}", e);
+            println!("Using current directory for output");
+        }
+    }
+
     // Write the unified output to a JSON file
-    let output_path = base_dir.join("unified_output.json");
-    let file = File::create(output_path).expect("Failed to create output file");
-    serde_json::to_writer_pretty(file, &unified_output).expect("Failed to write unified output");
+    let output_path = output_dir.join("unified_output.json");
+    println!("Writing unified output to: {}", output_path.display());
+    match File::create(&output_path) {
+        Ok(file) => {
+            if let Err(e) = serde_json::to_writer_pretty(file, &unified_output) {
+                println!("Warning: Failed to write unified output: {}", e);
+            } else {
+                println!("Successfully wrote unified output to: {}", output_path.display());
+            }
+        },
+        Err(e) => {
+            println!("Warning: Failed to create output file: {}", e);
+            println!("Analysis results will not be saved");
+        }
+    };
 
     // Generate documentation
     measure_execution_time("GenerateDocumentation", || {
@@ -715,9 +833,19 @@ async fn run_analysis(base_dir: &PathBuf, config: &Config) -> Result<()> {
     println!("\n{}", performance_report);
 
     // Save performance report
-    let report_path = PathBuf::from("C:\\Users\\Tim\\Desktop\\LMS\\docs").join("performance_report.md");
+    let docs_dir = base_dir.join("docs");
+    if !docs_dir.exists() {
+        if let Err(e) = fs::create_dir_all(&docs_dir) {
+            println!("Warning: Failed to create docs directory: {}", e);
+        }
+    }
+
+    let report_path = docs_dir.join("performance_report.md");
+    println!("Saving performance report to: {}", report_path.display());
     if let Err(e) = fs::write(&report_path, performance_report) {
-        println!("Failed to write performance report: {}", e);
+        println!("Warning: Failed to write performance report: {}", e);
+    } else {
+        println!("Successfully wrote performance report to: {}", report_path.display());
     }
 
     println!("Unified analysis completed and output written to unified_output.json");
@@ -758,8 +886,11 @@ async fn generate_migration_roadmap(base_dir: &PathBuf) -> Result<()> {
     let unified_output = serde_json::from_reader(file).expect("Failed to parse unified output");
 
     // Create output directory in the main docs folder
-    let root_docs_dir = PathBuf::from("C:\\Users\\Tim\\Desktop\\LMS\\docs");
-    std::fs::create_dir_all(&root_docs_dir).expect("Failed to create main docs directory");
+    let root_docs_dir = base_dir.join("docs");
+    if let Err(e) = std::fs::create_dir_all(&root_docs_dir) {
+        println!("Warning: Failed to create main docs directory: {}", e);
+        println!("Visualization will only be saved to the output directory");
+    }
 
     // Create output directory in output/docs for temporary files
     let output_docs_dir = base_dir.join("output").join("docs");
@@ -813,8 +944,11 @@ async fn generate_component_tree(base_dir: &PathBuf) -> Result<()> {
     let unified_output = serde_json::from_reader(file).expect("Failed to parse unified output");
 
     // Create output directory in the main docs folder
-    let root_docs_dir = PathBuf::from("C:\\Users\\Tim\\Desktop\\LMS\\docs");
-    std::fs::create_dir_all(&root_docs_dir).expect("Failed to create main docs directory");
+    let root_docs_dir = base_dir.join("docs");
+    if let Err(e) = std::fs::create_dir_all(&root_docs_dir) {
+        println!("Warning: Failed to create main docs directory: {}", e);
+        println!("Visualization will only be saved to the output directory");
+    }
 
     // Create output directory in output/docs for temporary files
     let output_docs_dir = base_dir.join("output").join("docs");
@@ -868,8 +1002,11 @@ async fn generate_api_map(base_dir: &PathBuf) -> Result<()> {
     let unified_output = serde_json::from_reader(file).expect("Failed to parse unified output");
 
     // Create output directory in the main docs folder
-    let root_docs_dir = PathBuf::from("C:\\Users\\Tim\\Desktop\\LMS\\docs");
-    std::fs::create_dir_all(&root_docs_dir).expect("Failed to create main docs directory");
+    let root_docs_dir = base_dir.join("docs");
+    if let Err(e) = std::fs::create_dir_all(&root_docs_dir) {
+        println!("Warning: Failed to create main docs directory: {}", e);
+        println!("Visualization will only be saved to the output directory");
+    }
 
     // Create output directory in output/docs for temporary files
     let output_docs_dir = base_dir.join("output").join("docs");
@@ -934,9 +1071,10 @@ async fn generate_db_schema(base_dir: &PathBuf) -> Result<()> {
 
 /// Add a recent activity entry to the activity log and update the central reference hub
 fn add_recent_activity(base_dir: &PathBuf, component: &str, description: &str, developer: &str) -> Result<()> {
-    // Use the correct base directory for the docs
-    let docs_base_dir = PathBuf::from("C:\\Users\\Tim\\Desktop\\LMS");
     println!("Adding activity: {} - {} by {}", component, description, developer);
+
+    // Use the base directory for the docs
+    let docs_base_dir = base_dir.clone();
 
     // Create an activity tracker
     let mut activity_tracker = ActivityTracker::new(&docs_base_dir, 10);
@@ -1121,12 +1259,18 @@ async fn run_full_integration_advisor(base_dir: &PathBuf, config: &Config) -> Re
     // Get paths to Canvas and Discourse codebases
     let canvas_path = match config.get_path("canvas_path") {
         Some(path) => PathBuf::from(path),
-        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\canvas"),
+        None => {
+            println!("Warning: No canvas_path specified in config. Please use --canvas-path option.");
+            PathBuf::from("./canvas")
+        },
     };
 
     let discourse_path = match config.get_path("discourse_path") {
         Some(path) => PathBuf::from(path),
-        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\discourse"),
+        None => {
+            println!("Warning: No discourse_path specified in config. Please use --discourse-path option.");
+            PathBuf::from("./discourse")
+        },
     };
 
     // Verify paths exist
@@ -1164,12 +1308,18 @@ async fn run_entity_mapper(base_dir: &PathBuf, config: &Config) -> Result<()> {
     // Get paths to Canvas, Discourse, and Ordo codebases
     let canvas_path = match config.get_path("canvas_path") {
         Some(path) => PathBuf::from(path),
-        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\canvas"),
+        None => {
+            println!("Warning: No canvas_path specified in config. Please use --canvas-path option.");
+            PathBuf::from("./canvas")
+        },
     };
 
     let discourse_path = match config.get_path("discourse_path") {
         Some(path) => PathBuf::from(path),
-        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\discourse"),
+        None => {
+            println!("Warning: No discourse_path specified in config. Please use --discourse-path option.");
+            PathBuf::from("./discourse")
+        },
     };
 
     let ordo_path = match config.get_path("lms_path") {
@@ -1209,12 +1359,18 @@ async fn run_feature_detector(base_dir: &PathBuf, config: &Config) -> Result<()>
     // Get paths to Canvas, Discourse, and Ordo codebases
     let _canvas_path = match config.get_path("canvas_path") {
         Some(path) => PathBuf::from(path),
-        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\canvas"),
+        None => {
+            println!("Warning: No canvas_path specified in config. Please use --canvas-path option.");
+            PathBuf::from("./canvas")
+        },
     };
 
     let _discourse_path = match config.get_path("discourse_path") {
         Some(path) => PathBuf::from(path),
-        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\discourse"),
+        None => {
+            println!("Warning: No discourse_path specified in config. Please use --discourse-path option.");
+            PathBuf::from("./discourse")
+        },
     };
 
     let ordo_path = match config.get_path("lms_path") {
@@ -1244,12 +1400,18 @@ async fn run_code_quality_scorer(base_dir: &PathBuf, config: &Config) -> Result<
     // Get paths to Canvas and Discourse codebases
     let canvas_path = match config.get_path("canvas_path") {
         Some(path) => PathBuf::from(path),
-        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\canvas"),
+        None => {
+            println!("Warning: No canvas_path specified in config. Please use --canvas-path option.");
+            PathBuf::from("./canvas")
+        },
     };
 
     let discourse_path = match config.get_path("discourse_path") {
         Some(path) => PathBuf::from(path),
-        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\discourse"),
+        None => {
+            println!("Warning: No discourse_path specified in config. Please use --discourse-path option.");
+            PathBuf::from("./discourse")
+        },
     };
 
     // Initialize code quality scorer
@@ -1282,12 +1444,18 @@ async fn run_conflict_checker(base_dir: &PathBuf, config: &Config) -> Result<()>
     // Get paths to Canvas, Discourse, and Ordo codebases
     let canvas_path = match config.get_path("canvas_path") {
         Some(path) => PathBuf::from(path),
-        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\canvas"),
+        None => {
+            println!("Warning: No canvas_path specified in config. Please use --canvas-path option.");
+            PathBuf::from("./canvas")
+        },
     };
 
     let discourse_path = match config.get_path("discourse_path") {
         Some(path) => PathBuf::from(path),
-        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\discourse"),
+        None => {
+            println!("Warning: No discourse_path specified in config. Please use --discourse-path option.");
+            PathBuf::from("./discourse")
+        },
     };
 
     let ordo_path = match config.get_path("lms_path") {
@@ -1332,12 +1500,18 @@ async fn run_integration_tracker(base_dir: &PathBuf, config: &Config) -> Result<
     // Get paths to Canvas, Discourse, and Ordo codebases
     let canvas_path = match config.get_path("canvas_path") {
         Some(path) => PathBuf::from(path),
-        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\canvas"),
+        None => {
+            println!("Warning: No canvas_path specified in config. Please use --canvas-path option.");
+            PathBuf::from("./canvas")
+        },
     };
 
     let discourse_path = match config.get_path("discourse_path") {
         Some(path) => PathBuf::from(path),
-        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\discourse"),
+        None => {
+            println!("Warning: No discourse_path specified in config. Please use --discourse-path option.");
+            PathBuf::from("./discourse")
+        },
     };
 
     let ordo_path = match config.get_path("lms_path") {
@@ -1387,13 +1561,21 @@ async fn run_recommendation_system(base_dir: &PathBuf, config: &Config) -> Resul
     // Get paths to Canvas, Discourse, and Ordo codebases
     let canvas_path = match config.get_path("canvas_path") {
         Some(path) => PathBuf::from(path),
-        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\canvas"),
+        None => {
+            println!("Warning: No canvas_path specified in config. Please use --canvas-path option.");
+            PathBuf::from("./canvas")
+        },
     };
 
     let discourse_path = match config.get_path("discourse_path") {
         Some(path) => PathBuf::from(path),
-        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\discourse"),
+        None => {
+            println!("Warning: No discourse_path specified in config. Please use --discourse-path option.");
+            PathBuf::from("./discourse")
+        },
     };
+
+
 
     let ordo_path = match config.get_path("lms_path") {
         Some(path) => PathBuf::from(path),
@@ -1590,12 +1772,18 @@ async fn run_helix_db_integration(base_dir: &PathBuf, config: &Config) -> Result
     // Get paths to various codebases
     let canvas_path = match config.get_path("canvas_path") {
         Some(path) => PathBuf::from(path),
-        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\canvas"),
+        None => {
+            println!("Warning: No canvas_path specified in config. Please use --canvas-path option.");
+            PathBuf::from("./canvas")
+        },
     };
 
     let discourse_path = match config.get_path("discourse_path") {
         Some(path) => PathBuf::from(path),
-        None => PathBuf::from("C:\\Users\\Tim\\Desktop\\port\\discourse"),
+        None => {
+            println!("Warning: No discourse_path specified in config. Please use --discourse-path option.");
+            PathBuf::from("./discourse")
+        },
     };
 
     let ordo_path = match config.get_path("lms_path") {
@@ -2469,6 +2657,50 @@ async fn generate_rust_code(base_dir: &PathBuf, config: &Config) -> Result<()> {
     }
 
     println!("Leptos code generation complete. Output directory: {:?}", output_dir);
+
+    Ok(())
+}
+
+async fn run_redundancy_analyzer(base_dir: &PathBuf, _config: &Config) -> Result<()> {
+    println!("---- Running Redundancy Analyzer ----");
+
+    // Create the output directory if it doesn't exist
+    let output_dir = base_dir.join("docs").join("unified-analyzer");
+    fs::create_dir_all(&output_dir)?;
+
+    // Initialize the redundancy analyzer
+    let mut redundancy_analyzer = crate::analyzers::modules::redundancy_analyzer::RedundancyAnalyzer::new(base_dir.clone());
+
+    // Load configuration if it exists
+    let config_path = base_dir.join("tools").join("unified-analyzer").join("redundancy_analyzer_config.toml");
+    if config_path.exists() {
+        println!("Loading redundancy analyzer configuration from {}", config_path.display());
+        if let Err(e) = redundancy_analyzer.load_config(&config_path) {
+            eprintln!("Error loading redundancy analyzer configuration: {}", e);
+        }
+    }
+
+    // Run the analysis
+    match redundancy_analyzer.analyze() {
+        Ok(redundancy_result) => {
+            println!("Found {} redundancy groups with {} redundant files",
+                redundancy_result.redundancy_groups.len(),
+                redundancy_result.total_redundant_files);
+
+            // Save the results to a file
+            let output_path = output_dir.join("redundancy_analysis.md");
+            if let Err(e) = redundancy_analyzer.save_results(&output_path) {
+                eprintln!("Error saving redundancy analysis results: {}", e);
+                return Err(anyhow::anyhow!("Error saving redundancy analysis results: {}", e));
+            }
+
+            println!("Redundancy analysis saved to {}", output_path.display());
+        },
+        Err(e) => {
+            eprintln!("Error analyzing redundancies: {}", e);
+            return Err(anyhow::anyhow!("Error analyzing redundancies: {}", e));
+        }
+    }
 
     Ok(())
 }

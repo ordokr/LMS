@@ -74,6 +74,7 @@ jsonwebtoken = "9.3.1"
 axum = { version = "0.7", features = ["tokio"] }
 tauri = { version = "1.4" }
 argon2 = "0.5.2"
+anyhow = "1.0"
 
 # Analyzer dependencies
 # chrono = { version = "0.4", features = ["serde"] } # Removed as it's already defined elsewhere
@@ -102,6 +103,7 @@ default = []
 bench = []
 type-sizes = []
 blockchain-full = ["libp2p/identify", "libp2p/kad"]
+standalone-quiz = []
 
 [[bench]]
 name = "blockchain_bench"
@@ -124,6 +126,10 @@ path = "src/bin/minimal_redb_test.rs"
 [[bin]]
 name = "redb-transaction-test"
 path = "src/bin/redb_transaction_test.rs"
+
+[[bin]]
+name = "quiz-standalone"
+path = "src/bin/quiz-standalone.rs"
 
 # Specify a specific version of base64 that doesn't have the issue
 [dependencies.base64]

@@ -195,6 +195,10 @@ pub struct CodeQualityMetrics {
     pub tech_debt: TechDebtMetrics,
     pub solid_violations: SolidViolations,
     pub design_patterns: DesignPatternUsage,
+    pub redundancy_groups: usize,
+    pub redundant_files: usize,
+    pub redundant_lines: usize,
+    pub estimated_reduction_percentage: f32,
 }
 
 impl Default for CodeQualityMetrics {
@@ -204,6 +208,10 @@ impl Default for CodeQualityMetrics {
             tech_debt: TechDebtMetrics::default(),
             solid_violations: SolidViolations::default(),
             design_patterns: DesignPatternUsage::default(),
+            redundancy_groups: 0,
+            redundant_files: 0,
+            redundant_lines: 0,
+            estimated_reduction_percentage: 0.0,
         }
     }
 }

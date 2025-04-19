@@ -14,6 +14,16 @@ axum = { version = "0.6", optional = true }
 sqlx = { version = "0.7.0", features = ["runtime-tokio", "sqlite", "postgres", "macros"] }
 tokio = { version = "1", features = ["full"], optional = true }
 serde = { version = "1.0", features = ["derive"] }
+wasm-bindgen = "0.2"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = ["HtmlCanvasElement", "CanvasRenderingContext2d", "Window", "Document", "Element", "DomRect", "CssStyleDeclaration"] }
+base64 = "0.13"
+oauth = "0.5"
+url = "2.3"
+zip = "0.6"
+tracing = "0.1"
+anyhow = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
 
 [workspace]
 members = [
@@ -21,10 +31,10 @@ members = [
     "blockchain-wasm",
     "modules/analyzer",
     "src/tools/migration_utility",
-    "tools/migration-test"
+    "redb-test-project"
     # "src/services/migration" - Removed as this path doesn't exist
     # "src-tauri" - Removed as it has its own workspace
-, "redb-test-project"]
+]
 [workspace.package]
 edition = "2021"
 authors = ["LMS Team"]

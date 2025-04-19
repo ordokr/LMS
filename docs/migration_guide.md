@@ -1,4 +1,4 @@
-# Canvas and Discourse Source Code Migration Guide
+# Canvas and Discourse Source Code Porting Guide
 
 > **Important Disclaimer:** This guide describes the process of porting and transforming source code and features from Canvas LMS and Discourse to Ordo. It does **not** cover data migration, user import, or live system integration. All references to “migration,” “integration,” or “import” refer solely to source code, schema, or feature porting, not to data or live system interoperability.
 
@@ -6,16 +6,18 @@ _Generated on: 2025-04-18_
 
 This guide outlines the process for porting and transforming the source code from Canvas LMS and Discourse forum systems to the Ordo platform. This guide focuses exclusively on source code and feature migration, not data migration from built applications or production systems.
 
-## Migration Overview
+## Source Code Porting Overview
 
 The source code porting process follows these high-level steps:
 
-1. **Assessment**: Analyze Canvas and Discourse source code structure
-2. **Preparation**: Set up Ordo development environment and porting tools
-3. **Code Porting**: Transform source code from Ruby/JavaScript to Rust/Haskell
+1. **Assessment**: Analyze Canvas and Discourse source code structure through static analysis
+2. **Preparation**: Set up Ordo development environment and code transformation tools
+3. **Code Transformation**: Convert source code from Ruby/JavaScript to Rust/Haskell
 4. **Validation**: Verify code functionality through tests
-5. **Integration**: Ensure all ported components work together
-6. **Documentation**: Update technical documentation for the ported codebase
+5. **Component Integration**: Ensure all transformed components work together
+6. **Documentation**: Update technical documentation for the new codebase
+
+This is a source-to-source transformation process. No data is migrated from existing deployments.
 
 ## Development Environment Requirements
 
@@ -26,9 +28,9 @@ The source code porting process follows these high-level steps:
 | **Required Tools** | Rust toolchain, Haskell toolchain, Git |
 | **Source Code** | Access to Canvas and Discourse source repositories |
 
-## Source Code Migration
+## Source Code Transformation
 
-### Canvas LMS Source Code Migration
+### Canvas LMS Source Code Transformation
 
 #### Code Structure Mapping
 
@@ -45,7 +47,7 @@ The source code porting process follows these high-level steps:
 | Background Jobs | Tokio Tasks | Medium |
 | Plugins | Modular Features | High |
 
-#### Migration Process
+#### Transformation Process
 
 ```mermaid
 graph TD
@@ -56,7 +58,7 @@ graph TD
     E --> F[Write Tests]
 ```
 
-#### Canvas Model Migration Example
+#### Canvas Model Transformation Example
 
 The migration tool analyzes Ruby models and converts them to Rust:
 
@@ -91,7 +93,7 @@ pub fn convert_canvas_model_to_rust(
 }
 ```
 
-### Discourse Source Code Migration
+### Discourse Source Code Transformation
 
 #### Code Structure Mapping
 
@@ -108,7 +110,7 @@ pub fn convert_canvas_model_to_rust(
 | Jobs | Tokio Tasks | Medium |
 | Plugins | Modular Features | High |
 
-#### Migration Process
+#### Transformation Process
 
 ```mermaid
 graph TD
@@ -119,7 +121,7 @@ graph TD
     E --> F[Write Tests]
 ```
 
-#### Discourse Frontend Migration Example
+#### Discourse Frontend Transformation Example
 
 The migration tool analyzes Ember.js components and converts them to Leptos:
 
@@ -159,7 +161,7 @@ pub fn convert_ember_component_to_leptos(
 }
 ```
 
-## Model Migration
+## Model Transformation
 
 Model definitions require special handling to ensure proper conversion:
 
@@ -168,7 +170,7 @@ Model definitions require special handling to ensure proper conversion:
 3. **Relationship Mapping**: Convert ActiveRecord relationships to Rust struct relationships
 4. **Validation Rules**: Implement validation logic in Rust
 
-### User Model Migration Example
+### User Model Transformation Example
 
 ```rust
 // Original Ruby model (app/models/user.rb):
@@ -228,9 +230,9 @@ impl User {
 }
 ```
 
-## Controller and Business Logic Migration
+## Controller and Business Logic Transformation
 
-### Controller Migration
+### Controller Transformation
 
 Controllers are migrated to Rust services and Tauri commands:
 
@@ -239,7 +241,7 @@ Controllers are migrated to Rust services and Tauri commands:
 3. Implement business logic in Rust
 4. Expose functionality through Tauri commands
 
-### Business Logic Migration
+### Business Logic Transformation
 
 Business logic requires careful analysis and conversion:
 
@@ -248,9 +250,9 @@ Business logic requires careful analysis and conversion:
 3. Ensure identical behavior through comprehensive tests
 4. Optimize for performance where appropriate
 
-## Frontend Migration
+## Frontend Transformation
 
-### View Migration
+### View Transformation
 
 Migrating views from ERB/Handlebars to Leptos components:
 
@@ -326,7 +328,7 @@ pub fn CourseView(cx: Scope, course_id: String) -> impl IntoView {
 3. **Architecture Documentation**: Document system design and component interactions
 4. **Migration Decisions**: Document key decisions made during code/feature porting
 
-## Source Code Migration Timeline
+## Source Code Transformation Timeline
 
 | Phase | Duration | Description |
 |-------|----------|-------------|

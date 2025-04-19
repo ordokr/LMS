@@ -1,0 +1,77 @@
+.modules-section {
+    margin-top: 40px;
+}
+
+.modules-section h2 {
+    font-size: 1.8rem;
+    margin-bottom: 20px;
+    color: var(--text-primary);
+}
+
+.modules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.quenti-launcher {
+    background-color: var(--bg-card);
+    border-radius: 8px;
+    padding: 24px;
+    margin: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.launcher-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--text-primary);
+}
+
+.launcher-description {
+    color: var(--text-secondary);
+    margin-bottom: 24px;
+}
+
+.launcher-button {
+    background-color: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 12px 24px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.launcher-button:hover {
+    background-color: var(--color-primary-dark);
+}
+
+.launcher-button:disabled {
+    background-color: var(--color-disabled);
+    cursor: not-allowed;
+}
+
+.launcher-error {
+    margin-top: 16px;
+    padding: 12px;
+    background-color: var(--color-danger-bg);
+    border-radius: 4px;
+    color: var(--color-danger);
+}
+
+.launcher-success {
+    margin-top: 16px;
+    padding: 12px;
+    background-color: var(--color-success-bg);
+    border-radius: 4px;
+    color: var(--color-success);
+}

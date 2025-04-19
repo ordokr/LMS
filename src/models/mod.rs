@@ -15,6 +15,7 @@ pub mod quiz_collaboration;
 pub mod quiz_template;
 pub mod quiz_ai_generation;
 pub mod quiz_adaptive_learning;
+pub mod quiz_question_types;
 
 // Network module
 pub mod network;
@@ -45,5 +46,21 @@ pub mod canvas {
     pub use self::user_model::UserModel;
 }
 
+// Entity relationship models
+pub mod entity_relationship;
+pub use entity_relationship::{EntityType, RelationshipType, EntityRelationship, EntityRelationshipGraph};
+
+// Additional entity models
+pub mod submission;
+pub mod group;
+pub mod page;
+pub mod file;
+pub mod announcement;
+
 // Re-export for backward compatibility
-pub use canvas::{User, Course, Discussion, Assignment, Notification, File, Calendar, Rubric};
+pub use canvas::{User, Course, Discussion, Assignment, Notification, Calendar, Rubric};
+pub use submission::Submission;
+pub use group::Group;
+pub use page::Page;
+pub use file::File;
+pub use announcement::Announcement;

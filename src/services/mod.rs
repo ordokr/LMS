@@ -2,21 +2,44 @@ mod forum_service;
 mod course_service;
 mod auth_service;
 mod integration_service;
+mod model_mapper;
+mod sync_service;
+mod model_conversion;
 
 pub use forum_service::ForumService;
 pub use course_service::CourseService;
 pub use auth_service::AuthService;
 pub use integration_service::IntegrationService;
+pub use model_mapper::ModelMapperService;
+pub use model_mapper::{EntityMapping, SyncStatus};
+pub use sync_service::SyncService;
+pub use sync_service::{SyncResult, SyncOptions, SyncDirection};
+pub use model_conversion::ModelConversionService;
 
 pub mod user;
 pub mod auth;
 pub mod forum;
 pub mod admin;
-pub mod notification; // Add this line
+pub mod notification;
 pub mod api;
+pub mod integration;
+pub mod api_config_service;
+pub mod sync_manager;
+pub mod error_handling_service;
+pub mod recovery_service;
+pub mod sync_strategy;
+pub mod incremental_sync_service;
+pub mod bidirectional_sync_service;
 
 pub use user::UserService;
 pub use auth::AuthService;
 pub use forum::ForumService;
 pub use admin::AdminService;
-pub use notification::NotificationService; // Add this line
+pub use notification::NotificationService;
+pub use api_config_service::{ApiConfigService, ApiConfig, CanvasConfig, DiscourseConfig};
+pub use sync_manager::{SyncManager, SyncState};
+pub use error_handling_service::{ErrorHandlingService, ErrorRecord, ErrorSeverity, ErrorCategory, ErrorHandler, ErrorHandlingExt};
+pub use recovery_service::{RecoveryService, RecoveryStrategy};
+pub use sync_strategy::{SyncStrategy, ConflictResolutionStrategy};
+pub use incremental_sync_service::IncrementalSyncService;
+pub use bidirectional_sync_service::BidirectionalSyncService;

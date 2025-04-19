@@ -56,11 +56,31 @@
         
         <div class="mermaid">
 erDiagram
-    users {
+    assignments {
         integer id
-        string username
+        string title
+        text description
+        integer course_id
+        float points_possible
+        datetime due_at
+        datetime created_at
+        datetime updated_at
+    }
+    posts {
+        integer id
+        integer topic_id
+        integer user_id
+        text raw
+        text cooked
+        datetime created_at
+        datetime updated_at
+    }
+    courses {
+        integer id
         string name
-        string email
+        integer account_id
+        integer root_account_id
+        integer enrollment_term_id
         datetime created_at
         datetime updated_at
     }
@@ -70,13 +90,27 @@ erDiagram
         datetime created_at
         datetime updated_at
     }
-    assignments {
+    users {
+        integer id
+        string username
+        string name
+        string email
+        datetime created_at
+        datetime updated_at
+    }
+    enrollments {
+        integer id
+        integer user_id
+        integer course_id
+        string type
+        datetime created_at
+        datetime updated_at
+    }
+    topics {
         integer id
         string title
-        text description
-        integer course_id
-        float points_possible
-        datetime due_at
+        integer user_id
+        integer category_id
         datetime created_at
         datetime updated_at
     }
@@ -90,45 +124,11 @@ erDiagram
         datetime created_at
         datetime updated_at
     }
-    topics {
-        integer id
-        string title
-        integer user_id
-        integer category_id
-        datetime created_at
-        datetime updated_at
-    }
-    posts {
-        integer id
-        integer topic_id
-        integer user_id
-        text raw
-        text cooked
-        datetime created_at
-        datetime updated_at
-    }
-    enrollments {
-        integer id
-        integer user_id
-        integer course_id
-        string type
-        datetime created_at
-        datetime updated_at
-    }
     categories {
         integer id
         string name
         string slug
         text description
-        datetime created_at
-        datetime updated_at
-    }
-    courses {
-        integer id
-        string name
-        integer account_id
-        integer root_account_id
-        integer enrollment_term_id
         datetime created_at
         datetime updated_at
     }

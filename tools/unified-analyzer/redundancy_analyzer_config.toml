@@ -1,0 +1,63 @@
+# Configuration for the redundancy analyzer
+
+# Minimum similarity score to consider files redundant (0-100)
+min_similarity_score = 70
+
+# File extensions to analyze
+file_extensions = [".rs", ".ts", ".js"]
+
+# Directories to exclude from analysis
+exclude_dirs = [
+    "node_modules",
+    "target",
+    "dist",
+    ".git",
+    "C:/Users/Tim/Desktop/port",
+    "C:/Users/Tim/Desktop/quenti"
+]
+
+# Maximum file size to analyze (in bytes)
+max_file_size = 1048576  # 1 MB
+
+# Known redundancy patterns to look for
+[known_patterns]
+
+# API Client patterns
+"API Client" = [
+    "canvas_client",
+    "discourse_client",
+    "api_client",
+    "http_client"
+]
+
+# Repository patterns
+"Repository" = [
+    "user_repository",
+    "course_repository",
+    "forum_repository",
+    "module_repository"
+]
+
+# Error handling patterns
+"Error Handling" = [
+    "error.rs",
+    "errors.rs",
+    "error_handler",
+    "error_handling"
+]
+
+# Utility function patterns
+"Utility" = [
+    "utils",
+    "helpers",
+    "util.rs",
+    "helper.rs"
+]
+
+# Synchronization patterns
+"Synchronization" = [
+    "sync_service",
+    "sync_manager",
+    "bidirectional_sync",
+    "incremental_sync"
+]

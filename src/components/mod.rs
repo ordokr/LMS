@@ -14,6 +14,7 @@ pub mod course_integration_settings;
 
 // Add these to your existing module definitions
 pub mod sync_history;
+pub mod quenti_launcher;
 
 pub use home::Home;
 pub use layout::AppLayout as Layout; // Export as Layout if that's what's used in routes
@@ -47,6 +48,7 @@ pub use course_integration_settings::CourseIntegrationSettings;
 // Re-export for easier imports
 pub use sync_status::SyncStatusMonitor;
 pub use sync_history::SyncHistory;
+pub use quenti_launcher::QuentiLauncher;
 
 // You'll need to create these missing components
 // or map them to existing ones

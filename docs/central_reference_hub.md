@@ -254,6 +254,15 @@ impl SyncEngine {
 
 Ordo ports Canvas LMS and Discourse forum functionality into a unified application by re-implementing their features at the source code level. **No data, user content, or live system state is imported or synchronized from existing deployments.**
 
+### Database Schema Implementation
+
+The database schema in Ordo is designed based on source code analysis of Canvas and Discourse, but it is a completely new implementation:
+
+- **Fresh Database**: Ordo creates a new, empty database with its own schema
+- **No Data Migration**: The system does not import or migrate data from existing Canvas or Discourse deployments
+- **Schema Migrations**: Database migration files in `src-tauri/migrations/` only set up the schema structure for the new application
+- **Source-Inspired Schema**: While the schema design is informed by Canvas and Discourse models, it is optimized for Ordo's offline-first architecture
+
 ### Porting Status
 
 | Feature | Source | Target | Status |
@@ -290,6 +299,11 @@ Key entity mappings between source systems and Ordo (for code and schema equival
 | - | Tags | Tags | Discourse-only |
 
 ## 📑 Documentation
+
+### Key Documentation
+
+- [Glossary of Terms](glossary.md) - Clear definitions of terminology used in the project
+- [Source Code Porting Guide](migration_guide.md) - Guide for transforming source code from Canvas and Discourse to Ordo
 
 ### Generated Documentation
 
@@ -354,7 +368,7 @@ This section contains structured information to help AI coding agents understand
       "used_by": ["api"]
     }
   },
-  "migration_scope": "source-to-source (no data migration, no live system integration)"
+  "porting_scope": "source-to-source (no data migration, no live system integration)"
 }
 ```
 

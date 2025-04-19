@@ -12,6 +12,11 @@ This module provides a comprehensive quiz system for the Ordo LMS application, p
 - **Essay Questions**: Long-form text responses
 - **Matching Questions**: Pair related items
 - **Ordering Questions**: Arrange items in the correct sequence
+- **Drawing/Sketch Questions**: Create drawings or annotate images
+- **Code Execution Questions**: Write and test code with real-time feedback
+- **Math Equation Questions**: Create and validate mathematical expressions
+- **Timeline Questions**: Arrange events in chronological order
+- **Diagram Labeling Questions**: Label parts of diagrams or images
 
 ### Study Modes
 
@@ -23,11 +28,24 @@ This module provides a comprehensive quiz system for the Ordo LMS application, p
 ### User Experience
 
 - **Responsive Design**: Works on all device sizes
-- **Offline Support**: Full functionality without internet connection
+- **Offline Support**: Full functionality without internet connection with enhanced sync capabilities:
+  - Prioritized sync queue for critical data
+  - Intelligent conflict resolution
+  - Background sync with notifications
+  - Sync status indicators
 - **Progress Tracking**: Save and resume quiz sessions
 - **Immediate Feedback**: Optional explanations for correct answers
 - **Spaced Repetition**: SM-2 algorithm for optimal learning
 - **Customizable Themes**: Match your app's design language
+
+### Enhanced Analytics
+
+- **Learning Insights Dashboard**: Personalized learning analytics
+- **Performance Visualization**: Interactive charts and graphs using Charming
+- **Comparative Analytics**: Compare performance across quizzes and users
+- **Predictive Learning Patterns**: Identify optimal study patterns
+- **Skill Mastery Tracking**: Monitor progress in specific knowledge areas
+- **Exportable Reports**: Generate and share detailed reports
 
 ## Architecture
 
@@ -140,6 +158,72 @@ The quiz module is designed to integrate seamlessly with the Ordo LMS applicatio
 2. **User Authentication**: Uses Ordo's authentication system
 3. **Theme Inheritance**: Adopts Ordo's theme settings
 4. **Offline Sync**: Works with Ordo's sync engine
+
+## External System Integration
+
+The quiz module can integrate with various external learning systems:
+
+### LTI Integration
+
+Supports Learning Tools Interoperability (LTI) standards for integration with learning management systems:
+
+- LTI 1.0, 1.1, and 1.3 support
+- Secure authentication and authorization
+- Grade passback to LMS gradebooks
+- Deep linking for seamless navigation
+
+### cmi5 Integration
+
+Supports cmi5 (an xAPI Profile) as the primary standard for e-learning integration:
+
+- Modern xAPI-based tracking and reporting
+- Content location independence (content can be hosted anywhere)
+- Support for mobile and distributed learning scenarios
+- Improved session management and state tracking
+- Detailed learning experience tracking
+
+### SCORM Compliance (Backup)
+
+Maintains compatibility with Sharable Content Object Reference Model (SCORM) as a backup standard:
+
+- SCORM 1.2 and 2004 (3rd and 4th editions) support
+- Package import and export
+- Runtime communication via SCORM API
+- Session tracking and reporting
+
+### xAPI Integration
+
+Supports Experience API (xAPI) for tracking learning experiences:
+
+- Statement generation for learning events
+- Integration with Learning Record Stores (LRS)
+- Detailed activity tracking
+- Learning analytics support
+
+### LMS Connectors
+
+Direct integration with popular learning management systems:
+
+- Canvas
+- Moodle
+- Blackboard
+- Other LMS platforms via API
+
+## Dependencies
+
+- **Leptos**: Rust framework for building web applications
+- **Tauri**: Desktop application framework
+- **SQLite**: Local database for offline storage
+- **Serde**: Serialization/deserialization library
+- **Web APIs**: For browser-specific functionality
+- **Charming**: Visualization library for analytics (preferred over Chart.js for better Rust/WASM integration)
+- **OAuth**: For LTI and external system authentication
+- **Anyhow**: Error handling
+- **Chrono**: Date and time handling
+- **xAPI**: For cmi5 and Experience API integration
+- **Zip**: For cmi5/SCORM package handling
+- **Base64**: For authentication token encoding
+- **Uuid**: For generating unique identifiers
 
 ## Performance Considerations
 

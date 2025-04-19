@@ -6,10 +6,70 @@ use anyhow::{Result, Context};
 fn main() -> Result<()> {
     println!("Generating database schema visualization...");
 
-    // Set paths
-    let canvas_path = "C:\\Users\\Tim\\Desktop\\port\\canvas";
-    let discourse_path = "C:\\Users\\Tim\\Desktop\\port\\discourse";
-    let output_dir = PathBuf::from("C:\\Users\\Tim\\Desktop\\LMS");
+    // Parse command-line arguments
+    let args: Vec<String> = std::env::args().collect();
+
+    // Default paths
+    let mut canvas_path = "C:\\Users\\Tim\\Desktop\\port\\canvas";
+    let mut discourse_path = "C:\\Users\\Tim\\Desktop\\port\\discourse";
+    let mut output_dir_str = "C:\\Users\\Tim\\Desktop\\LMS";
+
+    // Parse arguments
+    let mut i = 1;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--canvas-path" | "--canvas_path" => {
+                if i + 1 < args.len() {
+                    canvas_path = &args[i + 1];
+                    i += 1;
+                }
+            },
+            "--discourse-path" | "--discourse_path" => {
+                if i + 1 < args.len() {
+                    discourse_path = &args[i + 1];
+                    i += 1;
+                }
+            },
+            "--output-dir" | "--output_dir" => {
+                if i + 1 < args.len() {
+                    output_dir_str = &args[i + 1];
+                    i += 1;
+                }
+            },
+            "--help" | "-h" => {
+                print_help();
+                return Ok(());
+            },
+            _ => {
+                if args[i].starts_with("--") {
+                    println!("Warning: Unknown option '{}', ignoring", args[i]);
+                }
+            }
+        }
+        i += 1;
+    }
+
+    println!("Analyzing Canvas and Discourse database schema...");
+    println!("Found Canvas directory at: {}", canvas_path);
+    println!("Found Discourse directory at: {}", discourse_path);
+
+    // Ensure the paths exist
+    let canvas_dir = std::path::Path::new(canvas_path);
+    let discourse_dir = std::path::Path::new(discourse_path);
+
+    if !canvas_dir.exists() {
+        println!("Warning: Canvas directory not found at: {}", canvas_path);
+        println!("Please specify a valid Canvas path using --canvas-path option.");
+        return Ok(());
+    }
+
+    if !discourse_dir.exists() {
+        println!("Warning: Discourse directory not found at: {}", discourse_path);
+        println!("Please specify a valid Discourse path using --discourse-path option.");
+        return Ok(());
+    }
+
+    let output_dir = PathBuf::from(output_dir_str);
 
     // Create the visualizations directory if it doesn't exist
     let visualizations_dir = output_dir.join("docs").join("visualizations").join("source_db_schema");
@@ -108,16 +168,16 @@ fn generate_html_with_mermaid(mermaid_content: &str) -> Result<String> {
 <body>
     <div class="container">
         <h1>Source Database Schema</h1>
-        
+
         <div class="source-info">
             <h3>About This Visualization</h3>
             <p>This diagram shows the database schema extracted from the source code of Canvas and Discourse. It represents the core data models that will be implemented in the Ordo application.</p>
         </div>
-        
+
         <div class="mermaid">
 {mermaid_content}
         </div>
-        
+
         <div class="legend">
             <h3>Legend</h3>
             <p>Each box represents a table in the database, and the lines represent relationships between tables.</p>
@@ -146,21 +206,21 @@ fn generate_schema_summary(analyzer: &RustSourceDbAnalyzer) -> String {
     let relationships = analyzer.get_relationships();
 
     let mut summary = String::from("# Database Schema Summary\n\n");
-    
+
     // Add overview
     summary.push_str("## Overview\n\n");
     summary.push_str(&format!("- Total tables: {}\n", tables.len()));
     summary.push_str(&format!("- Total relationships: {}\n", relationships.len()));
-    
+
     // Count tables by source
     let canvas_tables = tables.iter().filter(|t| t.source == "canvas").count();
     let discourse_tables = tables.iter().filter(|t| t.source == "discourse").count();
     summary.push_str(&format!("- Canvas tables: {}\n", canvas_tables));
     summary.push_str(&format!("- Discourse tables: {}\n", discourse_tables));
-    
+
     // Add tables section
     summary.push_str("\n## Tables\n\n");
-    
+
     // Canvas tables
     summary.push_str("### Canvas Tables\n\n");
     for table in tables.iter().filter(|t| t.source == "canvas") {
@@ -172,7 +232,7 @@ fn generate_schema_summary(analyzer: &RustSourceDbAnalyzer) -> String {
         }
         summary.push_str("\n");
     }
-    
+
     // Discourse tables
     summary.push_str("### Discourse Tables\n\n");
     for table in tables.iter().filter(|t| t.source == "discourse") {
@@ -184,19 +244,30 @@ fn generate_schema_summary(analyzer: &RustSourceDbAnalyzer) -> String {
         }
         summary.push_str("\n");
     }
-    
+
     // Add relationships section
     summary.push_str("\n## Relationships\n\n");
     summary.push_str("| From Table | To Table | Cardinality | Description |\n");
     summary.push_str("|------------|----------|-------------|-------------|\n");
     for rel in relationships {
-        summary.push_str(&format!("| {} | {} | {} | {} |\n", 
-            rel.from_table, 
-            rel.to_table, 
-            rel.cardinality, 
+        summary.push_str(&format!("| {} | {} | {} | {} |\n",
+            rel.from_table,
+            rel.to_table,
+            rel.cardinality,
             rel.name
         ));
     }
-    
+
     summary
+}
+
+fn print_help() {
+    println!("Database Schema Visualization Tool");
+    println!("Usage: db_schema_viz [options]");
+    println!("");
+    println!("Options:");
+    println!("  --canvas-path PATH    Path to Canvas codebase");
+    println!("  --discourse-path PATH Path to Discourse codebase");
+    println!("  --output-dir PATH     Path to output directory");
+    println!("  --help, -h            Show this help message");
 }
